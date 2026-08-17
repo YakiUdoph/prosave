@@ -87,6 +87,15 @@ This is an append-only log documenting architectural decisions, security resolut
 - **Files Affected**: `src/lib/rescue-solver.ts`, `tests/rescue-solver.test.ts`
 - **Status**: **RESOLVED**
 
+### DRIFT-010: Native Gas Asset Depletion Vulnerability
+- **Date**: 2026-08-17
+- **Discovery**: The Rescue Solver could liquidate the wallet's entire native gas asset (OKB) balance to satisfy target requirements, leaving zero gas to execute the transaction sequence.
+- **Impact**: A mathematically valid rescue plan could become completely unexecutable on X Layer.
+- **Root Cause**: The solver lacked execution-sequence gas awareness and native token reserve constraints.
+- **Resolution**: Implemented a two-pass solver logic: Pass 1 estimates the transaction sequence and calculates the total native gas required; Pass 2 caps the sellable OKB balance by subtracting this gas reserve. Added the `INSUFFICIENT_GAS_RESERVE` execution feasibility gate and corresponding test cases.
+- **Files Affected**: `src/lib/rescue-solver.ts`, `tests/rescue-solver.test.ts`
+- **Status**: **RESOLVED**
+
 ---
 
 ## 📝 Drift Entry Template

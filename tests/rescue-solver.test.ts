@@ -2,7 +2,7 @@ import { solveRescue, calculatePlanScore, type LiquidateAction } from "../src/li
 import { type ScannedAsset } from "../src/lib/xlayer";
 import { type SaveIntent } from "../src/lib/intent-parser";
 
-// Corrected Canonical Portfolio Fixture (USDC = $180, OKB = $300, TKX = $210, ETH = $420)
+// Baseline Canonical Portfolio (USDC = $180, OKB = $300, TKX = $210, ETH = $420)
 // Total Value = $1,110
 const canonicalPortfolio: ScannedAsset[] = [
   {
@@ -295,7 +295,6 @@ function runTests() {
   const totalExpectedTargetAsset = existingTargetAsset + planB_B.actions.reduce((sum, a) => sum + (a.quote?.outputAmount || 0), 0);
   const remainingTarget = Math.max(0, targetAmount - totalExpectedTargetAsset);
   
-  // Assert sum of outputs matches target with float precision tolerance
   if (Math.abs(totalExpectedTargetAsset - targetAmount) < 0.01 && remainingTarget < 0.01) {
     console.log(`✅ Passed (Accounting identity holds: Total Net Expected = ${totalExpectedTargetAsset.toFixed(4)} USDC, Shortfall = ${remainingTarget.toFixed(4)})`);
   } else {
@@ -308,7 +307,6 @@ function runTests() {
   const ethActionB = planB_B.actions.find((a) => a.symbol === "ETH")!;
   const originalEthAmount = ethActionB.sellAmount;
   
-  // If we reduce proposed ETH sale by even a tiny fraction, it must fail target
   const reducedEthAmount = originalEthAmount - 0.0005;
   const reducedEthNetOutput = reducedEthAmount * 2871.73 * (1 - 0.001 - 0.0005);
   const otherNetOutputs = planB_B.actions
@@ -318,7 +316,6 @@ function runTests() {
   
   const isReducedInfeasible = reducedTotal < targetAmount - 0.01;
   
-  // If we increase proposed ETH sale unnecessarily, it must penalize score
   const increasedEthAction: LiquidateAction = {
     symbol: "ETH",
     sellAmount: originalEthAmount + 0.05,
@@ -362,6 +359,66 @@ function runTests() {
   } else {
     passed = false;
     console.log("❌ Failed (Score inconsistency detected)");
+  }
+
+  // Scenario N: Native Gas Reserve Capping & Capping Verification
+  console.log("\nScenario N: Native Gas Reserve Capping");
+  const okbActionB = planB_B.actions.find((a) => a.symbol === "OKB")!;
+  const expectedGasConsumed = planB_B.gasCostUsd / 47.17; // expected gas consumed in OKB
+  const remainingOKB = 6.3600 - okbActionB.sellAmount - expectedGasConsumed;
+  
+  if (okbActionB.sellAmount < 6.3600 && Math.abs(remainingOKB) < 0.0001) {
+    console.log(`✅ Passed (Capped OKB swap to reserve gas: sold ${okbActionB.sellAmount.toFixed(4)} OKB, reserved ${expectedGasConsumed.toFixed(4)} OKB for gas, remaining OKB = ${remainingOKB.toFixed(4)})`);
+  } else {
+    passed = false;
+    console.log(`❌ Failed (OKB sold: ${okbActionB.sellAmount}, remaining: ${remainingOKB})`);
+  }
+
+  // Scenario O: Insufficient Native Gas Rejection
+  console.log("\nScenario O: Insufficient Native Gas Rejection");
+  const lowGasPortfolio = canonicalPortfolio.map((p) => {
+    if (p.symbol === "OKB") {
+      return { ...p, balance: "0.01", value: 0.47 }; // Almost no OKB for gas
+    }
+    return p;
+  });
+  
+  const resLowGas = solveRescue(lowGasPortfolio, intentB);
+  if (resLowGas.rejected.some((r) => r.reason === "INSUFFICIENT_GAS_RESERVE")) {
+    console.log("✅ Passed (Low gas portfolio successfully triggered INSUFFICIENT_GAS_RESERVE)");
+  } else {
+    passed = false;
+    console.log("❌ Failed (Did not reject plan on insufficient gas)");
+  }
+
+  // Scenario P: Score Breakdown Sum Equals final Damage Score
+  console.log("\nScenario P: Score Breakdown Sum Invariance");
+  let breakdownSumMatched = true;
+  for (const plan of resB.plans) {
+    const sum = plan.damageBreakdown.protectedAssetViolation +
+                plan.damageBreakdown.executionCostPenalty +
+                plan.damageBreakdown.slippagePenalty +
+                plan.damageBreakdown.priceImpactPenalty +
+                plan.damageBreakdown.txCountPenalty -
+                plan.damageBreakdown.riskReductionBenefit -
+                plan.damageBreakdown.reliabilityBenefit;
+                
+    const baseDamageConst = 25;
+    const unmetTargetPenalty = plan.targetMet ? 0 : 15;
+    
+    const expectedDamage = Math.max(0, Math.min(100, Math.round(baseDamageConst + unmetTargetPenalty + sum)));
+    
+    if (expectedDamage !== plan.damageScore) {
+      breakdownSumMatched = false;
+      console.log(`   Plan ${plan.id} sum mismatch: Sum+Base = ${expectedDamage}, Reported = ${plan.damageScore}`);
+    }
+  }
+  
+  if (breakdownSumMatched) {
+    console.log("✅ Passed (Sum of score breakdown components equals final Damage Score exactly)");
+  } else {
+    passed = false;
+    console.log("❌ Failed (Score breakdown sum mismatch)");
   }
 
   console.log("\n==================================================");
