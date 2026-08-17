@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
+import { scanPortfolio, type ScannedAsset, type DataSource } from "./xlayer";
 
 type SaveState = {
   panic: boolean;
@@ -16,6 +17,11 @@ type SaveState = {
   disconnectWallet: () => void;
   error: string | null;
   setError: (err: string | null) => void;
+  portfolio: ScannedAsset[];
+  rpcStatus: "online" | "offline";
+  totalPortfolioValue: number;
+  isScanning: boolean;
+  scanWalletPortfolio: () => Promise<void>;
 };
 
 const SaveContext = createContext<SaveState | null>(null);
@@ -29,6 +35,12 @@ export function SaveProvider({ children }: { children: ReactNode }) {
   const [chainId, setChainId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // Portfolio states
+  const [portfolio, setPortfolio] = useState<ScannedAsset[]>([]);
+  const [rpcStatus, setRpcStatus] = useState<"online" | "offline">("offline");
+  const [totalPortfolioValue, setTotalPortfolioValue] = useState<number>(4832); // approved UI baseline default
+  const [isScanning, setIsScanning] = useState(false);
+
   const setPanic = useCallback((v: boolean) => setPanicState(v), []);
 
   useEffect(() => {
@@ -36,6 +48,26 @@ export function SaveProvider({ children }: { children: ReactNode }) {
     root.classList.toggle("panic", panic);
     return () => root.classList.remove("panic");
   }, [panic]);
+
+  const disconnectWallet = useCallback(() => {
+    setWalletAddress(null);
+    setChainId(null);
+    setConnected(false);
+  }, []);
+
+  const scanWalletPortfolio = useCallback(async () => {
+    setIsScanning(true);
+    try {
+      const result = await scanPortfolio(walletAddress);
+      setPortfolio(result.assets);
+      setRpcStatus(result.rpcStatus);
+      setTotalPortfolioValue(result.totalValue);
+    } catch (err: any) {
+      console.error("X Layer portfolio scan failed:", err);
+    } finally {
+      setIsScanning(false);
+    }
+  }, [walletAddress]);
 
   // Handle auto-connect and listeners
   useEffect(() => {
@@ -64,20 +96,31 @@ export function SaveProvider({ children }: { children: ReactNode }) {
             provider.on("chainChanged", (newChainIdHex: string) => {
               setChainId(parseInt(newChainIdHex, 16));
             });
+          } else {
+            // Disconnected: load demo baseline portfolio
+            const result = await scanPortfolio(null);
+            setPortfolio(result.assets);
+            setRpcStatus(result.rpcStatus);
+            setTotalPortfolioValue(result.totalValue);
           }
         } catch (err) {
           console.error("Auto-connect check failed:", err);
         }
+      } else {
+        // No wallet: load demo baseline portfolio
+        const result = await scanPortfolio(null);
+        setPortfolio(result.assets);
+        setRpcStatus(result.rpcStatus);
+        setTotalPortfolioValue(result.totalValue);
       }
     };
     checkConnection();
   }, []);
 
-  const disconnectWallet = useCallback(() => {
-    setWalletAddress(null);
-    setChainId(null);
-    setConnected(false);
-  }, []);
+  // Automatically scan portfolio when wallet address changes
+  useEffect(() => {
+    scanWalletPortfolio();
+  }, [walletAddress, scanWalletPortfolio]);
 
   const connectWallet = useCallback(async () => {
     setError(null);
@@ -170,8 +213,32 @@ export function SaveProvider({ children }: { children: ReactNode }) {
       disconnectWallet,
       error,
       setError,
+      portfolio,
+      rpcStatus,
+      totalPortfolioValue,
+      isScanning,
+      scanWalletPortfolio,
     }),
-    [panic, setPanic, connected, intent, selectedPlan, walletAddress, chainId, connectWallet, disconnectWallet, error],
+    [
+      panic,
+      setPanic,
+      connected,
+      setConnected,
+      intent,
+      setIntent,
+      selectedPlan,
+      setSelectedPlan,
+      walletAddress,
+      chainId,
+      connectWallet,
+      disconnectWallet,
+      error,
+      portfolio,
+      rpcStatus,
+      totalPortfolioValue,
+      isScanning,
+      scanWalletPortfolio,
+    ],
   );
 
   return <SaveContext.Provider value={value}>{children}</SaveContext.Provider>;
@@ -182,4 +249,5 @@ export function useSave() {
   if (!ctx) throw new Error("useSave must be used inside SaveProvider");
   return ctx;
 }
+
 

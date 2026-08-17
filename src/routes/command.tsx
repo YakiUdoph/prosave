@@ -12,7 +12,7 @@ import {
 import { PortfolioAssetCard } from "@/components/save/portfolio-asset-card";
 import { RiskMeter } from "@/components/save/risk-meter";
 import { ScoreDial } from "@/components/save/score-dial";
-import { PORTFOLIO, PORTFOLIO_VALUE, POTENTIAL_EXPOSURE, PROTECTION_METRICS } from "@/lib/save-data";
+import { PROTECTION_METRICS } from "@/lib/save-data";
 import { useSave } from "@/lib/save-context";
 
 export const Route = createFileRoute("/command")({
@@ -35,7 +35,12 @@ export const Route = createFileRoute("/command")({
 });
 
 function CommandCenter() {
-  const { panic } = useSave();
+  const { panic, portfolio, totalPortfolioValue } = useSave();
+
+  const highRiskValue = portfolio.filter((a) => a.risk === "high").reduce((sum, a) => sum + a.value, 0);
+  const mediumRiskValue = portfolio.filter((a) => a.risk === "medium").reduce((sum, a) => sum + a.value, 0);
+  const exposureValue = highRiskValue + Math.round(mediumRiskValue * 0.133);
+  const flaggedCount = portfolio.filter((a) => a.risk === "high" || a.risk === "medium").length;
 
   return (
     <PageShell
@@ -70,21 +75,23 @@ function CommandCenter() {
             <Panel className="p-5">
               <Eyebrow>Portfolio value</Eyebrow>
               <p className="mt-3 text-3xl font-semibold tracking-tight">
-                <AnimatedNumber value={PORTFOLIO_VALUE} prefix="$" />
+                <AnimatedNumber value={totalPortfolioValue} prefix="$" />
               </p>
             </Panel>
             <Panel className="p-5" alert={panic}>
               <Eyebrow>Potential exposure</Eyebrow>
               <p className="mt-3 flex items-center gap-2 text-3xl font-semibold tracking-tight text-danger">
                 <TrendingDown className="size-5" />
-                <AnimatedNumber value={Math.abs(POTENTIAL_EXPOSURE)} prefix="-$" />
+                <AnimatedNumber value={exposureValue} prefix="-$" />
               </p>
             </Panel>
             <Panel className="p-5">
               <Eyebrow>Protection status</Eyebrow>
-              <p className="mt-3 text-lg font-semibold tracking-tight text-warn">Needs Attention</p>
-              <StatusPill tone="warn" className="mt-3">
-                2 positions flagged
+              <p className="mt-3 text-lg font-semibold tracking-tight text-warn">
+                {flaggedCount > 0 ? "Needs Attention" : "Optimal Protection"}
+              </p>
+              <StatusPill tone={flaggedCount > 0 ? "warn" : "safe"} className="mt-3">
+                {flaggedCount > 0 ? `${flaggedCount} position${flaggedCount > 1 ? "s" : ""} flagged` : "All risks mitigated"}
               </StatusPill>
             </Panel>
           </div>
@@ -94,7 +101,7 @@ function CommandCenter() {
           </Panel>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            {PORTFOLIO.map((asset, i) => (
+            {portfolio.map((asset, i) => (
               <PortfolioAssetCard key={asset.symbol} asset={asset} delay={i * 70} />
             ))}
           </div>
@@ -130,3 +137,4 @@ function CommandCenter() {
     </PageShell>
   );
 }
+

@@ -4,7 +4,8 @@ import { ArrowRight, Radar } from "lucide-react";
 import { PageShell } from "@/components/save/page-shell";
 import { Eyebrow, MagneticButton, Panel, ProgressBar, StatusPill } from "@/components/save/primitives";
 import { PortfolioAssetCard } from "@/components/save/portfolio-asset-card";
-import { PORTFOLIO, SCAN_STEPS } from "@/lib/save-data";
+import { SCAN_STEPS } from "@/lib/save-data";
+import { useSave } from "@/lib/save-context";
 
 export const Route = createFileRoute("/scan")({
   head: () => ({
@@ -26,6 +27,7 @@ export const Route = createFileRoute("/scan")({
 });
 
 function Scan() {
+  const { portfolio } = useSave();
   const [step, setStep] = useState(0);
 
   useEffect(() => {
@@ -79,7 +81,7 @@ function Scan() {
         </Panel>
 
         <div className="grid gap-4 sm:grid-cols-2">
-          {PORTFOLIO.map((asset, i) =>
+          {portfolio.map((asset, i) =>
             i < Math.max(step, 1) ? (
               <PortfolioAssetCard key={asset.symbol} asset={asset} delay={i * 60} scanning={!complete} />
             ) : (
@@ -91,3 +93,4 @@ function Scan() {
     </PageShell>
   );
 }
+
