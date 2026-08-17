@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import type { ReactNode } from "react";
 import { scanPortfolio, type ScannedAsset, type DataSource } from "./xlayer";
 import { parseSaveIntent, type SaveIntent } from "./intent-parser";
+import { solveRescue, type RescueResult } from "./rescue-solver";
 
 type SaveState = {
   panic: boolean;
@@ -11,6 +12,7 @@ type SaveState = {
   intent: string;
   setIntent: (v: string) => void;
   parsedIntent: SaveIntent;
+  rescueResult: RescueResult;
   selectedPlan: "A" | "B" | "C";
   setSelectedPlan: (v: "A" | "B" | "C") => void;
   walletAddress: string | null;
@@ -43,6 +45,10 @@ export function SaveProvider({ children }: { children: ReactNode }) {
   // Portfolio states
   const [portfolio, setPortfolio] = useState<ScannedAsset[]>([]);
   const [rpcStatus, setRpcStatus] = useState<"online" | "offline">("offline");
+
+  const rescueResult = useMemo(() => {
+    return solveRescue(portfolio, parsedIntent);
+  }, [portfolio, parsedIntent]);
   const [totalPortfolioValue, setTotalPortfolioValue] = useState<number>(4832); // approved UI baseline default
   const [isScanning, setIsScanning] = useState(false);
 
@@ -216,6 +222,7 @@ export function SaveProvider({ children }: { children: ReactNode }) {
       intent,
       setIntent,
       parsedIntent,
+      rescueResult,
       selectedPlan,
       setSelectedPlan,
       walletAddress,
@@ -238,6 +245,7 @@ export function SaveProvider({ children }: { children: ReactNode }) {
       intent,
       setIntent,
       parsedIntent,
+      rescueResult,
       selectedPlan,
       setSelectedPlan,
       walletAddress,
