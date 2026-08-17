@@ -1,3 +1,8 @@
+/**
+ * SAVE X Layer Interface
+ * Secure client-side RPC infrastructure (no private keys or dedicated endpoint tokens allowed).
+ * Live balance source of truth is the EIP-1193 connected browser wallet address.
+ */
 import { createPublicClient, fallback, http, formatEther, formatUnits } from "viem";
 import { defineChain } from "viem/utils";
 
