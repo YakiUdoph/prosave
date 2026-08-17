@@ -66,6 +66,119 @@ const MAX_PRICE_IMPACT = 5.0; // Max 5% price impact
 const MAX_SLIPPAGE = 3.0; // Max 3% slippage
 
 /**
+ * Calculates a plan's damage and SAVE score strictly from measurable properties.
+ * Identical actions and route metrics will yield identical scores regardless of plan label.
+ */
+export function calculatePlanScore(
+  targetMet: boolean,
+  securedAmount: number,
+  requiredTarget: number,
+  actions: LiquidateAction[],
+  portfolio: ScannedAsset[],
+  intent: SaveIntent
+) {
+  // 1. Base Damage (15 point shortfall penalty if goal is not achieved)
+  let damageScore = 25;
+  if (!targetMet) {
+    damageScore += 15;
+  }
+
+  // 2. Protected asset violation penalty
+  let protectedViolationPenalty = 0;
+  const protectedInPortfolio = portfolio.filter((p) => intent.protectedAssets.includes(p.symbol));
+  const totalProtectedVal = protectedInPortfolio.reduce((sum, a) => sum + a.value, 0);
+
+  const protectedActions = actions.filter((act) => intent.protectedAssets.includes(act.symbol));
+  const soldProtectedVal = protectedActions.reduce((sum, act) => sum + act.usdValue, 0);
+
+  if (soldProtectedVal > 0) {
+    if (intent.protectedAssetPolicy === "STRICT") {
+      protectedViolationPenalty = 90; // Strict protection breach penalty
+    } else {
+      // Proportional penalty for LAST_RESORT sale
+      const fractionSold = totalProtectedVal > 0 ? soldProtectedVal / totalProtectedVal : 0;
+      protectedViolationPenalty = fractionSold * 50;
+    }
+  }
+
+  // 3. Execution cost (Gas) penalty
+  const totalGas = actions.reduce((sum, act) => sum + (act.quote?.gasCostUsd || 0), 0);
+  const executionCostPenalty = Math.min(10, (totalGas / 20) * 10);
+
+  // 4. Slippage and Price Impact weighted averages
+  let totalSlippage = 0;
+  let totalPriceImpact = 0;
+  let totalReliability = 0;
+  let totalWeight = 0;
+
+  for (const act of actions) {
+    if (act.quote) {
+      totalSlippage += act.quote.slippagePercent * act.usdValue;
+      totalPriceImpact += act.quote.priceImpactPercent * act.usdValue;
+      totalReliability += act.quote.reliabilityScore * act.usdValue;
+      totalWeight += act.usdValue;
+    }
+  }
+
+  const avgSlippage = totalWeight > 0 ? totalSlippage / totalWeight : 0;
+  const avgPriceImpact = totalWeight > 0 ? totalPriceImpact / totalWeight : 0;
+  const avgReliability = totalWeight > 0 ? totalReliability / totalWeight : 0.95;
+
+  const slippagePenalty = Math.min(15, (avgSlippage / MAX_SLIPPAGE) * 15);
+  const priceImpactPenalty = Math.min(15, (avgPriceImpact / MAX_PRICE_IMPACT) * 15);
+
+  // 5. Unnecessary liquidation penalty (liquidating significantly more than required)
+  const allowedTolerance = 10.0; // Allowed $10 safety buffer
+  const excessLiquidation = Math.max(0, securedAmount - requiredTarget - allowedTolerance);
+  const totalPortfolioVal = portfolio.reduce((sum, a) => sum + a.value, 0);
+  const unnecessaryLiquidationPenalty = totalPortfolioVal > 0 ? (excessLiquidation / totalPortfolioVal) * 20 : 0;
+
+  // 6. Risk reduction benefit (exiting high-risk assets reduces damage)
+  const soldHighRisk = actions.filter((act) => {
+    const orig = portfolio.find((p) => p.symbol === act.symbol);
+    return orig?.risk === "high";
+  });
+  const totalHighRiskVal = portfolio.filter((p) => p.risk === "high").reduce((sum, a) => sum + a.value, 0);
+  const exitedHighRiskVal = soldHighRisk.reduce((sum, a) => sum + a.usdValue, 0);
+  const riskReductionBenefit = totalHighRiskVal > 0 ? (exitedHighRiskVal / totalHighRiskVal) * 15 : 0;
+
+  // 7. Reliability benefit
+  const reliabilityBenefit = avgReliability * 10;
+
+  // 8. Tx count penalty
+  const txCountPenalty = (actions.length - 1) * 3;
+
+  // Aggregate raw damage score
+  const rawDamage =
+    damageScore +
+    protectedViolationPenalty +
+    executionCostPenalty +
+    slippagePenalty +
+    priceImpactPenalty +
+    txCountPenalty +
+    unnecessaryLiquidationPenalty -
+    riskReductionBenefit -
+    reliabilityBenefit;
+
+  const finalDamageScore = Math.max(0, Math.min(100, Math.round(rawDamage)));
+  const finalSaveScore = 100 - finalDamageScore;
+
+  return {
+    saveScore: finalSaveScore,
+    damageScore: finalDamageScore,
+    breakdown: {
+      protectedAssetViolation: Math.round(protectedViolationPenalty),
+      executionCostPenalty: Math.round(executionCostPenalty),
+      slippagePenalty: Math.round(slippagePenalty),
+      priceImpactPenalty: Math.round(priceImpactPenalty),
+      riskReductionBenefit: Math.round(riskReductionBenefit),
+      reliabilityBenefit: Math.round(reliabilityBenefit),
+      txCountPenalty: Math.round(txCountPenalty),
+    },
+  };
+}
+
+/**
  * Deterministically solves for the best multi-asset liquidation strategy.
  */
 export function solveRescue(
@@ -83,7 +196,7 @@ export function solveRescue(
     return result;
   }
 
-  // 1. Identify existing target holdings (e.g. USDC already in wallet)
+  // 1. Identify existing target holdings
   const targetSymbol = intent.targetAsset || "USDC";
   const targetAsset = portfolio.find((a) => a.symbol === targetSymbol);
   const existingUSDC = targetAsset ? parseFloat(targetAsset.balance) : 0;
@@ -91,7 +204,6 @@ export function solveRescue(
   const requiredTarget = Math.max(0, intent.targetAmount - existingUSDC);
 
   // 2. Fetch mock/fixture route quote parameters for assets to target asset
-  // Live OKX aggregations are integrated in Step 6.
   const getMockQuote = (symbol: string, inputAmount: number): RouteQuote => {
     const isEth = symbol === "ETH";
     const isOkb = symbol === "OKB";
@@ -105,13 +217,17 @@ export function solveRescue(
       slippagePercent: isEth ? 0.10 : isOkb ? 0.15 : 1.20,
       priceImpactPercent: isEth ? 0.05 : isOkb ? 0.08 : 0.95,
       reliabilityScore: isEth ? 0.99 : isOkb ? 0.99 : 0.88,
-      provider: "OKX DEX Aggregator (ElfomoFi)",
+      provider: "OKX DEX Aggregator",
       dataSource: "demo",
     };
   };
 
-  // Extract non-target assets
   const candidates = portfolio.filter((a) => a.symbol !== targetSymbol);
+
+  // Group assets
+  const highRiskAssets = candidates.filter((a) => a.risk === "high");
+  const mediumRiskAssets = candidates.filter((a) => a.risk === "medium" && !intent.protectedAssets.includes(a.symbol));
+  const protectedAssets = candidates.filter((a) => intent.protectedAssets.includes(a.symbol));
 
   // ----------------------------------------------------
   // PLAN B: SAVE RECOMMENDED (Deterministic preservation)
@@ -119,15 +235,6 @@ export function solveRescue(
   let planBTargetRemaining = requiredTarget;
   const planBActions: LiquidateAction[] = [];
   let planBGas = 0;
-  let planBSlippageSum = 0;
-  let planBPriceImpactSum = 0;
-  let planBReliabilitySum = 0;
-  let planBVolumeSum = 0;
-
-  // Group assets: sell high risk (TKX) first, then normal (OKB), then protected (ETH) only if LAST_RESORT
-  const highRiskAssets = candidates.filter((a) => a.risk === "high");
-  const mediumRiskAssets = candidates.filter((a) => a.risk === "medium" && !intent.protectedAssets.includes(a.symbol));
-  const protectedAssets = candidates.filter((a) => intent.protectedAssets.includes(a.symbol));
 
   const planBSellSequence = [...highRiskAssets, ...mediumRiskAssets];
 
@@ -142,7 +249,6 @@ export function solveRescue(
 
     const quote = getMockQuote(asset.symbol, balance);
 
-    // Filter out unsafe price impact or slippage
     if (quote.priceImpactPercent > MAX_PRICE_IMPACT || quote.slippagePercent > MAX_SLIPPAGE) {
       result.rejected.push({
         name: `Liquidation of ${asset.symbol} via OKX`,
@@ -155,7 +261,6 @@ export function solveRescue(
     const maxOutput = quote.outputAmount;
 
     if (maxOutput <= planBTargetRemaining) {
-      // Liquidate entire holding
       planBActions.push({
         symbol: asset.symbol,
         sellAmount: balance,
@@ -164,12 +269,7 @@ export function solveRescue(
       });
       planBTargetRemaining -= maxOutput;
       planBGas += quote.gasCostUsd;
-      planBSlippageSum += quote.slippagePercent * maxOutput;
-      planBPriceImpactSum += quote.priceImpactPercent * maxOutput;
-      planBReliabilitySum += quote.reliabilityScore * maxOutput;
-      planBVolumeSum += maxOutput;
     } else {
-      // Partial liquidation
       const fraction = planBTargetRemaining / maxOutput;
       const sellAmount = balance * fraction;
       const partialQuote = getMockQuote(asset.symbol, sellAmount);
@@ -182,10 +282,6 @@ export function solveRescue(
       });
       planBTargetRemaining = 0;
       planBGas += partialQuote.gasCostUsd;
-      planBSlippageSum += partialQuote.slippagePercent * planBTargetRemaining;
-      planBPriceImpactSum += partialQuote.priceImpactPercent * planBTargetRemaining;
-      planBReliabilitySum += partialQuote.reliabilityScore * planBTargetRemaining;
-      planBVolumeSum += planBTargetRemaining;
     }
   }
 
@@ -212,10 +308,6 @@ export function solveRescue(
         });
         planBTargetRemaining -= maxOutput;
         planBGas += quote.gasCostUsd;
-        planBSlippageSum += quote.slippagePercent * maxOutput;
-        planBPriceImpactSum += quote.priceImpactPercent * maxOutput;
-        planBReliabilitySum += quote.reliabilityScore * maxOutput;
-        planBVolumeSum += maxOutput;
         planBProtectedPreserved = 0;
       } else {
         const fraction = planBTargetRemaining / maxOutput;
@@ -230,30 +322,21 @@ export function solveRescue(
         });
         planBTargetRemaining = 0;
         planBGas += partialQuote.gasCostUsd;
-        planBSlippageSum += partialQuote.slippagePercent * planBTargetRemaining;
-        planBPriceImpactSum += partialQuote.priceImpactPercent * planBTargetRemaining;
-        planBReliabilitySum += partialQuote.reliabilityScore * planBTargetRemaining;
-        planBVolumeSum += planBTargetRemaining;
         planBProtectedPreserved = Math.round((1 - fraction) * 100);
       }
     }
   }
 
   const planBTargetMet = planBTargetRemaining <= 0;
-  const planBSecured = intent.targetAmount - planBTargetRemaining;
+  const planBSecured = requiredTarget - planBTargetRemaining;
 
   // ----------------------------------------------------
-  // PLAN A: MAX LIQUIDITY (Sell high liquidity first, ignores protection)
+  // PLAN A: MAX LIQUIDITY (Sell ETH first, ignores protection)
   // ----------------------------------------------------
   let planATargetRemaining = requiredTarget;
   const planAActions: LiquidateAction[] = [];
   let planAGas = 0;
-  let planASlippageSum = 0;
-  let planAPriceImpactSum = 0;
-  let planAReliabilitySum = 0;
-  let planAVolumeSum = 0;
 
-  // Plan A sells ETH (most liquid) first, then OKB, then TKX
   const planASellSequence = [...protectedAssets, ...mediumRiskAssets, ...highRiskAssets];
   let planAProtectedPreserved = 100;
 
@@ -279,10 +362,6 @@ export function solveRescue(
       });
       planATargetRemaining -= maxOutput;
       planAGas += quote.gasCostUsd;
-      planASlippageSum += quote.slippagePercent * maxOutput;
-      planAPriceImpactSum += quote.priceImpactPercent * maxOutput;
-      planAReliabilitySum += quote.reliabilityScore * maxOutput;
-      planAVolumeSum += maxOutput;
       if (isProtected) planAProtectedPreserved = 0;
     } else {
       const fraction = planATargetRemaining / maxOutput;
@@ -297,10 +376,6 @@ export function solveRescue(
       });
       planATargetRemaining = 0;
       planAGas += partialQuote.gasCostUsd;
-      planASlippageSum += partialQuote.slippagePercent * planATargetRemaining;
-      planAPriceImpactSum += partialQuote.priceImpactPercent * planATargetRemaining;
-      planAReliabilitySum += partialQuote.reliabilityScore * planATargetRemaining;
-      planAVolumeSum += planATargetRemaining;
       if (isProtected) {
         planAProtectedPreserved = Math.round((1 - fraction) * 100);
       }
@@ -308,20 +383,15 @@ export function solveRescue(
   }
 
   const planATargetMet = planATargetRemaining <= 0;
-  const planASecured = intent.targetAmount - planATargetRemaining;
+  const planASecured = requiredTarget - planATargetRemaining;
 
   // ----------------------------------------------------
-  // PLAN C: MAX PRESERVATION (Sell TKX only, refuse others)
+  // PLAN C: MAX PRESERVATION (Sell TKX only, preserve others)
   // ----------------------------------------------------
   let planCTargetRemaining = requiredTarget;
   const planCActions: LiquidateAction[] = [];
   let planCGas = 0;
-  let planCSlippageSum = 0;
-  let planCPriceImpactSum = 0;
-  let planCReliabilitySum = 0;
-  let planCVolumeSum = 0;
 
-  // Plan C only liquidates high-risk exposure assets (TKX)
   for (const asset of highRiskAssets) {
     if (planCTargetRemaining <= 0) break;
 
@@ -342,10 +412,6 @@ export function solveRescue(
       });
       planCTargetRemaining -= maxOutput;
       planCGas += quote.gasCostUsd;
-      planCSlippageSum += quote.slippagePercent * maxOutput;
-      planCPriceImpactSum += quote.priceImpactPercent * maxOutput;
-      planCReliabilitySum += quote.reliabilityScore * maxOutput;
-      planCVolumeSum += maxOutput;
     } else {
       const fraction = planCTargetRemaining / maxOutput;
       const sellAmount = balance * fraction;
@@ -359,133 +425,20 @@ export function solveRescue(
       });
       planCTargetRemaining = 0;
       planCGas += partialQuote.gasCostUsd;
-      planCSlippageSum += partialQuote.slippagePercent * planCTargetRemaining;
-      planCPriceImpactSum += partialQuote.priceImpactPercent * planCTargetRemaining;
-      planCReliabilitySum += partialQuote.reliabilityScore * planCTargetRemaining;
-      planCVolumeSum += planCTargetRemaining;
     }
   }
 
   const planCTargetMet = planCTargetRemaining <= 0;
-  const planCSecured = intent.targetAmount - planCTargetRemaining;
+  const planCSecured = requiredTarget - planCTargetRemaining;
 
-  // ----------------------------------------------------
-  // SCORING MODULE
-  // ----------------------------------------------------
-  const calculateScores = (
-    id: "A" | "B" | "C",
-    targetMet: boolean,
-    actions: LiquidateAction[],
-    preservedPercent: number,
-    gasCostUsd: number
-  ) => {
-    // 1. Protected asset violation penalty (STRICT = fails, LAST_RESORT = penalty based on amount sold)
-    let protectedViolationPenalty = 0;
-    const hasSoldProtected = actions.some((act) => intent.protectedAssets.includes(act.symbol));
-
-    if (hasSoldProtected) {
-      if (intent.protectedAssetPolicy === "STRICT") {
-        protectedViolationPenalty = 90; // Severe penalty for STRICT breach
-      } else {
-        protectedViolationPenalty = (1 - preservedPercent / 100) * 50; // proportional penalty
-      }
-    }
-
-    // 2. Execution cost penalty
-    const executionCostPenalty = Math.min(10, (gasCostUsd / 15) * 10);
-
-    // 3. Average slippage & price impact penalties
-    let totalSlippage = 0;
-    let totalPriceImpact = 0;
-    let totalReliability = 0;
-    let totalWeight = 0;
-
-    for (const act of actions) {
-      if (act.quote) {
-        totalSlippage += act.quote.slippagePercent * act.usdValue;
-        totalPriceImpact += act.quote.priceImpactPercent * act.usdValue;
-        totalReliability += act.quote.reliabilityScore * act.usdValue;
-        totalWeight += act.usdValue;
-      }
-    }
-
-    const avgSlippage = totalWeight > 0 ? totalSlippage / totalWeight : 0;
-    const avgPriceImpact = totalWeight > 0 ? totalPriceImpact / totalWeight : 0;
-    const avgReliability = totalWeight > 0 ? totalReliability / totalWeight : 0.95;
-
-    const slippagePenalty = Math.min(15, (avgSlippage / MAX_SLIPPAGE) * 15);
-    const priceImpactPenalty = Math.min(15, (avgPriceImpact / MAX_PRICE_IMPACT) * 15);
-
-    // 4. Risk reduction benefits (exiting high-risk TKX exposure adds positive score)
-    const soldHighRisk = actions.filter((act) => {
-      const orig = portfolio.find((p) => p.symbol === act.symbol);
-      return orig?.risk === "high";
-    });
-    const totalHighRiskVal = portfolio.filter((p) => p.risk === "high").reduce((s, a) => s + a.value, 0);
-    const exitedHighRiskVal = soldHighRisk.reduce((s, a) => s + a.usdValue, 0);
-    const riskReductionBenefit = totalHighRiskVal > 0 ? (exitedHighRiskVal / totalHighRiskVal) * 15 : 10;
-
-    // 5. Reliability benefit
-    const reliabilityBenefit = avgReliability * 10;
-
-    // 6. Tx count penalty
-    const txCountPenalty = (actions.length - 1) * 3;
-
-    // Sum damage score
-    let baseDamage = id === "B" ? 12 : id === "A" ? 40 : 25;
-    if (!targetMet) baseDamage += 15; // penalty if goal is not achieved
-
-    const damageScore = Math.max(
-      0,
-      Math.min(
-        100,
-        Math.round(
-          baseDamage +
-            protectedViolationPenalty +
-            executionCostPenalty +
-            slippagePenalty +
-            priceImpactPenalty +
-            txCountPenalty -
-            riskReductionBenefit -
-            reliabilityBenefit
-        )
-      )
-    );
-
-    // SAVE score is 100 - damageScore
-    // Plan B canonical targets around 82
-    let saveScore = 100 - damageScore;
-    if (id === "B" && targetMet && preservedPercent === 100) {
-      saveScore = 82; // Force canonical score target alignment for demo consistency
-    } else if (id === "A") {
-      saveScore = Math.min(saveScore, 48); // Plan A has high damage
-    } else if (id === "C") {
-      saveScore = Math.min(saveScore, 70); // Plan C fails target
-    }
-
-    return {
-      saveScore,
-      damageScore: 100 - saveScore,
-      breakdown: {
-        protectedAssetViolation: Math.round(protectedViolationPenalty),
-        executionCostPenalty: Math.round(executionCostPenalty),
-        slippagePenalty: Math.round(slippagePenalty),
-        priceImpactPenalty: Math.round(priceImpactPenalty),
-        riskReductionBenefit: Math.round(riskReductionBenefit),
-        reliabilityBenefit: Math.round(reliabilityBenefit),
-        txCountPenalty: Math.round(txCountPenalty),
-      },
-    };
-  };
-
-  // Compile Plan A
-  const scoresA = calculateScores("A", planATargetMet, planAActions, planAProtectedPreserved, planAGas);
+  // Compile Scores via label-invariant formula
+  const scoresA = calculatePlanScore(planATargetMet, planASecured, requiredTarget, planAActions, portfolio, intent);
   const planA: CandidatePlan = {
     id: "A",
     name: "Plan A: Max Liquidity",
     description: "Prioritizes deep liquidity routes to secure funds rapidly.",
     targetMet: planATargetMet,
-    securedAmount: planASecured,
+    securedAmount: planASecured + existingUSDC,
     actions: planAActions,
     protectedPreservedPercent: planAProtectedPreserved,
     gasCostUsd: planAGas,
@@ -497,14 +450,13 @@ export function solveRescue(
     whyRecommended: "Secures required liquidity with a single transaction but incurs severe protection violations.",
   };
 
-  // Compile Plan B
-  const scoresB = calculateScores("B", planBTargetMet, planBActions, planBProtectedPreserved, planBGas);
+  const scoresB = calculatePlanScore(planBTargetMet, planBSecured, requiredTarget, planBActions, portfolio, intent);
   const planB: CandidatePlan = {
     id: "B",
     name: "Plan B: SAVE Recommended",
     description: "Optimizes capital retrieval while preserving designated protected assets.",
     targetMet: planBTargetMet,
-    securedAmount: planBSecured,
+    securedAmount: planBSecured + existingUSDC,
     actions: planBActions,
     protectedPreservedPercent: planBProtectedPreserved,
     gasCostUsd: planBGas,
@@ -516,14 +468,13 @@ export function solveRescue(
     whyRecommended: "Achieves target liquidity while fully preserving your protected ETH holdings.",
   };
 
-  // Compile Plan C
-  const scoresC = calculateScores("C", planCTargetMet, planCActions, 100, planCGas);
+  const scoresC = calculatePlanScore(planCTargetMet, planCSecured, requiredTarget, planCActions, portfolio, intent);
   const planC: CandidatePlan = {
     id: "C",
     name: "Plan C: Max Preservation",
     description: "Refuses to liquidate key strategic reserves, limiting trades to high-risk assets.",
     targetMet: planCTargetMet,
-    securedAmount: planCSecured,
+    securedAmount: planCSecured + existingUSDC,
     actions: planCActions,
     protectedPreservedPercent: 100,
     gasCostUsd: planCGas,
@@ -535,7 +486,7 @@ export function solveRescue(
     whyRecommended: "Fails to meet the target but completely guarantees no swaps on ETH or OKB.",
   };
 
-  // STRICT protection gate check: If STRICT and plan has protection violations, mark as invalid/filtered
+  // STRICT protection check
   const hasStrictA = intent.protectedAssetPolicy === "STRICT" && planAProtectedPreserved < 100;
   const hasStrictB = intent.protectedAssetPolicy === "STRICT" && planBProtectedPreserved < 100;
 
@@ -564,11 +515,9 @@ export function solveRescue(
   // Set recommended winner from available candidates
   const validPlans = result.plans.filter((p) => p.targetMet);
   if (validPlans.length > 0) {
-    // Recommend plan with highest saveScore
     const bestPlan = validPlans.reduce((prev, current) => (prev.saveScore > current.saveScore ? prev : current));
     result.recommendedPlanId = bestPlan.id;
   } else {
-    // Fallback to Plan C if target met is impossible
     result.recommendedPlanId = "C";
   }
 

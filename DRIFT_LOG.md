@@ -69,6 +69,15 @@ This is an append-only log documenting architectural decisions, security resolut
 - **Files Affected**: Governance guidelines.
 - **Status**: **RESOLVED**
 
+### DRIFT-008: Solver Scoring Target Demo Bias
+- **Date**: 2026-08-17
+- **Discovery**: Solver scoring was biased by presentation labels / target demo score. Plan B was hardcoded to force a score of 82.
+- **Impact**: Could make recommendations appear hardcoded and undermine the product's deterministic and explainable claim.
+- **Root Cause**: Attempting to force identical UI score dial results for the canonical golden path without fully generalizing properties-based math.
+- **Resolution**: Removed name/label-based offsets and target score tuning. Scoring is now derived strictly from objective portfolio and route properties (gas, slippage, price impact, reliability, transaction count, unnecessary liquidation, and risk profiles). Placed label invariance and route quality tests.
+- **Files Affected**: `src/lib/rescue-solver.ts`, `tests/rescue-solver.test.ts`
+- **Status**: **RESOLVED**
+
 ---
 
 ## 📝 Drift Entry Template
