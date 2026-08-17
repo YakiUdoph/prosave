@@ -4,7 +4,6 @@ import { BrainCircuit } from "lucide-react";
 import { PageShell } from "@/components/save/page-shell";
 import { Eyebrow, Panel, StatusPill } from "@/components/save/primitives";
 import { AIIntentBox } from "@/components/save/intent-box";
-import { PARSED_INTENT } from "@/lib/save-data";
 import { useSave } from "@/lib/save-context";
 
 export const Route = createFileRoute("/intent")({
@@ -28,8 +27,41 @@ export const Route = createFileRoute("/intent")({
 
 function Intent() {
   const navigate = useNavigate();
-  const { intent, setIntent } = useSave();
+  const { intent, setIntent, parsedIntent } = useSave();
   const [parsed, setParsed] = useState(false);
+
+  const formattedIntent = [
+    {
+      label: "Target",
+      value: parsedIntent.targetAmount
+        ? `${parsedIntent.targetAmount.toLocaleString("en-US")} ${parsedIntent.targetAsset || "USDC"}`
+        : "None",
+    },
+    {
+      label: "Protected",
+      value: parsedIntent.protectedAssets.length > 0 ? parsedIntent.protectedAssets.join(", ") : "None",
+    },
+    {
+      label: "Objective",
+      value:
+        parsedIntent.objective === "MINIMIZE_DAMAGE"
+          ? "Minimum portfolio damage"
+          : parsedIntent.objective === "REDUCE_RISK"
+            ? "Reduce risk"
+            : parsedIntent.objective === "EXIT_EXPOSURE"
+              ? "Exit exposure"
+              : "Maximize liquidity",
+    },
+    {
+      label: "Policy",
+      value:
+        parsedIntent.protectedAssetPolicy === "LAST_RESORT"
+          ? parsedIntent.protectedAssets.includes("ETH")
+            ? "Sell ETH only as last resort"
+            : "Sell protected only as last resort"
+          : "Never sell protected assets",
+    },
+  ];
 
   return (
     <PageShell
@@ -55,7 +87,7 @@ function Intent() {
         <Panel className="p-6">
           <Eyebrow>Extracted constraints</Eyebrow>
           <dl className="mt-5 divide-y divide-border">
-            {PARSED_INTENT.map((row, i) => (
+            {formattedIntent.map((row, i) => (
               <div
                 key={row.label}
                 className="flex items-center justify-between gap-6 py-4 transition-opacity duration-700"
@@ -76,3 +108,4 @@ function Intent() {
     </PageShell>
   );
 }
+

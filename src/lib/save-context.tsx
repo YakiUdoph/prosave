@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { scanPortfolio, type ScannedAsset, type DataSource } from "./xlayer";
+import { parseSaveIntent, type SaveIntent } from "./intent-parser";
 
 type SaveState = {
   panic: boolean;
@@ -9,6 +10,7 @@ type SaveState = {
   setConnected: (v: boolean) => void;
   intent: string;
   setIntent: (v: string) => void;
+  parsedIntent: SaveIntent;
   selectedPlan: "A" | "B" | "C";
   setSelectedPlan: (v: "A" | "B" | "C") => void;
   walletAddress: string | null;
@@ -29,7 +31,10 @@ const SaveContext = createContext<SaveState | null>(null);
 export function SaveProvider({ children }: { children: ReactNode }) {
   const [panic, setPanicState] = useState(false);
   const [connected, setConnected] = useState(false);
-  const [intent, setIntent] = useState("Get me $700 USDC. Don't sell my ETH unless necessary.");
+  const [intent, setIntentState] = useState("Get me $700 USDC. Don't sell my ETH unless necessary.");
+  const [parsedIntent, setParsedIntent] = useState<SaveIntent>(() =>
+    parseSaveIntent("Get me $700 USDC. Don't sell my ETH unless necessary.")
+  );
   const [selectedPlan, setSelectedPlan] = useState<"A" | "B" | "C">("B");
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
   const [chainId, setChainId] = useState<number | null>(null);
@@ -42,6 +47,11 @@ export function SaveProvider({ children }: { children: ReactNode }) {
   const [isScanning, setIsScanning] = useState(false);
 
   const setPanic = useCallback((v: boolean) => setPanicState(v), []);
+
+  const setIntent = useCallback((v: string) => {
+    setIntentState(v);
+    setParsedIntent(parseSaveIntent(v));
+  }, []);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -205,6 +215,7 @@ export function SaveProvider({ children }: { children: ReactNode }) {
       setConnected,
       intent,
       setIntent,
+      parsedIntent,
       selectedPlan,
       setSelectedPlan,
       walletAddress,
@@ -226,6 +237,7 @@ export function SaveProvider({ children }: { children: ReactNode }) {
       setConnected,
       intent,
       setIntent,
+      parsedIntent,
       selectedPlan,
       setSelectedPlan,
       walletAddress,
