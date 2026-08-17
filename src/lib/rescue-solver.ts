@@ -12,6 +12,8 @@ export type RouteQuote = {
   reliabilityScore: number; // 0 to 1
   provider: string;
   dataSource: DataSource;
+  spenderAddress?: string;
+  chainIndex?: number;
 };
 
 export type LiquidateAction = {
@@ -231,6 +233,8 @@ export function solveRescue(
       reliabilityScore: isEth ? 0.99 : isOkb ? 0.99 : 0.88,
       provider: "OKX DEX Aggregator",
       dataSource: "demo",
+      spenderAddress: "0x1111111254fb6c44bac0bed2854e76f90643097d",
+      chainIndex: 1952,
     };
   };
 

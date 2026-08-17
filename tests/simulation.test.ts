@@ -1,10 +1,9 @@
 import { simulatePlan, type PreparedTransaction } from "../src/lib/simulation";
-import { solveRescue } from "../src/lib/rescue-solver";
+import { solveRescue, type CandidatePlan } from "../src/lib/rescue-solver";
 import { type ScannedAsset } from "../src/lib/xlayer";
 import { type SaveIntent } from "../src/lib/intent-parser";
 
 // Baseline Canonical Portfolio (USDC = $180, OKB = $300, TKX = $210, ETH = $420)
-// Total Value = $1,110
 const canonicalPortfolio: ScannedAsset[] = [
   {
     symbol: "ETH",
@@ -96,7 +95,7 @@ const intentStrict: SaveIntent = {
 
 function runTests() {
   console.log("==================================================");
-  console.log("             RUNNING SIMULATION SYSTEM TESTS      ");
+  console.log("             RUNNING SIMULATION HARDENING TESTS   ");
   console.log("==================================================");
 
   let passed = true;
@@ -106,12 +105,12 @@ function runTests() {
   const planB = resRescue.plans.find((p) => p.id === "B")!;
   const planA = resRescue.plans.find((p) => p.id === "A")!;
 
-  // A. Valid plan becomes SIMULATION_READY
-  console.log("\nTest A: Valid Plan Simulation readiness");
   const connectedAddress = "0x9812A2b918D3b584dC81E3b584dc81E3B584dc81";
   const connectedChainId = 1952; // X Layer Testnet
   const freshQuoteTimestamp = Date.now();
 
+  // Test A: Valid plan becomes SIMULATION_READY
+  console.log("\nTest A: Valid Plan Simulation readiness");
   const simA = simulatePlan(
     intentB,
     planB,
@@ -123,15 +122,15 @@ function runTests() {
   );
 
   if (simA.success && simA.preparedTransactions.length > 0) {
-    console.log("✅ Passed (Valid plan yields SIMULATION_READY status and transaction list)");
+    console.log("✅ Passed (Valid plan yields SIMULATION_READY status)");
   } else {
     passed = false;
     console.log(`❌ Failed (Expected simulation success, got: ${JSON.stringify(simA)})`);
   }
 
-  // B. Stale quote is rejected
+  // Test B: Stale quote is rejected
   console.log("\nTest B: Stale Quote rejection");
-  const staleTimestamp = Date.now() - 75 * 1000; // 75 seconds ago (exceeds 1-minute stale limit)
+  const staleTimestamp = Date.now() - 75 * 1000;
   const simB = simulatePlan(
     intentB,
     planB,
@@ -143,15 +142,14 @@ function runTests() {
   );
 
   if (!simB.success && simB.reason === "QUOTE_STALE") {
-    console.log("✅ Passed (Stale quote successfully rejected with QUOTE_STALE reason)");
+    console.log("✅ Passed (Stale quote successfully rejected with QUOTE_STALE)");
   } else {
     passed = false;
     console.log(`❌ Failed (Expected rejection with QUOTE_STALE, got: ${JSON.stringify(simB)})`);
   }
 
-  // C. Insufficient OKB gas reserve is rejected
+  // Test C: Insufficient OKB gas reserve is rejected
   console.log("\nTest C: Insufficient native gas reserve rejection");
-  // Modify portfolio to reflect very low OKB balance ($0.05 worth)
   const lowGasPortfolio: ScannedAsset[] = canonicalPortfolio.map((p) => {
     if (p.symbol === "OKB") {
       return { ...p, balance: "0.001", value: 0.05 };
@@ -159,7 +157,6 @@ function runTests() {
     return p;
   });
 
-  // Re-run solver to get plan under low gas
   const resLowGas = solveRescue(lowGasPortfolio, intentB);
   const planBLowGas = resLowGas.plans.find((p) => p.id === "B");
 
@@ -175,38 +172,36 @@ function runTests() {
     );
 
     if (!simC.success && simC.reason === "INSUFFICIENT_GAS_RESERVE") {
-      console.log("✅ Passed (Exhausted native gas reserve correctly fails execution readiness with INSUFFICIENT_GAS_RESERVE)");
+      console.log("✅ Passed (Exhausted native gas reserve correctly rejected)");
     } else {
       passed = false;
-      console.log(`❌ Failed (Expected simulation failure with INSUFFICIENT_GAS_RESERVE, got: ${JSON.stringify(simC)})`);
+      console.log(`❌ Failed (Expected simulation failure, got: ${JSON.stringify(simC)})`);
     }
   } else {
-    // If solver itself rejected the plan during solveRescue because it was infeasible, that also satisfies safety checks!
-    console.log("✅ Passed (Solver safely blocked plan generation during solveRescue due to low native gas)");
+    console.log("✅ Passed (Solver blocked plan generation during solveRescue due to low native gas)");
   }
 
-  // D. Wrong network is rejected
+  // Test D: Wrong network is rejected
   console.log("\nTest D: Wrong network rejection");
   const simD = simulatePlan(
     intentB,
     planB,
     canonicalPortfolio,
     connectedAddress,
-    1, // Ethereum Mainnet instead of 1952
+    1,
     freshQuoteTimestamp,
     "DEMO_SIMULATION"
   );
 
   if (!simD.success && simD.reason === "WRONG_NETWORK") {
-    console.log("✅ Passed (Mismatch connected network correctly rejected with WRONG_NETWORK)");
+    console.log("✅ Passed (Mismatch connected network correctly rejected)");
   } else {
     passed = false;
     console.log(`❌ Failed (Expected WRONG_NETWORK error, got: ${JSON.stringify(simD)})`);
   }
 
-  // E. Protected asset constraint violation is rejected
+  // Test E: Protected asset constraint violation is rejected
   console.log("\nTest E: Protected asset constraint violation check");
-  // Plan A sells ETH under STRICT policy
   const simE = simulatePlan(
     intentStrict,
     planA,
@@ -218,63 +213,132 @@ function runTests() {
   );
 
   if (!simE.success && simE.reason === "PROTECTED_ASSET_VIOLATION") {
-    console.log("✅ Passed (Strict protected asset sale correctly rejected with PROTECTED_ASSET_VIOLATION)");
+    console.log("✅ Passed (Strict protection sale rejected with PROTECTED_ASSET_VIOLATION)");
   } else {
     passed = false;
     console.log(`❌ Failed (Expected PROTECTED_ASSET_VIOLATION, got: ${JSON.stringify(simE)})`);
   }
 
-  // F. Approval-needed state is surfaced
-  console.log("\nTest F: Approval required state is surfaced");
-  const appRequired = simA.requiredApprovals.find((a) => a.token === "TKX");
-  if (appRequired && appRequired.approvalNeeded && appRequired.spender === "0x1111111254fb6c44bac0bed2854e76f90643097d") {
-    console.log("✅ Passed (Token allowance requirement surfaced for TKX with OKX Spender)");
+  // Test F: No universal hardcoded spender is used
+  console.log("\nTest F: Spender is dynamically extracted from quote (No universal spender)");
+  // If we modify Plan B to have quotes with different spender addresses, it should populate those different spender addresses
+  const customPlan: CandidatePlan = JSON.parse(JSON.stringify(planB));
+  const tkxAction = customPlan.actions.find(a => a.symbol === "TKX")!;
+  tkxAction.quote!.spenderAddress = "0x2222222222222222222222222222222222222222";
+  
+  const simF = simulatePlan(
+    intentB,
+    customPlan,
+    canonicalPortfolio,
+    connectedAddress,
+    connectedChainId,
+    freshQuoteTimestamp,
+    "DEMO_SIMULATION"
+  );
+
+  const tkxApp = simF.requiredApprovals.find(a => a.token === "TKX")!;
+  if (simF.success && tkxApp.spender === "0x2222222222222222222222222222222222222222") {
+    console.log("✅ Passed (Spender address is dynamically extracted from quote: 0x2222...)");
   } else {
     passed = false;
-    console.log(`❌ Failed (Allowance requirement missing or incorrect: ${JSON.stringify(simA.requiredApprovals)})`);
+    console.log(`❌ Failed (Spender address was not dynamic: ${JSON.stringify(tkxApp)})`);
   }
 
-  // G. Native OKB does not require ERC-20 approval
-  console.log("\nTest G: Native Gas token requires zero approvals check");
-  const okbApproval = simA.requiredApprovals.find((a) => a.token === "OKB");
-  if (!okbApproval) {
-    console.log("✅ Passed (OKB excluded from ERC-20 approval requirements)");
+  // Test G: Native OKB has no ERC-20 approval requirement
+  console.log("\nTest G: Native OKB has no approval requirement");
+  const okbApp = simA.requiredApprovals.find(a => a.token === "OKB");
+  if (!okbApp) {
+    console.log("✅ Passed (Native OKB correctly excluded from approval requirements)");
   } else {
     passed = false;
-    console.log("❌ Failed (Native OKB was flagged requiring approval!)");
+    console.log("❌ Failed (Native OKB should not require approval)");
   }
 
-  // H. Demo route cannot become LIVE_CONFIRMED
-  console.log("\nTest H: Demo simulation provenance restriction");
-  if (simA.provenance === "DEMO") {
-    console.log("✅ Passed (Simulation result preserves DEMO provenance flag)");
+  // Test H: ERC-20 with unknown spender cannot become READY_TO_SIGN
+  console.log("\nTest H: ERC-20 with unknown spender is rejected");
+  const planUnknownSpender: CandidatePlan = JSON.parse(JSON.stringify(planB));
+  const tkxAct = planUnknownSpender.actions.find(a => a.symbol === "TKX")!;
+  tkxAct.quote!.spenderAddress = ""; // Empty/unknown spender
+
+  const simH = simulatePlan(
+    intentB,
+    planUnknownSpender,
+    canonicalPortfolio,
+    connectedAddress,
+    connectedChainId,
+    freshQuoteTimestamp,
+    "DEMO_SIMULATION"
+  );
+
+  if (!simH.success && simH.reason === "UNKNOWN_SPENDER") {
+    console.log("✅ Passed (Unknown spender rejected with UNKNOWN_SPENDER error status)");
   } else {
     passed = false;
-    console.log(`❌ Failed (Expected DEMO provenance, got: ${simA.provenance})`);
+    console.log(`❌ Failed (Expected UNKNOWN_SPENDER rejection, got: ${JSON.stringify(simH)})`);
   }
 
-  // I. Mismatch chain/environment is rejected
-  console.log("\nTest I: Mismatch transaction chain/environment check");
-  const wrongChainTx = simA.preparedTransactions.every((tx) => tx.chainId === 1952 && tx.environment === "testnet");
-  if (wrongChainTx && connectedChainId === 1952) {
-    console.log("✅ Passed (Constructed transactions chain ID 1952 matches connect wallet network 1952)");
+  // Test I: Mainnet approval cannot be applied to Testnet wallet
+  console.log("\nTest I: Mainnet approval rejected on Testnet wallet");
+  const planMainnetApproval: CandidatePlan = JSON.parse(JSON.stringify(planB));
+  const ethAct = planMainnetApproval.actions.find(a => a.symbol === "ETH")!;
+  ethAct.quote!.chainIndex = 196; // Mainnet X Layer index
+  
+  // Set quotes as live source to bypass unknown spender checks under LIVE_SIMULATION
+  planMainnetApproval.actions.forEach((act) => {
+    if (act.quote) {
+      act.quote.dataSource = "live";
+    }
+  });
+
+  const simI = simulatePlan(
+    intentB,
+    planMainnetApproval,
+    canonicalPortfolio,
+    connectedAddress,
+    connectedChainId,
+    freshQuoteTimestamp,
+    "LIVE_SIMULATION"
+  );
+
+  if (!simI.success && simI.reason === "WRONG_NETWORK") {
+    console.log("✅ Passed (Mainnet quote/approval index 196 rejected on Testnet wallet chain index 1952)");
   } else {
     passed = false;
-    console.log("❌ Failed (Transactions constructed for mismatch environment or chain index)");
+    console.log(`❌ Failed (Expected WRONG_NETWORK rejection, got: ${JSON.stringify(simI)})`);
   }
 
-  // J. Simulation cannot fabricate transaction hash
-  console.log("\nTest J: No fabrication of transaction hashes");
+  // Test J: DEMO approval requirement remains DEMO
+  console.log("\nTest J: DEMO approval status remains DEMO");
+  const simJ = simulatePlan(
+    intentB,
+    planB,
+    canonicalPortfolio,
+    connectedAddress,
+    connectedChainId,
+    freshQuoteTimestamp,
+    "DEMO_SIMULATION"
+  );
+
+  const tkxAppJ = simJ.requiredApprovals.find(a => a.token === "TKX")!;
+  if (simJ.success && tkxAppJ.verificationStatus === "DEMO" && simJ.provenance === "DEMO") {
+    console.log("✅ Passed (Verification status locked to DEMO under demo simulation)");
+  } else {
+    passed = false;
+    console.log(`❌ Failed (Expected verification status DEMO, got: ${tkxAppJ.verificationStatus})`);
+  }
+
+  // Test K: No fabrication of transaction hashes
+  console.log("\nTest K: No fabrication of transaction hashes");
   const hasTxHash = simA.preparedTransactions.some((tx: any) => tx.txHash || tx.hash);
   if (!hasTxHash) {
-    console.log("✅ Passed (Prepared transaction payload contains no fabricated transaction hash)");
+    console.log("✅ Passed (Prepared transactions contain zero fabricated hashes)");
   } else {
     passed = false;
-    console.log("❌ Failed (Fabricated transaction hash leaked inside prepared transaction payload!)");
+    console.log("❌ Failed (Fabricated transaction hashes leaked!)");
   }
 
   console.log("\n==================================================");
-  console.log(passed ? "Summary: All Simulation Tests Passed" : "Summary: Simulation Tests Failed");
+  console.log(passed ? "Summary: All Simulation Hardening Tests Passed" : "Summary: Tests Failed");
   console.log("==================================================");
 
   if (!passed) {

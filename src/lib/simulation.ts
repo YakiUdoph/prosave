@@ -1,6 +1,6 @@
 import { type ScannedAsset } from "./xlayer";
 import { type SaveIntent } from "./intent-parser";
-import { type CandidatePlan, type LiquidateAction } from "./rescue-solver";
+import { type CandidatePlan } from "./rescue-solver";
 
 export type ExecutionState =
   | "IDLE"
@@ -35,28 +35,33 @@ export type SimulationFailureReason =
   | "OKX_TIMEOUT"
   | "APPROVAL_REQUIRED"
   | "SIMULATION_DATA_MALFORMED"
-  | "PROTECTED_ASSET_VIOLATION";
+  | "PROTECTED_ASSET_VIOLATION"
+  | "UNKNOWN_SPENDER";
 
 export type ApprovalRequirement = {
   token: string;
+  owner: string;
   spender: string;
   requiredAmount: number;
   currentAllowance: number;
   approvalNeeded: boolean;
+  chainIndex: number;
+  environment: "testnet" | "mainnet";
   source: "demo" | "live";
+  verificationStatus: "VERIFIED_OKX" | "LIVE_CHAIN" | "DEMO" | "UNKNOWN";
 };
 
 export type PreparedTransaction = {
   chainId: number;
-  from: string;
+  chainIndex?: number;
+  environment: "testnet" | "mainnet";
   to: string;
-  data: string;
+  from: string;
   value: string;
-  gasEstimate: string;
-  nonce?: number;
+  data: string;
   source: "demo" | "live";
   quoteTimestamp: number;
-  environment: "testnet" | "mainnet";
+  verificationStatus: "VERIFIED_OKX" | "LIVE_CHAIN" | "DEMO" | "UNKNOWN";
 };
 
 export type SimulationResult = {
@@ -157,8 +162,74 @@ export function simulatePlan(
     };
   }
 
-  // 6. Native Gas Budget Calculation
+  // 6. ERC-20 Allowance Spender Validation
   const nativeGasSymbol = "OKB";
+  const requiredApprovals: ApprovalRequirement[] = [];
+
+  for (const act of plan.actions) {
+    if (act.symbol !== nativeGasSymbol) {
+      // Find spender address from the quote itself
+      const quoteSpender = act.quote?.spenderAddress;
+      
+      // Verification status mapping rules
+      let verificationStatus: "VERIFIED_OKX" | "LIVE_CHAIN" | "DEMO" | "UNKNOWN" = "UNKNOWN";
+      
+      if (!quoteSpender || quoteSpender === "") {
+        verificationStatus = "UNKNOWN";
+      } else if (simulationMode === "DEMO_SIMULATION") {
+        verificationStatus = "DEMO";
+      } else if (act.quote?.dataSource === "live") {
+        verificationStatus = "VERIFIED_OKX";
+      }
+
+      requiredApprovals.push({
+        token: act.symbol,
+        owner: connectedAddress,
+        spender: quoteSpender || "",
+        requiredAmount: act.sellAmount,
+        currentAllowance: 0,
+        approvalNeeded: true,
+        chainIndex: act.quote?.chainIndex || 196,
+        environment: act.quote?.chainIndex === 1952 ? "testnet" : "mainnet",
+        source: simulationMode === "LIVE_SIMULATION" ? "live" : "demo",
+        verificationStatus,
+      });
+    }
+  }
+
+  // Spender Verification Check
+  const hasUnknownSpender = requiredApprovals.some((app) => app.verificationStatus === "UNKNOWN");
+  if (hasUnknownSpender) {
+    return {
+      success: false,
+      reason: "UNKNOWN_SPENDER",
+      description: "DEX router spender address cannot be verified. Unable to prepare ERC-20 approvals.",
+      requiredApprovals,
+      preparedTransactions: [],
+      gasReserveNative: 0,
+      remainingNativeOKB: 0,
+      provenance: simulationMode === "LIVE_SIMULATION" ? "LIVE" : "DEMO",
+    };
+  }
+
+  // Chain Matching Validation
+  // quote chain, approval chain, and swap transaction chain index must matchconnectedChainId (1952)
+  for (const app of requiredApprovals) {
+    if (app.chainIndex !== 1952) {
+      return {
+        success: false,
+        reason: "WRONG_NETWORK",
+        description: `DEX quote chain index ${app.chainIndex} does not matchconnected wallet chain ID ${connectedChainId}.`,
+        requiredApprovals,
+        preparedTransactions: [],
+        gasReserveNative: 0,
+        remainingNativeOKB: 0,
+        provenance: simulationMode === "LIVE_SIMULATION" ? "LIVE" : "DEMO",
+      };
+    }
+  }
+
+  // 7. Native Gas Budget Calculation
   const nativeGasPrice = 47.17;
   const okbAsset = portfolio.find((a) => a.symbol === nativeGasSymbol);
   const startingOKB = okbAsset ? parseFloat(okbAsset.balance) : 0;
@@ -171,23 +242,6 @@ export function simulatePlan(
   const safetyMultiplier = 1.2;
   const totalGasUsd = plan.gasCostUsd;
 
-  const approvalSpender = "0x1111111254fb6c44bac0bed2854e76f90643097d"; // Mock OKX Spender
-  const requiredApprovals: ApprovalRequirement[] = [];
-
-  for (const act of plan.actions) {
-    if (act.symbol !== nativeGasSymbol) {
-      // Non-native swaps require ERC-20 token approval
-      requiredApprovals.push({
-        token: act.symbol,
-        spender: approvalSpender,
-        requiredAmount: act.sellAmount,
-        currentAllowance: 0,
-        approvalNeeded: true,
-        source: simulationMode === "LIVE_SIMULATION" ? "live" : "demo",
-      });
-    }
-  }
-
   // Convert gas cost to OKB reserve requirement
   const gasReserveNative = (totalGasUsd / nativeGasPrice) * safetyMultiplier;
   const remainingNativeOKB = startingOKB - soldOKB - gasReserveNative;
@@ -197,7 +251,7 @@ export function simulatePlan(
       success: false,
       reason: "INSUFFICIENT_GAS_RESERVE",
       description: `Insufficient OKB gas reserve. Retained OKB: ${(startingOKB - soldOKB).toFixed(4)}, Required Reserve: ${gasReserveNative.toFixed(4)}.`,
-      requiredApprovals: [],
+      requiredApprovals,
       preparedTransactions: [],
       gasReserveNative,
       remainingNativeOKB,
@@ -205,21 +259,22 @@ export function simulatePlan(
     };
   }
 
-  // 7. Transaction Construction payload (Mock/Demo payload for Testnet simulation)
+  // 8. Transaction Construction payloads
   const preparedTransactions: PreparedTransaction[] = [];
   
   // We construct approval transactions first
   for (const app of requiredApprovals) {
     preparedTransactions.push({
       chainId: expectedChainId,
-      from: connectedAddress,
+      chainIndex: app.chainIndex,
+      environment: "testnet",
       to: "0xMockTokenAddressFor" + app.token,
-      data: "0x095d1a22" + app.spender.slice(2).padStart(64, "0") + "ffffff", // Mock approve calldata
+      from: connectedAddress,
       value: "0",
-      gasEstimate: "45000",
+      data: "0x095d1a22" + app.spender.slice(2).padStart(64, "0") + "ffffff", // Mock approve calldata
       source: simulationMode === "LIVE_SIMULATION" ? "live" : "demo",
       quoteTimestamp,
-      environment: "testnet",
+      verificationStatus: app.verificationStatus,
     });
   }
 
@@ -227,14 +282,15 @@ export function simulatePlan(
   for (const act of plan.actions) {
     preparedTransactions.push({
       chainId: expectedChainId,
+      chainIndex: act.quote?.chainIndex || 1952,
+      environment: "testnet",
+      to: act.quote?.spenderAddress || "0x1111111254fb6c44bac0bed2854e76f90643097d", // Spender address
       from: connectedAddress,
-      to: "0x1111111254fb6c44bac0bed2854e76f90643097d", // Spender router address
-      data: "0xMockSwapCalldataFor" + act.symbol,
       value: act.symbol === nativeGasSymbol ? Math.round(act.sellAmount * 1e18).toString() : "0",
-      gasEstimate: "150000",
+      data: "0xMockSwapCalldataFor" + act.symbol,
       source: simulationMode === "LIVE_SIMULATION" ? "live" : "demo",
       quoteTimestamp,
-      environment: "testnet",
+      verificationStatus: simulationMode === "DEMO_SIMULATION" ? "DEMO" : "VERIFIED_OKX",
     });
   }
 

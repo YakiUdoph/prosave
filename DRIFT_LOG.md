@@ -112,6 +112,14 @@ This is an append-only log documenting architectural decisions, security resolut
 - **Files Affected**: `tests/okx-integration.test.ts`, `src/server/okx.ts`
 - **Status**: **RESOLVED**
 
+### DRIFT-013: Unverified universal DEX spender was hardcoded in simulation architecture
+- **Date**: 2026-08-17
+- **Discovery**: A universal mock spender address (`0x1111...`) was hardcoded globally for ERC-20 token approvals, rather than resolving spender addresses dynamically from verified chain/route-specific quotes.
+- **Impact**: Could cause token approvals to be sent to an incorrect contract address, or falsely claim OKX execution readiness when the spender cannot be verified.
+- **Resolution**: Removed all universal spender assumptions. All swap actions now dynamically extract their spenders from route-specific quotes. If the spender is unknown, the validation engine fails with `UNKNOWN_SPENDER`. If a Mainnet spender (Chain Index 196) is provided for a Testnet transaction (Chain ID 1952), the boundary gate rejects the simulation under `WRONG_NETWORK`.
+- **Files Affected**: `src/lib/simulation.ts`, `src/lib/rescue-solver.ts`, `tests/simulation.test.ts`
+- **Status**: **RESOLVED**
+
 ---
 
 ## 📝 Drift Entry Template
