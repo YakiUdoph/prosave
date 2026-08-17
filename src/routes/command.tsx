@@ -35,7 +35,7 @@ export const Route = createFileRoute("/command")({
 });
 
 function CommandCenter() {
-  const { panic, portfolio, totalPortfolioValue } = useSave();
+  const { panic, portfolio, totalPortfolioValue, rpcStatus } = useSave();
 
   const highRiskValue = portfolio.filter((a) => a.risk === "high").reduce((sum, a) => sum + a.value, 0);
   const mediumRiskValue = portfolio.filter((a) => a.risk === "medium").reduce((sum, a) => sum + a.value, 0);
@@ -51,7 +51,16 @@ function CommandCenter() {
           ? "Market volatility detected. SAVE recommendation ready."
           : "A single, calm view of exposure, protection quality and what needs attention right now."
       }
-      aside={<StatusPill tone={panic ? "danger" : "primary"}>{panic ? "Panic mode active" : "Calm monitoring"}</StatusPill>}
+      aside={
+        <div className="flex gap-2">
+          {rpcStatus === "offline" && (
+            <StatusPill tone="warn">Demo Mode (RPC Offline)</StatusPill>
+          )}
+          <StatusPill tone={panic ? "danger" : "primary"}>
+            {panic ? "Panic mode active" : "Calm monitoring"}
+          </StatusPill>
+        </div>
+      }
     >
       {panic && (
         <div className="animate-rise mb-6 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-danger/35 bg-danger/10 px-6 py-4 animate-risk-pulse">

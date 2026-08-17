@@ -27,7 +27,7 @@ export const Route = createFileRoute("/scan")({
 });
 
 function Scan() {
-  const { portfolio } = useSave();
+  const { portfolio, rpcStatus } = useSave();
   const [step, setStep] = useState(0);
 
   useEffect(() => {
@@ -45,8 +45,8 @@ function Scan() {
       title={complete ? "Portfolio analyzed" : "Analyzing your portfolio…"}
       intro="Every position is checked for depth, slippage and viable exit paths before a single action is proposed."
       aside={
-        <StatusPill tone={complete ? "safe" : "primary"}>
-          <Radar className="size-3" /> {complete ? "Scan complete" : `Scanning ${progress}%`}
+        <StatusPill tone={rpcStatus === "offline" ? "warn" : (complete ? "safe" : "primary")}>
+          <Radar className="size-3" /> {rpcStatus === "offline" ? "Demo Mode (RPC Offline)" : (complete ? "Scan complete" : `Scanning ${progress}%`)}
         </StatusPill>
       }
     >

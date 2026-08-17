@@ -1,5 +1,6 @@
 import { createPublicClient, fallback, http, formatEther, formatUnits } from "viem";
 import { defineChain } from "viem/utils";
+import { createServerFn } from "@tanstack/react-start";
 
 // Define X Layer Testnet Chain (Chain ID: 1952)
 export const xLayerTestnet = defineChain({
@@ -11,7 +12,7 @@ export const xLayerTestnet = defineChain({
     symbol: "OKB",
   },
   rpcUrls: {
-    default: { http: ["https://xlayertestrpc.okx.com"] },
+    default: { http: ["https://testrpc.xlayer.tech/terigon"] },
   },
   blockExplorers: {
     default: { name: "OKLink", url: "https://www.oklink.com/xlayer-test" },
@@ -30,23 +31,60 @@ const minErc20Abi = [
   },
 ] as const;
 
-// Token contract addresses on X Layer Testnet (validated in Gates A-F)
+// Token contract addresses on X Layer Testnet (from technical baseline metadata)
 export const TOKENS = {
   OKB: "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
   WETH: "0x5a77f1443d16ee5761d310e38b62f77f726bc71c",
   USDC: "0xb6ceceab302e2e4948951ee7843fc24e92933061",
 };
 
-// RPC Fallback Configuration
-export const publicClient = createPublicClient({
-  chain: xLayerTestnet,
-  transport: fallback([
-    http("https://xlayertestrpc.okx.com"),
-    http("https://rpc.ankr.com/xlayer_testnet"),
-  ]),
+/**
+ * Server Function: Fetches comma-separated RPC URLs from server-side process.env.
+ * Appends the official X Layer public endpoints as fallback paths.
+ * Excludes the invalid/403-throwing anonymous Ankr fallback.
+ */
+export const getRpcEndpoints = createServerFn("GET", async () => {
+  const envRpc = process.env.XLAYER_RPC_URLS || process.env.XLAYER_RPC_URL;
+  const list = envRpc ? envRpc.split(",").map((r) => r.trim()).filter(Boolean) : [];
+  
+  // Return the configured env endpoints first, followed by official fallbacks
+  return [
+    ...list,
+    "https://testrpc.xlayer.tech/terigon",
+    "https://xlayertestrpc.okx.com/terigon",
+  ];
 });
 
-export type DataSource = "live" | "demo" | "estimated";
+let cachedClient: ReturnType<typeof createPublicClient> | null = null;
+
+/**
+ * Gets or creates the viem PublicClient using the dynamic RPC list fetched via server function.
+ */
+export async function getXLayerClient() {
+  if (cachedClient) return cachedClient;
+
+  try {
+    const rpcs = await getRpcEndpoints();
+    // Dedup URLs just in case
+    const uniqueRpcs = Array.from(new Set(rpcs));
+    const transports = uniqueRpcs.map((url) => http(url));
+
+    cachedClient = createPublicClient({
+      chain: xLayerTestnet,
+      transport: fallback(transports, { rank: false }),
+    });
+    return cachedClient;
+  } catch (err) {
+    console.error("Failed to construct X Layer client with dynamic RPC list, using default public client:", err);
+    // Safe static fallback to official public testnet RPC
+    return createPublicClient({
+      chain: xLayerTestnet,
+      transport: http("https://testrpc.xlayer.tech/terigon"),
+    });
+  }
+}
+
+export type DataSource = "live" | "demo" | "estimated" | "unverified";
 
 export type ScannedAsset = {
   symbol: string;
@@ -66,20 +104,21 @@ export type ScannedAsset = {
 };
 
 /**
- * Fetches real balances on X Layer Testnet for native OKB and contract WETH/USDC.
- * Falls back to demo assets for Token X or when wallet is disconnected/RPC is down.
+ * Fetches real balances on X Layer Testnet for native OKB.
+ * WETH and USDC contract bytecodes failed validation (returned 0x / empty),
+ * so their balance reads are treated as unverified/demo assets.
  */
 export async function scanPortfolio(address: string | null): Promise<{
   assets: ScannedAsset[];
   rpcStatus: "online" | "offline";
   totalValue: number;
 }> {
-  // Default fallback reference prices
+  // Static Reference pricing (flagged internally as fixture / estimated)
   const PRICES = {
-    OKB: 47.17,    // Estimated OKB USD price
-    WETH: 2871.73,  // Estimated ETH USD price
-    USDC: 1.00,    // USD Coin stable value
-    TKX: 0.028,    // Token X demo value
+    OKB: 47.17,     // fixture price
+    WETH: 2871.73,  // fixture price
+    USDC: 1.00,     // fixture price
+    TKX: 0.028,     // fixture price
   };
 
   const defaultDemoAssets: ScannedAsset[] = [
@@ -92,8 +131,8 @@ export async function scanPortfolio(address: string | null): Promise<{
       change24h: -1.2,
       liquidity: 98,
       risk: "protected",
-      note: "Long-term holding — flagged as protected",
-      isNative: false, // WETH on-chain representation
+      note: "Demo holding — long-term protection target",
+      isNative: false,
       isProtected: true,
       contractAddress: TOKENS.WETH,
       dataSource: "demo",
@@ -108,7 +147,7 @@ export async function scanPortfolio(address: string | null): Promise<{
       change24h: -4.6,
       liquidity: 88,
       risk: "medium",
-      note: "Deep liquidity, moderate drawdown exposure",
+      note: "Demo holding — moderate drawdown exposure",
       isNative: true,
       isProtected: false,
       contractAddress: TOKENS.OKB,
@@ -124,7 +163,7 @@ export async function scanPortfolio(address: string | null): Promise<{
       change24h: 0.0,
       liquidity: 100,
       risk: "protected",
-      note: "Stable reserve",
+      note: "Demo holding — stable reserve",
       isNative: false,
       isProtected: true,
       contractAddress: TOKENS.USDC,
@@ -140,7 +179,7 @@ export async function scanPortfolio(address: string | null): Promise<{
       change24h: -18.4,
       liquidity: 34,
       risk: "high",
-      note: "Thin liquidity, high slippage risk",
+      note: "Demo volatile asset — thin liquidity, high slippage risk",
       isNative: false,
       isProtected: false,
       dataSource: "demo",
@@ -158,98 +197,71 @@ export async function scanPortfolio(address: string | null): Promise<{
   }
 
   try {
-    // 1. Fetch Native OKB Balance
-    const okbWei = await publicClient.getBalance({ address: address as `0x${string}` });
+    const client = await getXLayerClient();
+
+    // 1. Fetch Real Native OKB Balance
+    const okbWei = await client.getBalance({ address: address as `0x${string}` });
     const okbBalance = parseFloat(formatEther(okbWei));
 
-    // 2. Fetch contract WETH Balance
-    let wethBalance = 0;
-    try {
-      const wethWei = await publicClient.readContract({
-        address: TOKENS.WETH as `0x${string}`,
-        abi: minErc20Abi,
-        functionName: "balanceOf",
-        args: [address as `0x${string}`],
-      });
-      wethBalance = parseFloat(formatEther(wethWei));
-    } catch (err) {
-      console.warn("WETH balance read failed, using 0:", err);
-    }
-
-    // 3. Fetch contract USDC Balance
-    let usdcBalance = 0;
-    try {
-      const usdcRaw = await publicClient.readContract({
-        address: TOKENS.USDC as `0x${string}`,
-        abi: minErc20Abi,
-        functionName: "balanceOf",
-        args: [address as `0x${string}`],
-      });
-      // USDC on X Layer Testnet might be 6 decimals
-      usdcBalance = parseFloat(formatUnits(usdcRaw, 6));
-    } catch (err) {
-      console.warn("USDC balance read failed, using 0:", err);
-    }
-
-    // Construct Scanned Assets
-    // We combine the real wallet balances with the Token X demo asset so the solver is testable.
-    // If the wallet balance is zero, we supplement with demo balances but clearly tag the dataSource.
-    const hasOnchainAssets = okbBalance > 0 || wethBalance > 0 || usdcBalance > 0;
+    // WETH and USDC contract address on X Layer Testnet returned empty bytecodes (0x) during validation.
+    // They are therefore classified as UNVERIFIED/DEMO in the scan model.
+    const wethBalance = 0.0;
+    const usdcBalance = 0.0;
 
     const assets: ScannedAsset[] = [
       {
         symbol: "ETH",
         name: "Ethereum",
         chain: "X Layer",
-        balance: hasOnchainAssets ? wethBalance.toFixed(4) : "0.842",
-        value: Math.round((hasOnchainAssets ? wethBalance : 0.842) * PRICES.WETH),
+        balance: "0.842", // Keep demo holdings so solver has simulated assets to work with
+        value: Math.round(0.842 * PRICES.WETH),
         change24h: -1.2,
         liquidity: 98,
         risk: "protected",
-        note: hasOnchainAssets ? "Live holding on X Layer Testnet" : "Demo holding — long-term protection target",
+        note: "Demo holding — (WETH contract 0x5a77... returned 0x, unverified)",
         isNative: false,
         isProtected: true,
         contractAddress: TOKENS.WETH,
-        dataSource: hasOnchainAssets ? "live" : "demo",
+        dataSource: "unverified",
         priceSource: "estimated",
       },
       {
         symbol: "OKB",
         name: "OKB",
         chain: "X Layer",
-        balance: hasOnchainAssets ? okbBalance.toFixed(4) : "31.5",
-        value: Math.round((hasOnchainAssets ? okbBalance : 31.5) * PRICES.OKB),
+        balance: okbBalance.toFixed(4),
+        value: Math.round(okbBalance * PRICES.OKB),
         change24h: -4.6,
         liquidity: 88,
         risk: "medium",
-        note: hasOnchainAssets ? "Live OKB balance on X Layer Testnet" : "Demo holding — moderate drawdown exposure",
+        note: `Live native balance of connected wallet on X Layer Testnet`,
         isNative: true,
         isProtected: false,
         contractAddress: TOKENS.OKB,
-        dataSource: hasOnchainAssets ? "live" : "demo",
+        dataSource: "live",
         priceSource: "estimated",
       },
       {
         symbol: "USDC",
         name: "USD Coin",
         chain: "X Layer",
-        balance: hasOnchainAssets ? usdcBalance.toFixed(2) : "412.00",
-        value: Math.round((hasOnchainAssets ? usdcBalance : 412.00) * PRICES.USDC),
+        balance: "412.00",
+        value: 412,
         change24h: 0.0,
         liquidity: 100,
         risk: "protected",
-        note: hasOnchainAssets ? "Live USDC balance on X Layer Testnet" : "Demo holding — stable reserve",
+        note: "Demo holding — (USDC contract 0xb6ce... returned 0x, unverified)",
         isNative: false,
         isProtected: true,
         contractAddress: TOKENS.USDC,
-        dataSource: hasOnchainAssets ? "live" : "demo",
+        dataSource: "unverified",
         priceSource: "estimated",
       },
       {
         symbol: "TKX",
         name: "Token X",
         chain: "X Layer",
-        balance: "18400", // Demountable asset always simulated for Solver routing demonstration
+        balance: "18400",
         value: Math.round(18400 * PRICES.TKX),
         change24h: -18.4,
         liquidity: 34,
@@ -270,7 +282,8 @@ export async function scanPortfolio(address: string | null): Promise<{
       totalValue,
     };
   } catch (error) {
-    console.error("X Layer RPC scan failed, falling back to demo values:", error);
+    console.error("X Layer RPC scan failed, live data unavailable:", error);
+    // Explicitly do not disguise failed RPC as success. Return the offline status.
     const total = defaultDemoAssets.reduce((sum, a) => sum + a.value, 0);
     return {
       assets: defaultDemoAssets,
