@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Fingerprint, KeyRound, Lock, ShieldCheck } from "lucide-react";
+import { toast } from "sonner";
 import { PageShell } from "@/components/save/page-shell";
 import { Eyebrow, Panel, StatusPill } from "@/components/save/primitives";
 import { WalletCard, type WalletOption } from "@/components/save/wallet-card";
@@ -35,22 +36,35 @@ const ANALYSES = ["Portfolio assets", "Liquidity", "Risk exposure", "Exit option
 
 function Connect() {
   const navigate = useNavigate();
-  const { setConnected } = useSave();
+  const { connectWallet } = useSave();
   const [active, setActive] = useState<string | null>(null);
-  const [done, setDone] = useState(false);
+  const [status, setStatus] = useState<"idle" | "connecting" | "connected">("idle");
 
-  useEffect(() => {
-    if (!active) return;
-    const a = setTimeout(() => setDone(true), 1400);
-    const b = setTimeout(() => {
-      setConnected(true);
-      navigate({ to: "/scan" });
-    }, 2400);
-    return () => {
-      clearTimeout(a);
-      clearTimeout(b);
-    };
-  }, [active, navigate, setConnected]);
+  const handleConnect = async (walletId: string) => {
+    setActive(walletId);
+    setStatus("connecting");
+    try {
+      if (walletId === "okx" || walletId === "browser") {
+        await connectWallet();
+        setStatus("connected");
+        toast.success("Wallet connected on X Layer Testnet!");
+        setTimeout(() => {
+          navigate({ to: "/scan" });
+        }, 1000);
+      } else {
+        // Fallback simulated flow for wc / other wallets
+        setTimeout(() => setStatus("connected"), 1400);
+        setTimeout(() => {
+          navigate({ to: "/scan" });
+        }, 2400);
+      }
+    } catch (err: any) {
+      setStatus("idle");
+      setActive(null);
+      const msg = err.message || "Failed to connect wallet";
+      toast.error(msg);
+    }
+  };
 
   return (
     <PageShell
@@ -64,16 +78,17 @@ function Connect() {
       }
     >
       <div className="grid gap-6 lg:grid-cols-[1.1fr_1fr]">
-        <div className="space-y-3">
+         <div className="space-y-3">
           {WALLETS.map((w, i) => (
             <WalletCard
               key={w.id}
               wallet={w}
               delay={i * 90}
-              state={active === w.id ? (done ? "connected" : "connecting") : "idle"}
-              onConnect={() => setActive(w.id)}
+              state={active === w.id ? status : "idle"}
+              onConnect={() => handleConnect(w.id)}
             />
           ))}
+
 
           <Panel className="mt-6 p-6">
             <Eyebrow>Security indicators</Eyebrow>
