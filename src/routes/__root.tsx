@@ -11,6 +11,8 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
+import { SaveProvider } from "@/lib/save-context";
+import { SaveFooter, SaveNav } from "@/components/save/nav";
 
 function NotFoundComponent() {
   return (
