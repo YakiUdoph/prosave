@@ -10,7 +10,9 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as CommandRouteImport } from './routes/command'
 import { Route as ConnectRouteImport } from './routes/connect'
+import { Route as IntentRouteImport } from './routes/intent'
 import { Route as ScanRouteImport } from './routes/scan'
 
 const IndexRoute = IndexRouteImport.update({
@@ -18,9 +20,19 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CommandRoute = CommandRouteImport.update({
+  id: '/command',
+  path: '/command',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ConnectRoute = ConnectRouteImport.update({
   id: '/connect',
   path: '/connect',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const IntentRoute = IntentRouteImport.update({
+  id: '/intent',
+  path: '/intent',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ScanRoute = ScanRouteImport.update({
@@ -31,31 +43,39 @@ const ScanRoute = ScanRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/command': typeof CommandRoute
   '/connect': typeof ConnectRoute
+  '/intent': typeof IntentRoute
   '/scan': typeof ScanRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/command': typeof CommandRoute
   '/connect': typeof ConnectRoute
+  '/intent': typeof IntentRoute
   '/scan': typeof ScanRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/command': typeof CommandRoute
   '/connect': typeof ConnectRoute
+  '/intent': typeof IntentRoute
   '/scan': typeof ScanRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/connect' | '/scan'
+  fullPaths: '/' | '/command' | '/connect' | '/intent' | '/scan'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/connect' | '/scan'
-  id: '__root__' | '/' | '/connect' | '/scan'
+  to: '/' | '/command' | '/connect' | '/intent' | '/scan'
+  id: '__root__' | '/' | '/command' | '/connect' | '/intent' | '/scan'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  CommandRoute: typeof CommandRoute
   ConnectRoute: typeof ConnectRoute
+  IntentRoute: typeof IntentRoute
   ScanRoute: typeof ScanRoute
 }
 
@@ -68,11 +88,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/command': {
+      id: '/command'
+      path: '/command'
+      fullPath: '/command'
+      preLoaderRoute: typeof CommandRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/connect': {
       id: '/connect'
       path: '/connect'
       fullPath: '/connect'
       preLoaderRoute: typeof ConnectRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/intent': {
+      id: '/intent'
+      path: '/intent'
+      fullPath: '/intent'
+      preLoaderRoute: typeof IntentRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/scan': {
@@ -87,7 +121,9 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  CommandRoute: CommandRoute,
   ConnectRoute: ConnectRoute,
+  IntentRoute: IntentRoute,
   ScanRoute: ScanRoute,
 }
 export const routeTree = rootRouteImport
