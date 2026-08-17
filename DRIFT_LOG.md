@@ -78,6 +78,15 @@ This is an append-only log documenting architectural decisions, security resolut
 - **Files Affected**: `src/lib/rescue-solver.ts`, `tests/rescue-solver.test.ts`
 - **Status**: **RESOLVED**
 
+### DRIFT-009: Inconsistent Net Output in Canonical Rescue Plan
+- **Date**: 2026-08-17
+- **Discovery**: The canonical rescue plan incorrectly marked targetMet as true despite having insufficient net expected output (shortfall covered by nominal ETH value alone, leaving a mathematical shortfall).
+- **Impact**: Undermines solver correctness and could lead to underfunded rescue execution.
+- **Root Cause**: Protected-asset last-resort sizing used inconsistent nominal/output accounting. It solved based on raw USD asset value instead of route net output ratios (price, slippage, and price impact deducted).
+- **Resolution**: Replaced nominal calculations with strict net expected swap outputs. The protected-asset solver now computes the exact input balance required to satisfy the remaining shortfall plus route-specific gas/slippage parameters. Placed accounting identity and LAST_RESORT minimality tests.
+- **Files Affected**: `src/lib/rescue-solver.ts`, `tests/rescue-solver.test.ts`
+- **Status**: **RESOLVED**
+
 ---
 
 ## 📝 Drift Entry Template

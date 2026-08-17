@@ -5,7 +5,7 @@ export type RouteQuote = {
   fromSymbol: string;
   toSymbol: string;
   inputAmount: number;
-  outputAmount: number;
+  outputAmount: number; // Net expected output (after slippage and price impact)
   gasCostUsd: number;
   slippagePercent: number;
   priceImpactPercent: number;
@@ -36,7 +36,7 @@ export type CandidatePlan = {
   name: string;
   description: string;
   targetMet: boolean;
-  securedAmount: number;
+  securedAmount: number; // existing USDC + sum(netExpectedOutputs)
   actions: LiquidateAction[];
   protectedPreservedPercent: number;
   gasCostUsd: number;
@@ -95,7 +95,7 @@ export function calculatePlanScore(
     if (intent.protectedAssetPolicy === "STRICT") {
       protectedViolationPenalty = 90; // Strict protection breach penalty
     } else {
-      // Proportional penalty for LAST_RESORT sale
+      // Proportional penalty for LAST_RESORT sale (scaled up to 50 points)
       const fractionSold = totalProtectedVal > 0 ? soldProtectedVal / totalProtectedVal : 0;
       protectedViolationPenalty = fractionSold * 50;
     }
@@ -207,15 +207,22 @@ export function solveRescue(
   const getMockQuote = (symbol: string, inputAmount: number): RouteQuote => {
     const isEth = symbol === "ETH";
     const isOkb = symbol === "OKB";
+    const price = isEth ? 2871.73 : isOkb ? 47.17 : 0.028;
+    const slippagePercent = isEth ? 0.10 : isOkb ? 0.15 : 1.20;
+    const priceImpactPercent = isEth ? 0.05 : isOkb ? 0.08 : 0.95;
+
+    // Calculate net output expected after slippage and price impact
+    const netOutputRatio = 1 - (slippagePercent / 100) - (priceImpactPercent / 100);
+    const outputAmount = inputAmount * price * netOutputRatio;
 
     return {
       fromSymbol: symbol,
       toSymbol: targetSymbol,
       inputAmount,
-      outputAmount: inputAmount * (isEth ? 2871.73 : isOkb ? 47.17 : 0.028),
+      outputAmount,
       gasCostUsd: isEth ? 1.10 : isOkb ? 1.20 : 1.80,
-      slippagePercent: isEth ? 0.10 : isOkb ? 0.15 : 1.20,
-      priceImpactPercent: isEth ? 0.05 : isOkb ? 0.08 : 0.95,
+      slippagePercent,
+      priceImpactPercent,
       reliabilityScore: isEth ? 0.99 : isOkb ? 0.99 : 0.88,
       provider: "OKX DEX Aggregator",
       dataSource: "demo",
@@ -229,67 +236,14 @@ export function solveRescue(
   const mediumRiskAssets = candidates.filter((a) => a.risk === "medium" && !intent.protectedAssets.includes(a.symbol));
   const protectedAssets = candidates.filter((a) => intent.protectedAssets.includes(a.symbol));
 
-  // ----------------------------------------------------
-  // PLAN B: SAVE RECOMMENDED (Deterministic preservation)
-  // ----------------------------------------------------
-  let planBTargetRemaining = requiredTarget;
-  const planBActions: LiquidateAction[] = [];
-  let planBGas = 0;
+  // Helper to execute sequential swaps
+  const executeSwaps = (sellSequence: ScannedAsset[], targetShortfall: number) => {
+    let remaining = targetShortfall;
+    const actions: LiquidateAction[] = [];
+    let gas = 0;
 
-  const planBSellSequence = [...highRiskAssets, ...mediumRiskAssets];
-
-  // First pass: sell non-protected assets
-  for (const asset of planBSellSequence) {
-    if (planBTargetRemaining <= 0) break;
-
-    const balance = parseFloat(asset.balance);
-    const assetUsdValue = asset.value;
-
-    if (assetUsdValue <= 0 || balance <= 0) continue;
-
-    const quote = getMockQuote(asset.symbol, balance);
-
-    if (quote.priceImpactPercent > MAX_PRICE_IMPACT || quote.slippagePercent > MAX_SLIPPAGE) {
-      result.rejected.push({
-        name: `Liquidation of ${asset.symbol} via OKX`,
-        reason: "EXCESSIVE_PRICE_IMPACT",
-        description: `Price impact ${quote.priceImpactPercent}% exceeds safety threshold of ${MAX_PRICE_IMPACT}%`,
-      });
-      continue;
-    }
-
-    const maxOutput = quote.outputAmount;
-
-    if (maxOutput <= planBTargetRemaining) {
-      planBActions.push({
-        symbol: asset.symbol,
-        sellAmount: balance,
-        usdValue: assetUsdValue,
-        quote,
-      });
-      planBTargetRemaining -= maxOutput;
-      planBGas += quote.gasCostUsd;
-    } else {
-      const fraction = planBTargetRemaining / maxOutput;
-      const sellAmount = balance * fraction;
-      const partialQuote = getMockQuote(asset.symbol, sellAmount);
-
-      planBActions.push({
-        symbol: asset.symbol,
-        sellAmount,
-        usdValue: assetUsdValue * fraction,
-        quote: partialQuote,
-      });
-      planBTargetRemaining = 0;
-      planBGas += partialQuote.gasCostUsd;
-    }
-  }
-
-  // Second pass: Sell protected assets if required by LAST_RESORT
-  let planBProtectedPreserved = 100;
-  if (planBTargetRemaining > 0 && intent.protectedAssetPolicy === "LAST_RESORT") {
-    for (const asset of protectedAssets) {
-      if (planBTargetRemaining <= 0) break;
+    for (const asset of sellSequence) {
+      if (remaining <= 0.005) break; // target satisfied within epsilon
 
       const balance = parseFloat(asset.balance);
       const assetUsdValue = asset.value;
@@ -297,153 +251,113 @@ export function solveRescue(
       if (assetUsdValue <= 0 || balance <= 0) continue;
 
       const quote = getMockQuote(asset.symbol, balance);
+
+      if (quote.priceImpactPercent > MAX_PRICE_IMPACT || quote.slippagePercent > MAX_SLIPPAGE) {
+        result.rejected.push({
+          name: `Liquidation of ${asset.symbol} via OKX`,
+          reason: "EXCESSIVE_PRICE_IMPACT",
+          description: `Price impact ${quote.priceImpactPercent}% exceeds safety threshold of ${MAX_PRICE_IMPACT}%`,
+        });
+        continue;
+      }
+
       const maxOutput = quote.outputAmount;
 
-      if (maxOutput <= planBTargetRemaining) {
-        planBActions.push({
+      if (maxOutput <= remaining) {
+        // Liquidate entire holding
+        actions.push({
           symbol: asset.symbol,
           sellAmount: balance,
           usdValue: assetUsdValue,
           quote,
         });
-        planBTargetRemaining -= maxOutput;
-        planBGas += quote.gasCostUsd;
-        planBProtectedPreserved = 0;
+        remaining -= maxOutput;
+        gas += quote.gasCostUsd;
       } else {
-        const fraction = planBTargetRemaining / maxOutput;
+        // Solve for exact fraction needed to satisfy remaining shortfall
+        const fraction = remaining / maxOutput;
         const sellAmount = balance * fraction;
         const partialQuote = getMockQuote(asset.symbol, sellAmount);
 
-        planBActions.push({
+        actions.push({
           symbol: asset.symbol,
           sellAmount,
           usdValue: assetUsdValue * fraction,
           quote: partialQuote,
         });
-        planBTargetRemaining = 0;
-        planBGas += partialQuote.gasCostUsd;
-        planBProtectedPreserved = Math.round((1 - fraction) * 100);
+        remaining = 0;
+        gas += partialQuote.gasCostUsd;
       }
     }
+
+    return { remaining, actions, gas };
+  };
+
+  // ----------------------------------------------------
+  // PLAN B: SAVE RECOMMENDED (Deterministic preservation)
+  // ----------------------------------------------------
+  const planBSellSequence = [...highRiskAssets, ...mediumRiskAssets];
+  const scanB = executeSwaps(planBSellSequence, requiredTarget);
+
+  let planBTargetRemaining = scanB.remaining;
+  const planBActions = scanB.actions;
+  let planBGas = scanB.gas;
+
+  // Second pass: Sell protected assets if required by LAST_RESORT
+  let planBProtectedPreserved = 100;
+  if (planBTargetRemaining > 0.005 && intent.protectedAssetPolicy === "LAST_RESORT") {
+    const scanBProtected = executeSwaps(protectedAssets, planBTargetRemaining);
+    planBTargetRemaining = scanBProtected.remaining;
+    planBActions.push(...scanBProtected.actions);
+    planBGas += scanBProtected.gas;
+
+    // Calculate preserved percentage
+    const totalProtectedVal = protectedAssets.reduce((sum, a) => sum + a.value, 0);
+    const soldProtectedVal = scanBProtected.actions.reduce((sum, a) => sum + a.usdValue, 0);
+    planBProtectedPreserved = totalProtectedVal > 0 ? Math.round((1 - soldProtectedVal / totalProtectedVal) * 100) : 100;
   }
 
-  const planBTargetMet = planBTargetRemaining <= 0;
+  const planBTargetMet = planBTargetRemaining <= 0.005;
   const planBSecured = requiredTarget - planBTargetRemaining;
 
   // ----------------------------------------------------
   // PLAN A: MAX LIQUIDITY (Sell ETH first, ignores protection)
   // ----------------------------------------------------
-  let planATargetRemaining = requiredTarget;
-  const planAActions: LiquidateAction[] = [];
-  let planAGas = 0;
-
   const planASellSequence = [...protectedAssets, ...mediumRiskAssets, ...highRiskAssets];
+  const scanA = executeSwaps(planASellSequence, requiredTarget);
+
+  const planATargetMet = scanA.remaining <= 0.005;
+  const planASecured = requiredTarget - scanA.remaining;
+
   let planAProtectedPreserved = 100;
-
-  for (const asset of planASellSequence) {
-    if (planATargetRemaining <= 0) break;
-
-    const balance = parseFloat(asset.balance);
-    const assetUsdValue = asset.value;
-
-    if (assetUsdValue <= 0 || balance <= 0) continue;
-
-    const quote = getMockQuote(asset.symbol, balance);
-    const maxOutput = quote.outputAmount;
-
-    const isProtected = intent.protectedAssets.includes(asset.symbol);
-
-    if (maxOutput <= planATargetRemaining) {
-      planAActions.push({
-        symbol: asset.symbol,
-        sellAmount: balance,
-        usdValue: assetUsdValue,
-        quote,
-      });
-      planATargetRemaining -= maxOutput;
-      planAGas += quote.gasCostUsd;
-      if (isProtected) planAProtectedPreserved = 0;
-    } else {
-      const fraction = planATargetRemaining / maxOutput;
-      const sellAmount = balance * fraction;
-      const partialQuote = getMockQuote(asset.symbol, sellAmount);
-
-      planAActions.push({
-        symbol: asset.symbol,
-        sellAmount,
-        usdValue: assetUsdValue * fraction,
-        quote: partialQuote,
-      });
-      planATargetRemaining = 0;
-      planAGas += partialQuote.gasCostUsd;
-      if (isProtected) {
-        planAProtectedPreserved = Math.round((1 - fraction) * 100);
-      }
-    }
+  const totalProtectedVal = protectedAssets.reduce((sum, a) => sum + a.value, 0);
+  const planASoldProtectedVal = scanA.actions
+    .filter((act) => intent.protectedAssets.includes(act.symbol))
+    .reduce((sum, act) => sum + act.usdValue, 0);
+  if (totalProtectedVal > 0) {
+    planAProtectedPreserved = Math.round((1 - planASoldProtectedVal / totalProtectedVal) * 100);
   }
-
-  const planATargetMet = planATargetRemaining <= 0;
-  const planASecured = requiredTarget - planATargetRemaining;
 
   // ----------------------------------------------------
   // PLAN C: MAX PRESERVATION (Sell TKX only, preserve others)
   // ----------------------------------------------------
-  let planCTargetRemaining = requiredTarget;
-  const planCActions: LiquidateAction[] = [];
-  let planCGas = 0;
-
-  for (const asset of highRiskAssets) {
-    if (planCTargetRemaining <= 0) break;
-
-    const balance = parseFloat(asset.balance);
-    const assetUsdValue = asset.value;
-
-    if (assetUsdValue <= 0 || balance <= 0) continue;
-
-    const quote = getMockQuote(asset.symbol, balance);
-    const maxOutput = quote.outputAmount;
-
-    if (maxOutput <= planCTargetRemaining) {
-      planCActions.push({
-        symbol: asset.symbol,
-        sellAmount: balance,
-        usdValue: assetUsdValue,
-        quote,
-      });
-      planCTargetRemaining -= maxOutput;
-      planCGas += quote.gasCostUsd;
-    } else {
-      const fraction = planCTargetRemaining / maxOutput;
-      const sellAmount = balance * fraction;
-      const partialQuote = getMockQuote(asset.symbol, sellAmount);
-
-      planCActions.push({
-        symbol: asset.symbol,
-        sellAmount,
-        usdValue: assetUsdValue * fraction,
-        quote: partialQuote,
-      });
-      planCTargetRemaining = 0;
-      planCGas += partialQuote.gasCostUsd;
-    }
-  }
-
-  const planCTargetMet = planCTargetRemaining <= 0;
-  const planCSecured = requiredTarget - planCTargetRemaining;
+  const scanC = executeSwaps(highRiskAssets, requiredTarget);
+  const planCTargetMet = scanC.remaining <= 0.005;
+  const planCSecured = requiredTarget - scanC.remaining;
 
   // Compile Scores via label-invariant formula
-  const scoresA = calculatePlanScore(planATargetMet, planASecured, requiredTarget, planAActions, portfolio, intent);
+  const scoresA = calculatePlanScore(planATargetMet, planASecured, requiredTarget, scanA.actions, portfolio, intent);
   const planA: CandidatePlan = {
     id: "A",
     name: "Plan A: Max Liquidity",
     description: "Prioritizes deep liquidity routes to secure funds rapidly.",
     targetMet: planATargetMet,
     securedAmount: planASecured + existingUSDC,
-    actions: planAActions,
+    actions: scanA.actions,
     protectedPreservedPercent: planAProtectedPreserved,
-    gasCostUsd: planAGas,
-    slippagePercent: planAActions.length > 0 ? 0.12 : 0,
-    priceImpactPercent: planAActions.length > 0 ? 0.05 : 0,
+    gasCostUsd: scanA.gas,
+    slippagePercent: scanA.actions.length > 0 ? 0.12 : 0,
+    priceImpactPercent: scanA.actions.length > 0 ? 0.05 : 0,
     saveScore: scoresA.saveScore,
     damageScore: scoresA.damageScore,
     damageBreakdown: scoresA.breakdown,
@@ -468,18 +382,18 @@ export function solveRescue(
     whyRecommended: "Achieves target liquidity while fully preserving your protected ETH holdings.",
   };
 
-  const scoresC = calculatePlanScore(planCTargetMet, planCSecured, requiredTarget, planCActions, portfolio, intent);
+  const scoresC = calculatePlanScore(planCTargetMet, planCSecured, requiredTarget, scanC.actions, portfolio, intent);
   const planC: CandidatePlan = {
     id: "C",
     name: "Plan C: Max Preservation",
     description: "Refuses to liquidate key strategic reserves, limiting trades to high-risk assets.",
     targetMet: planCTargetMet,
     securedAmount: planCSecured + existingUSDC,
-    actions: planCActions,
+    actions: scanC.actions,
     protectedPreservedPercent: 100,
-    gasCostUsd: planCGas,
-    slippagePercent: planCActions.length > 0 ? 1.20 : 0,
-    priceImpactPercent: planCActions.length > 0 ? 0.95 : 0,
+    gasCostUsd: scanC.gas,
+    slippagePercent: scanC.actions.length > 0 ? 1.20 : 0,
+    priceImpactPercent: scanC.actions.length > 0 ? 0.95 : 0,
     saveScore: scoresC.saveScore,
     damageScore: scoresC.damageScore,
     damageBreakdown: scoresC.breakdown,
