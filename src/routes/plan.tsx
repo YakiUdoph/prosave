@@ -28,7 +28,7 @@ export const Route = createFileRoute("/plan")({
 
 function RescuePlan() {
   const { selectedPlan, setSelectedPlan } = useSave();
-  const active = PLANS.find((p) => p.id === selectedPlan) ?? PLANS[1];
+  const active = PLANS.find((p) => p.id === selectedPlan) ?? PLANS[1]!;
 
   return (
     <PageShell
