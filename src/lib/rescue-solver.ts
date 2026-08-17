@@ -251,6 +251,7 @@ export function solveRescue(
     // Pass 1: Estimate actions sequence to calculate expected native gas required
     let estimatedGasUsd = 0;
     let tempRemaining = targetShortfall;
+    let estimatedApprovalCount = 0;
 
     // Simulate non-protected sequence
     for (const asset of sellSequence) {
@@ -259,6 +260,9 @@ export function solveRescue(
       if (balance <= 0) continue;
       const quote = getMockQuote(asset.symbol, balance);
       estimatedGasUsd += quote.gasCostUsd;
+      if (asset.symbol !== nativeGasSymbol) {
+        estimatedApprovalCount++; // non-native asset requires approval
+      }
       tempRemaining -= quote.outputAmount;
     }
 
@@ -270,12 +274,19 @@ export function solveRescue(
         if (balance <= 0) continue;
         const quote = getMockQuote(asset.symbol, balance);
         estimatedGasUsd += quote.gasCostUsd;
+        if (asset.symbol !== nativeGasSymbol) {
+          estimatedApprovalCount++;
+        }
         tempRemaining -= quote.outputAmount;
       }
     }
 
+    // Total estimated execution gas includes approval transactions fee ($0.15 USD each)
+    const safetyMultiplier = 1.2;
+    const totalEstimatedGasUsd = estimatedGasUsd + (estimatedApprovalCount * 0.15);
+
     // Convert estimated gas USD requirement to native OKB quantity
-    const requiredGasOKB = estimatedGasUsd / nativeGasPrice;
+    const requiredGasOKB = (totalEstimatedGasUsd / nativeGasPrice) * safetyMultiplier;
 
     // Retrieve starting native OKB balance in the wallet
     const okbAsset = portfolio.find((a) => a.symbol === nativeGasSymbol);
@@ -286,7 +297,7 @@ export function solveRescue(
       return {
         feasible: false,
         actions: [],
-        gasCostUsd: estimatedGasUsd,
+        gasCostUsd: totalEstimatedGasUsd,
         requiredGasOKB,
         gasReserveStatus: "INSUFFICIENT_GAS_RESERVE" as const,
         remainingShortfall: targetShortfall,
@@ -297,6 +308,7 @@ export function solveRescue(
     let remaining = targetShortfall;
     const actions: LiquidateAction[] = [];
     let actualGasUsd = 0;
+    let actualApprovalCount = 0;
 
     // Non-protected swaps execution
     for (const asset of sellSequence) {
@@ -327,6 +339,9 @@ export function solveRescue(
         });
         remaining -= maxOutput;
         actualGasUsd += quote.gasCostUsd;
+        if (asset.symbol !== nativeGasSymbol) {
+          actualApprovalCount++;
+        }
       } else {
         const fraction = remaining / maxOutput;
         const sellAmount = balance * fraction;
@@ -340,6 +355,9 @@ export function solveRescue(
         });
         remaining = 0;
         actualGasUsd += partialQuote.gasCostUsd;
+        if (asset.symbol !== nativeGasSymbol) {
+          actualApprovalCount++;
+        }
       }
     }
 
@@ -365,6 +383,9 @@ export function solveRescue(
           });
           remaining -= maxOutput;
           actualGasUsd += quote.gasCostUsd;
+          if (asset.symbol !== nativeGasSymbol) {
+            actualApprovalCount++;
+          }
         } else {
           const fraction = remaining / maxOutput;
           const sellAmount = balance * fraction;
@@ -378,14 +399,19 @@ export function solveRescue(
           });
           remaining = 0;
           actualGasUsd += partialQuote.gasCostUsd;
+          if (asset.symbol !== nativeGasSymbol) {
+            actualApprovalCount++;
+          }
         }
       }
     }
 
+    const totalActualGasUsd = actualGasUsd + (actualApprovalCount * 0.15);
+
     return {
       feasible: true,
       actions,
-      gasCostUsd: actualGasUsd,
+      gasCostUsd: totalActualGasUsd,
       requiredGasOKB,
       gasReserveStatus: "SUCCESS" as const,
       remainingShortfall: remaining,

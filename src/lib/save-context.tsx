@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { scanPortfolio, type ScannedAsset, type DataSource } from "./xlayer";
 import { parseSaveIntent, type SaveIntent } from "./intent-parser";
 import { solveRescue, type RescueResult } from "./rescue-solver";
+import { simulatePlan, type ExecutionState, type SimulationResult } from "./simulation";
 
 type SaveState = {
   panic: boolean;
@@ -26,6 +27,15 @@ type SaveState = {
   totalPortfolioValue: number;
   isScanning: boolean;
   scanWalletPortfolio: () => Promise<void>;
+  
+  // Step 7 state fields
+  executionState: ExecutionState;
+  setExecutionState: (v: ExecutionState) => void;
+  simulationResult: SimulationResult | null;
+  quoteTimestamp: number;
+  setQuoteTimestamp: (v: number) => void;
+  runSimulation: (mode: "DEMO_SIMULATION" | "LIVE_SIMULATION") => Promise<void>;
+  resetSimulation: () => void;
 };
 
 const SaveContext = createContext<SaveState | null>(null);
@@ -46,9 +56,15 @@ export function SaveProvider({ children }: { children: ReactNode }) {
   const [portfolio, setPortfolio] = useState<ScannedAsset[]>([]);
   const [rpcStatus, setRpcStatus] = useState<"online" | "offline">("offline");
 
+  // Step 7 Simulation States
+  const [executionState, setExecutionState] = useState<ExecutionState>("IDLE");
+  const [simulationResult, setSimulationResult] = useState<SimulationResult | null>(null);
+  const [quoteTimestamp, setQuoteTimestamp] = useState<number>(Date.now());
+
   const rescueResult = useMemo(() => {
     return solveRescue(portfolio, parsedIntent);
   }, [portfolio, parsedIntent]);
+  
   const [totalPortfolioValue, setTotalPortfolioValue] = useState<number>(4832); // approved UI baseline default
   const [isScanning, setIsScanning] = useState(false);
 
@@ -58,6 +74,13 @@ export function SaveProvider({ children }: { children: ReactNode }) {
     setIntentState(v);
     setParsedIntent(parseSaveIntent(v));
   }, []);
+
+  // Update quote timestamp when solver inputs recalculate
+  useEffect(() => {
+    setQuoteTimestamp(Date.now());
+    setExecutionState("IDLE");
+    setSimulationResult(null);
+  }, [portfolio, parsedIntent]);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -69,6 +92,8 @@ export function SaveProvider({ children }: { children: ReactNode }) {
     setWalletAddress(null);
     setChainId(null);
     setConnected(false);
+    setExecutionState("IDLE");
+    setSimulationResult(null);
   }, []);
 
   const scanWalletPortfolio = useCallback(async () => {
@@ -213,6 +238,51 @@ export function SaveProvider({ children }: { children: ReactNode }) {
     }
   }, [disconnectWallet]);
 
+  const runSimulation = useCallback(async (mode: "DEMO_SIMULATION" | "LIVE_SIMULATION") => {
+    setExecutionState("SIMULATING");
+    
+    const activePlan = rescueResult.plans.find((p) => p.id === selectedPlan);
+    if (!activePlan) {
+      setExecutionState("SIMULATION_FAILED");
+      setSimulationResult({
+        success: false,
+        reason: "PLAN_INFEASIBLE",
+        description: "Selected rescue plan is not available.",
+        requiredApprovals: [],
+        preparedTransactions: [],
+        gasReserveNative: 0,
+        remainingNativeOKB: 0,
+        provenance: mode === "LIVE_SIMULATION" ? "LIVE" : "DEMO",
+      });
+      return;
+    }
+
+    const simRes = simulatePlan(
+      parsedIntent,
+      activePlan,
+      portfolio,
+      walletAddress,
+      chainId,
+      quoteTimestamp,
+      mode
+    );
+
+    // Simulate progress delay for smooth visual demonstration
+    await new Promise((resolve) => setTimeout(resolve, 1200));
+
+    if (simRes.success) {
+      setExecutionState("SIMULATION_READY");
+    } else {
+      setExecutionState("SIMULATION_FAILED");
+    }
+    setSimulationResult(simRes);
+  }, [rescueResult, selectedPlan, parsedIntent, portfolio, walletAddress, chainId, quoteTimestamp]);
+
+  const resetSimulation = useCallback(() => {
+    setExecutionState("IDLE");
+    setSimulationResult(null);
+  }, []);
+
   const value = useMemo(
     () => ({
       panic,
@@ -236,6 +306,15 @@ export function SaveProvider({ children }: { children: ReactNode }) {
       totalPortfolioValue,
       isScanning,
       scanWalletPortfolio,
+      
+      // Step 7 States
+      executionState,
+      setExecutionState,
+      simulationResult,
+      quoteTimestamp,
+      setQuoteTimestamp,
+      runSimulation,
+      resetSimulation,
     }),
     [
       panic,
@@ -258,6 +337,13 @@ export function SaveProvider({ children }: { children: ReactNode }) {
       totalPortfolioValue,
       isScanning,
       scanWalletPortfolio,
+      
+      // Step 7 States
+      executionState,
+      simulationResult,
+      quoteTimestamp,
+      runSimulation,
+      resetSimulation,
     ],
   );
 
@@ -269,5 +355,3 @@ export function useSave() {
   if (!ctx) throw new Error("useSave must be used inside SaveProvider");
   return ctx;
 }
-
-

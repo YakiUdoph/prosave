@@ -104,6 +104,14 @@ This is an append-only log documenting architectural decisions, security resolut
 - **Files Affected**: `src/server/okx.ts`, `tests/okx-integration.test.ts`, `SAVE_SPONSOR_INTEGRATION.md`
 - **Status**: **RESOLVED**
 
+### DRIFT-012: OKX Live Quote Request Timeout
+- **Date**: 2026-08-17
+- **Discovery**: OKX integration tests passed successfully via mock responses, but the actual live read-only quote query timed out on this network environment.
+- **Impact**: Code paths are validated, but live quote retrieval cannot yet be demonstrated from this specific host machine.
+- **Resolution**: Maintained strict status separation. If live endpoints time out, they fall back gracefully to controlled demo fixtures without crashing, explicitly reporting the TIMEOUT status. Retries can be launched from network environments capable of routing to OKX Web3 endpoints. Additionally, documented that the WETH contract address on X Layer Mainnet is `0x5A77f1443D16ee5761d310e38b62f77f726bC71c` while the testnet WETH address is `0xBec7859BC3d0603BeC454F7194173E36BF2Aa5C8` (maintained as separated provenance flags).
+- **Files Affected**: `tests/okx-integration.test.ts`, `src/server/okx.ts`
+- **Status**: **RESOLVED**
+
 ---
 
 ## 📝 Drift Entry Template

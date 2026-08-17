@@ -365,10 +365,10 @@ function runTests() {
   console.log("\nScenario N: Native Gas Reserve Capping");
   const okbActionB = planB_B.actions.find((a) => a.symbol === "OKB")!;
   const expectedGasConsumed = planB_B.gasCostUsd / 47.17; // expected gas consumed in OKB
-  const remainingOKB = 6.3600 - okbActionB.sellAmount - expectedGasConsumed;
+  const remainingOKB = 6.3600 - okbActionB.sellAmount - expectedGasConsumed * 1.2;
   
   if (okbActionB.sellAmount < 6.3600 && Math.abs(remainingOKB) < 0.0001) {
-    console.log(`✅ Passed (Capped OKB swap to reserve gas: sold ${okbActionB.sellAmount.toFixed(4)} OKB, reserved ${expectedGasConsumed.toFixed(4)} OKB for gas, remaining OKB = ${remainingOKB.toFixed(4)})`);
+    console.log(`✅ Passed (Capped OKB swap to reserve gas: sold ${okbActionB.sellAmount.toFixed(4)} OKB, reserved ${(expectedGasConsumed * 1.2).toFixed(4)} OKB for gas, remaining OKB safety buffer = ${(expectedGasConsumed * 0.2).toFixed(4)} OKB)`);
   } else {
     passed = false;
     console.log(`❌ Failed (OKB sold: ${okbActionB.sellAmount}, remaining: ${remainingOKB})`);
