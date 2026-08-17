@@ -1,6 +1,5 @@
 import { createPublicClient, fallback, http, formatEther, formatUnits } from "viem";
 import { defineChain } from "viem/utils";
-import { createServerFn } from "@tanstack/react-start";
 
 // Define X Layer Testnet Chain (Chain ID: 1952)
 export const xLayerTestnet = defineChain({
@@ -38,51 +37,14 @@ export const TOKENS = {
   USDC: "0xb6ceceab302e2e4948951ee7843fc24e92933061",
 };
 
-/**
- * Server Function: Fetches comma-separated RPC URLs from server-side process.env.
- * Appends the official X Layer public endpoints as fallback paths.
- * Excludes the invalid/403-throwing anonymous Ankr fallback.
- */
-export const getRpcEndpoints = createServerFn("GET", async () => {
-  const envRpc = process.env.XLAYER_RPC_URLS || process.env.XLAYER_RPC_URL;
-  const list = envRpc ? envRpc.split(",").map((r) => r.trim()).filter(Boolean) : [];
-  
-  // Return the configured env endpoints first, followed by official fallbacks
-  return [
-    ...list,
-    "https://testrpc.xlayer.tech/terigon",
-    "https://xlayertestrpc.okx.com/terigon",
-  ];
+// Client-safe public RPC endpoints (Never exposes private QuickNode RPC URLs or API tokens)
+export const publicClient = createPublicClient({
+  chain: xLayerTestnet,
+  transport: fallback([
+    http("https://testrpc.xlayer.tech/terigon"),
+    http("https://xlayertestrpc.okx.com/terigon"),
+  ], { rank: false }),
 });
-
-let cachedClient: ReturnType<typeof createPublicClient> | null = null;
-
-/**
- * Gets or creates the viem PublicClient using the dynamic RPC list fetched via server function.
- */
-export async function getXLayerClient() {
-  if (cachedClient) return cachedClient;
-
-  try {
-    const rpcs = await getRpcEndpoints();
-    // Dedup URLs just in case
-    const uniqueRpcs = Array.from(new Set(rpcs));
-    const transports = uniqueRpcs.map((url) => http(url));
-
-    cachedClient = createPublicClient({
-      chain: xLayerTestnet,
-      transport: fallback(transports, { rank: false }),
-    });
-    return cachedClient;
-  } catch (err) {
-    console.error("Failed to construct X Layer client with dynamic RPC list, using default public client:", err);
-    // Safe static fallback to official public testnet RPC
-    return createPublicClient({
-      chain: xLayerTestnet,
-      transport: http("https://testrpc.xlayer.tech/terigon"),
-    });
-  }
-}
 
 export type DataSource = "live" | "demo" | "estimated" | "unverified";
 
@@ -197,10 +159,8 @@ export async function scanPortfolio(address: string | null): Promise<{
   }
 
   try {
-    const client = await getXLayerClient();
-
-    // 1. Fetch Real Native OKB Balance
-    const okbWei = await client.getBalance({ address: address as `0x${string}` });
+    // 1. Fetch Real Native OKB Balance using client-side publicClient
+    const okbWei = await publicClient.getBalance({ address: address as `0x${string}` });
     const okbBalance = parseFloat(formatEther(okbWei));
 
     // WETH and USDC contract address on X Layer Testnet returned empty bytecodes (0x) during validation.
@@ -283,7 +243,6 @@ export async function scanPortfolio(address: string | null): Promise<{
     };
   } catch (error) {
     console.error("X Layer RPC scan failed, live data unavailable:", error);
-    // Explicitly do not disguise failed RPC as success. Return the offline status.
     const total = defaultDemoAssets.reduce((sum, a) => sum + a.value, 0);
     return {
       assets: defaultDemoAssets,
