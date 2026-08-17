@@ -1,6 +1,6 @@
 import { useEffect } from "react";
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowRight, CircuitBoard, AlertTriangle, HelpCircle, CheckCircle } from "lucide-react";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { ArrowRight, CircuitBoard, AlertTriangle, HelpCircle, CheckCircle, Loader2 } from "lucide-react";
 import { PageShell } from "@/components/save/page-shell";
 import {
   AnimatedNumber,
@@ -35,14 +35,18 @@ function Simulate() {
   const {
     selectedPlan,
     rescueResult,
-    portfolio,
-    parsedIntent,
     executionState,
     simulationResult,
     quoteTimestamp,
     runSimulation,
     chainId,
+    executionSession,
+    startExecution,
+    executeNextStep,
+    connected,
   } = useSave();
+
+  const navigate = useNavigate();
 
   const activePlan = rescueResult.plans.find((p) => p.id === selectedPlan);
 
@@ -52,6 +56,20 @@ function Simulate() {
       runSimulation("DEMO_SIMULATION");
     }
   }, [executionState, runSimulation]);
+
+  // Handle auto-start execution session when simulation succeeds
+  useEffect(() => {
+    if (executionState === "SIMULATION_READY" && executionSession.steps.length === 0) {
+      startExecution(connected ? "TESTNET_LIVE" : "DEMO_SIMULATION");
+    }
+  }, [executionState, executionSession.steps.length, startExecution, connected]);
+
+  // Auto-navigate to protected page when execution successfully completes
+  useEffect(() => {
+    if (executionSession.state === "COMPLETE") {
+      navigate({ to: "/protected" });
+    }
+  }, [executionSession.state, navigate]);
 
   if (!activePlan) {
     return (
@@ -84,14 +102,46 @@ function Simulate() {
     "Execution gas reserve calculated",
   ];
 
+  // Add active execution step if running
+  if (executionSession.steps.length > 0) {
+    const activeStep = executionSession.steps[executionSession.currentStepIndex];
+    if (activeStep) {
+      traceSteps.push(
+        `Execute step ${executionSession.currentStepIndex + 1}: ${activeStep.type.toUpperCase()} ${activeStep.symbol}`
+      );
+    }
+  }
+
   // Derive execution risk label
   const riskLabel = activePlan.saveScore >= 85 ? "LOW" : activePlan.saveScore >= 70 ? "MEDIUM" : "HIGH";
 
-  // Format assets sold list
-  const soldAssetsText = activePlan.actions
-    .filter((a) => a.sellAmount > 0)
-    .map((a) => `${a.sellAmount.toFixed(2)} ${a.symbol}`)
-    .join(" · ");
+  // Derive execution status text & button actions
+  let statusText = "Ready to authorize";
+  let buttonLabel = "Authorize Rescue Plan";
+  let showLoader = false;
+  let errorMsg = "";
+
+  if (executionSession.state === "AWAITING_WALLET_SIGNATURE") {
+    statusText = "Awaiting signature confirmation from your wallet...";
+    buttonLabel = "Signing...";
+    showLoader = true;
+  } else if (executionSession.state === "BROADCASTING") {
+    statusText = "Broadcasting transaction to X Layer Testnet...";
+    buttonLabel = "Broadcasting...";
+    showLoader = true;
+  } else if (executionSession.state === "PENDING_CONFIRMATION") {
+    statusText = "Transaction pending. Awaiting block confirmation...";
+    buttonLabel = "Confirming...";
+    showLoader = true;
+  } else if (executionSession.state === "USER_REJECTED") {
+    statusText = "Signature request rejected by user. You can retry.";
+    buttonLabel = "Retry Authorization";
+    errorMsg = "Signature rejected by user.";
+  } else if (executionSession.state === "FAILED_SAFE") {
+    statusText = "Execution failed closed. Funds are safe.";
+    buttonLabel = "Execution Failed";
+    errorMsg = executionSession.error || "On-chain transaction reverted.";
+  }
 
   return (
     <PageShell
@@ -162,9 +212,13 @@ function Simulate() {
                     <li key={app.token} className="py-2.5 flex items-center justify-between gap-4">
                       <div>
                         <p className="text-sm font-semibold">{app.token} ERC-20 approval</p>
-                        <p className="text-xs text-muted-foreground">Spender: {app.spender}</p>
+                        <p className="text-xs text-muted-foreground">Spender: {app.spender || "UNKNOWN_SPENDER"}</p>
                       </div>
-                      <StatusPill tone="warning">Approval Required (DEMO)</StatusPill>
+                      <StatusPill tone={app.verificationStatus === "UNKNOWN" ? "critical" : "warning"}>
+                        {app.verificationStatus === "UNKNOWN"
+                          ? "REQUIRES LIVE ROUTE VERIFICATION"
+                          : `Approval Required (${app.verificationStatus})`}
+                      </StatusPill>
                     </li>
                   ))}
                 </ul>
@@ -189,33 +243,56 @@ function Simulate() {
             </Panel>
           )}
 
+          {errorMsg !== "" && (
+            <Panel className="border-critical/30 bg-critical/10 p-6 flex gap-4 items-start rounded-lg">
+              <AlertTriangle className="size-5 text-critical shrink-0 mt-0.5" />
+              <div>
+                <h4 className="font-semibold text-critical">Execution Error</h4>
+                <p className="mt-1 text-sm leading-relaxed text-foreground">{errorMsg}</p>
+              </div>
+            </Panel>
+          )}
+
           {executionState === "SIMULATION_READY" && (
             <Panel className="border-safe/30 bg-safe/10 p-6 flex gap-4 items-start rounded-lg">
-              <CheckCircle className="size-5 text-safe shrink-0 mt-0.5" />
+              {showLoader ? (
+                <Loader2 className="size-5 text-primary animate-spin shrink-0 mt-0.5" />
+              ) : (
+                <CheckCircle className="size-5 text-safe shrink-0 mt-0.5" />
+              )}
               <div>
-                <h4 className="font-semibold text-safe">Ready for wallet authorization</h4>
+                <h4 className="font-semibold text-safe">{statusText}</h4>
                 <p className="mt-1 text-sm leading-relaxed text-foreground">
-                  All validation checkpoints successfully satisfied. Prepared transaction calldata generated in memory.
+                  {connected
+                    ? "Wallet execution mode active. Transactions will be sent to X Layer Testnet."
+                    : "Demo simulation mode active. Safety checks satisfied without broadcast."}
                 </p>
-                <div className="mt-3 flex gap-4 text-xs text-muted-foreground">
-                  <span>Target met: YES</span>
-                  <span>Gas reserve: OK</span>
-                  <span>Data provenance: {simulationResult.provenance}</span>
-                </div>
+                {executionSession.steps.length > 0 && (
+                  <div className="mt-3 flex gap-4 text-xs text-muted-foreground">
+                    <span>
+                      Step {executionSession.currentStepIndex + 1} of {executionSession.steps.length}
+                    </span>
+                    <span>Mode: {executionSession.mode}</span>
+                  </div>
+                )}
               </div>
             </Panel>
           )}
 
           {executionState === "SIMULATION_READY" ? (
-            <Link to="/protected" className="block">
-              <MagneticButton className="w-full" size="lg">
-                Authorize Rescue Plan <ArrowRight className="size-4" />
+            <button
+              onClick={executeNextStep}
+              className="w-full"
+              disabled={showLoader || executionSession.state === "FAILED_SAFE"}
+            >
+              <MagneticButton className="w-full" size="lg" disabled={showLoader || executionSession.state === "FAILED_SAFE"}>
+                {buttonLabel} <ArrowRight className="size-4" />
               </MagneticButton>
-            </Link>
+            </button>
           ) : (
             <button className="w-full opacity-50 cursor-not-allowed" disabled>
               <MagneticButton className="w-full" size="lg" disabled>
-                Authorize Rescue Plan <ArrowRight className="size-4" />
+                {buttonLabel} <ArrowRight className="size-4" />
               </MagneticButton>
             </button>
           )}

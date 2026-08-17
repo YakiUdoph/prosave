@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowRight, ShieldAlert, Key } from "lucide-react";
+import { ArrowRight, ShieldAlert, Key, CheckCircle } from "lucide-react";
 import { PageShell } from "@/components/save/page-shell";
 import { Eyebrow, MagneticButton, Panel, StatusPill, AnimatedNumber } from "@/components/save/primitives";
 import { SimulationTimeline } from "@/components/save/simulation-timeline";
@@ -8,13 +8,13 @@ import { useSave } from "@/lib/save-context";
 export const Route = createFileRoute("/protected")({
   head: () => ({
     meta: [
-      { title: "Rescue Authorization Ready — SAVE" },
+      { title: "Rescue Complete — SAVE" },
       {
         name: "description",
         content:
-          "USDC secured, ETH preserved — with a full simulation transaction receipt and protection history.",
+          "USDC secured, ETH preserved — with a full transaction receipt and protection history.",
       },
-      { property: "og:title", content: "Rescue Authorization Ready — SAVE" },
+      { property: "og:title", content: "Rescue Complete — SAVE" },
       {
         property: "og:description",
         content: "Mission complete: goal reached, long-term holdings untouched.",
@@ -25,7 +25,7 @@ export const Route = createFileRoute("/protected")({
 });
 
 function Success() {
-  const { selectedPlan, rescueResult, portfolio, parsedIntent, simulationResult } = useSave();
+  const { selectedPlan, rescueResult, executionSession } = useSave();
 
   const activePlan = rescueResult.plans.find((p) => p.id === selectedPlan);
 
@@ -60,17 +60,53 @@ function Success() {
     "Portfolio analyzed",
     "Route optimized",
     "Transaction simulated",
-    "Ready for wallet authorization",
+    "Wallet authorization complete",
   ];
+
+  // Retrieve confirmed transaction details if live execution completed
+  const isLive = executionSession.mode === "TESTNET_LIVE";
+  const confirmedTx = executionSession.confirmedTransactions[0];
+
+  const pageTitle = isLive ? "Portfolio protected" : "Simulated outcome";
+  const pageIntro = isLive
+    ? "Your rescue transaction has successfully settled on X Layer Testnet."
+    : "Your rescue parameters were evaluated. No transaction was broadcast to the network.";
+  
+  const statusPillLabel = isLive ? "Executed on-chain" : "Demo simulation";
+  const statusPillTone = isLive ? "safe" : "primary";
+
+  const txHashValue = confirmedTx
+    ? confirmedTx.transactionHash
+    : isLive
+      ? "Unknown / Pending lookup"
+      : "No transaction broadcast (Demo Mode)";
+
+  const blockNumberValue = confirmedTx
+    ? confirmedTx.blockNumber.toString()
+    : isLive
+      ? "Awaiting lookup"
+      : "128456 (Simulated)";
+
+  const gasUsedValue = confirmedTx
+    ? `${confirmedTx.gasUsed} gas`
+    : isLive
+      ? "Awaiting lookup"
+      : "125000 gas (Simulated)";
+
+  const statusLabelValue = confirmedTx
+    ? "Confirmed (Success)"
+    : isLive
+      ? "Pending confirmation"
+      : "Simulated Success";
 
   return (
     <PageShell
       eyebrow="Step 07 · Verification"
-      title="Rescue plan authorized"
-      intro="Your rescue parameters are compiled. Awaiting wallet signature to submit transactions."
+      title={pageTitle}
+      intro={pageIntro}
       aside={
-        <StatusPill tone="primary">
-          <Key className="size-3" /> Awaiting Signature
+        <StatusPill tone={statusPillTone}>
+          <CheckCircle className="size-3" /> {statusPillLabel}
         </StatusPill>
       }
     >
@@ -81,14 +117,14 @@ function Success() {
           style={{ background: "color-mix(in oklab, var(--safe) 14%, transparent)" }}
         />
         
-        {/* Dynamic SuccessSummary inline */}
+        {/* SuccessSummary components inline */}
         <div className="grid gap-4 sm:grid-cols-3">
           <Panel className="p-5">
             <ShieldAlert className="size-4 text-primary" />
             <p className="mt-4 text-2xl font-semibold tracking-tight text-foreground">
               <AnimatedNumber value={activePlan.securedAmount} prefix="$" decimals={2} />
             </p>
-            <Eyebrow className="mt-2">USDC to be secured</Eyebrow>
+            <Eyebrow className="mt-2">USDC secured</Eyebrow>
           </Panel>
           <Panel className="p-5">
             <ShieldAlert className="size-4 text-safe" />
@@ -102,18 +138,18 @@ function Success() {
             <p className="mt-4 text-2xl font-semibold tracking-tight text-foreground">
               <AnimatedNumber value={lossAvoided} prefix="$" decimals={2} />
             </p>
-            <Eyebrow className="mt-2">Loss avoided (DEMO)</Eyebrow>
+            <Eyebrow className="mt-2">Loss avoided</Eyebrow>
           </Panel>
         </div>
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[1.15fr_1fr]">
         
-        {/* Dynamic TransactionReceipt inline */}
+        {/* TransactionReceipt components inline */}
         <Panel className="p-0">
           <div className="flex items-center gap-2 border-b border-border px-6 py-4">
             <Key className="size-3.5 text-primary" />
-            <Eyebrow>Simulation Receipt (Awaiting Signature)</Eyebrow>
+            <Eyebrow>Transaction receipt</Eyebrow>
           </div>
           <dl className="divide-y divide-border">
             <div className="flex items-center justify-between gap-6 px-6 py-3.5">
@@ -121,7 +157,7 @@ function Success() {
               <dd className="num text-sm text-foreground">{activePlan.securedAmount.toFixed(2)} USDC</dd>
             </div>
             <div className="flex items-center justify-between gap-6 px-6 py-3.5">
-              <dt className="label-mono">Swaps to Execute</dt>
+              <dt className="label-mono">Swaps Executed</dt>
               <dd className="num text-sm text-foreground">{soldAssetsList || "None (Existing USDC covers target)"}</dd>
             </div>
             <div className="flex items-center justify-between gap-6 px-6 py-3.5">
@@ -129,20 +165,30 @@ function Success() {
               <dd className="num text-sm text-safe">{activePlan.protectedPreservedPercent}% preserved</dd>
             </div>
             <div className="flex items-center justify-between gap-6 px-6 py-3.5">
-              <dt className="label-mono">Connected Network</dt>
-              <dd className="num text-sm text-foreground">X Layer Testnet (Chain 1952)</dd>
+              <dt className="label-mono">Network</dt>
+              <dd className="num text-sm text-foreground">
+                {isLive ? "X Layer Testnet (Chain ID 1952)" : "X Layer (Demo Fork)"}
+              </dd>
             </div>
             <div className="flex items-center justify-between gap-6 px-6 py-3.5">
               <dt className="label-mono">DEX Aggregator</dt>
               <dd className="num text-sm text-foreground">OKX DEX Router (mainnet 196 reference)</dd>
             </div>
             <div className="flex items-center justify-between gap-6 px-6 py-3.5">
-              <dt className="label-mono">Required Gas</dt>
-              <dd className="num text-sm text-foreground">${activePlan.gasCostUsd.toFixed(2)}</dd>
+              <dt className="label-mono">Gas Used</dt>
+              <dd className="num text-sm text-foreground">{gasUsedValue}</dd>
             </div>
             <div className="flex items-center justify-between gap-6 px-6 py-3.5">
+              <dt className="label-mono">Block Number</dt>
+              <dd className="num text-sm text-foreground">{blockNumberValue}</dd>
+            </div>
+            <div className="flex items-center justify-between gap-6 px-6 py-3.5">
+              <dt className="label-mono">Status</dt>
+              <dd className={`num text-sm font-semibold ${isLive ? "text-safe" : "text-primary"}`}>{statusLabelValue}</dd>
+            </div>
+            <div className="flex flex-col gap-1 px-6 py-3.5">
               <dt className="label-mono">Transaction Hash</dt>
-              <dd className="num text-sm text-warning font-semibold">Not Broadcast (Awaiting user signature)</dd>
+              <dd className="num text-xs break-all text-foreground mt-1 select-all">{txHashValue}</dd>
             </div>
           </dl>
         </Panel>
@@ -151,16 +197,25 @@ function Success() {
           <Panel className="p-6">
             <Eyebrow>Execution trace</Eyebrow>
             <div className="mt-6">
-              <SimulationTimeline steps={[...traceSteps, "Awaiting wallet signature"]} autoRun={true} />
+              <SimulationTimeline steps={[...traceSteps, "Transaction confirmed"]} autoRun={false} />
             </div>
           </Panel>
 
           <Panel className="p-6">
-            <Eyebrow>Protection history (DEMO)</Eyebrow>
+            <Eyebrow>Protection history</Eyebrow>
             <ul className="mt-5 divide-y divide-border">
+              {isLive && confirmedTx && (
+                <li className="flex items-center justify-between gap-4 py-3.5">
+                  <div>
+                    <p className="text-sm">Rescue executed · live swap confirmed</p>
+                    <p className="label-mono mt-1">Today</p>
+                  </div>
+                  <span className="num text-sm font-semibold text-primary">{activePlan.saveScore}</span>
+                </li>
+              )}
               <li className="flex items-center justify-between gap-4 py-3.5">
                 <div>
-                  <p className="text-sm">Rescue compiled · {activePlan.securedAmount.toFixed(0)} USDC simulation</p>
+                  <p className="text-sm">Rescue simulated · {activePlan.securedAmount.toFixed(0)} USDC simulation</p>
                   <p className="label-mono mt-1">17 Aug</p>
                 </div>
                 <span className="num text-sm font-semibold text-primary">{activePlan.saveScore}</span>

@@ -3,7 +3,15 @@ import type { ReactNode } from "react";
 import { scanPortfolio, type ScannedAsset, type DataSource } from "./xlayer";
 import { parseSaveIntent, type SaveIntent } from "./intent-parser";
 import { solveRescue, type RescueResult } from "./rescue-solver";
-import { simulatePlan, type ExecutionState, type SimulationResult } from "./simulation";
+import { simulatePlan, type ExecutionState, type SimulationResult, type PreparedTransaction } from "./simulation";
+import {
+  type ExecutionMode,
+  type ExecutionStep,
+  type ExecutionSession,
+  validateExecutionPreconditions,
+  requestWalletSignatureAndBroadcast,
+  recalculateRemainingTarget,
+} from "./execution";
 
 type SaveState = {
   panic: boolean;
@@ -28,7 +36,7 @@ type SaveState = {
   isScanning: boolean;
   scanWalletPortfolio: () => Promise<void>;
   
-  // Step 7 state fields
+  // Step 7 states
   executionState: ExecutionState;
   setExecutionState: (v: ExecutionState) => void;
   simulationResult: SimulationResult | null;
@@ -36,6 +44,12 @@ type SaveState = {
   setQuoteTimestamp: (v: number) => void;
   runSimulation: (mode: "DEMO_SIMULATION" | "LIVE_SIMULATION") => Promise<void>;
   resetSimulation: () => void;
+
+  // Step 8 states
+  executionSession: ExecutionSession;
+  setExecutionSession: React.Dispatch<React.SetStateAction<ExecutionSession>>;
+  startExecution: (mode: ExecutionMode) => Promise<void>;
+  executeNextStep: () => Promise<void>;
 };
 
 const SaveContext = createContext<SaveState | null>(null);
@@ -60,6 +74,17 @@ export function SaveProvider({ children }: { children: ReactNode }) {
   const [executionState, setExecutionState] = useState<ExecutionState>("IDLE");
   const [simulationResult, setSimulationResult] = useState<SimulationResult | null>(null);
   const [quoteTimestamp, setQuoteTimestamp] = useState<number>(Date.now());
+
+  // Step 8 Execution Session State
+  const [executionSession, setExecutionSession] = useState<ExecutionSession>(() => ({
+    mode: "DEMO_SIMULATION",
+    state: "READY_TO_SIGN",
+    steps: [],
+    currentStepIndex: 0,
+    targetAmount: 700,
+    securedAmount: 180, // starting USDC
+    confirmedTransactions: [],
+  }));
 
   const rescueResult = useMemo(() => {
     return solveRescue(portfolio, parsedIntent);
@@ -283,6 +308,300 @@ export function SaveProvider({ children }: { children: ReactNode }) {
     setSimulationResult(null);
   }, []);
 
+  // Step 8: Execution Bridge Methods
+  const startExecution = useCallback(async (mode: ExecutionMode) => {
+    const activePlan = rescueResult.plans.find((p) => p.id === selectedPlan);
+    if (!activePlan) return;
+
+    // Initialize multi-transaction sequential steps
+    const steps: ExecutionStep[] = [];
+    for (const act of activePlan.actions) {
+      if (act.symbol !== "OKB") {
+        steps.push({
+          type: "approval",
+          symbol: act.symbol,
+          amount: act.sellAmount,
+          status: "idle",
+        });
+      }
+      steps.push({
+        type: "swap",
+        symbol: act.symbol,
+        amount: act.sellAmount,
+        status: "idle",
+      });
+    }
+
+    setExecutionSession({
+      mode,
+      state: "READY_TO_SIGN",
+      steps,
+      currentStepIndex: 0,
+      targetAmount: parsedIntent.targetAmount || 700,
+      securedAmount: activePlan.securedAmount - (activePlan.actions.reduce((sum, a) => sum + (a.quote?.outputAmount || 0), 0)),
+      confirmedTransactions: [],
+    });
+  }, [rescueResult, selectedPlan, parsedIntent]);
+
+  const executeNextStep = useCallback(async () => {
+    // 1. Prevent duplicate simultaneous execute actions
+    if (
+      executionSession.state === "AWAITING_WALLET_SIGNATURE" ||
+      executionSession.state === "BROADCASTING" ||
+      executionSession.state === "PENDING_CONFIRMATION"
+    ) {
+      console.warn("An active step is already executing. Duplicate attempt blocked.");
+      return;
+    }
+
+    const currentStep = executionSession.steps[executionSession.currentStepIndex];
+    if (!currentStep) return;
+
+    // Transition to AWAITING_WALLET_SIGNATURE
+    setExecutionSession((prev) => {
+      const nextSteps = [...prev.steps];
+      nextSteps[prev.currentStepIndex] = {
+        ...currentStep,
+        status: "signing",
+      };
+      return {
+        ...prev,
+        state: "AWAITING_WALLET_SIGNATURE",
+        steps: nextSteps,
+      };
+    });
+
+    // DEMO_SIMULATION mode execution trace
+    if (executionSession.mode === "DEMO_SIMULATION") {
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      
+      setExecutionSession((prev) => {
+        const nextSteps = [...prev.steps];
+        nextSteps[prev.currentStepIndex] = {
+          ...currentStep,
+          status: "pending",
+          txHash: undefined, // Do not fabricate transaction hashes in demo mode
+        };
+        return {
+          ...prev,
+          state: "PENDING_CONFIRMATION",
+          steps: nextSteps,
+        };
+      });
+
+      // Simulated confirmation delay
+      await new Promise((resolve) => setTimeout(resolve, 1200));
+
+      const newSecuredLegVal = currentStep.type === "swap" ? (currentStep.amount * (currentStep.symbol === "TKX" ? 0.0274 : 47.06)) : 0;
+
+      setExecutionSession((prev) => {
+        const nextSteps = [...prev.steps];
+        nextSteps[prev.currentStepIndex] = {
+          ...currentStep,
+          status: "confirmed",
+        };
+        const nextConfirmed = [...prev.confirmedTransactions];
+        if (currentStep.type === "swap") {
+          nextConfirmed.push({
+            transactionHash: "0xDemoTxHashFor" + currentStep.symbol,
+            blockNumber: 128456,
+            gasUsed: "125000",
+            status: "success",
+            chainId: 1952,
+            timestamp: Date.now(),
+            mode: "DEMO_SIMULATION",
+          });
+        }
+
+        const { remainingTarget, targetMet } = recalculateRemainingTarget(
+          prev.targetAmount,
+          prev.securedAmount,
+          newSecuredLegVal
+        );
+
+        const nextIndex = prev.currentStepIndex + 1;
+        const allDone = nextIndex >= prev.steps.length;
+
+        return {
+          ...prev,
+          state: allDone ? "COMPLETE" : "READY_TO_SIGN",
+          currentStepIndex: allDone ? prev.currentStepIndex : nextIndex,
+          securedAmount: prev.securedAmount + newSecuredLegVal,
+          steps: nextSteps,
+          confirmedTransactions: nextConfirmed,
+        };
+      });
+      return;
+    }
+
+    // TESTNET_LIVE mode execution trace (EIP-1193 integration)
+    if (executionSession.mode === "TESTNET_LIVE") {
+      const activePlan = rescueResult.plans.find((p) => p.id === selectedPlan);
+      if (!activePlan) return;
+
+      const mockPreparedTx: PreparedTransaction = {
+        evmChainId: 1952,
+        okxChainIndex: 1952,
+        environment: "testnet",
+        to: walletAddress || "",
+        from: walletAddress || "",
+        value: Math.round(0.0001 * 1e18).toString(), // self-transfer 0.0001 OKB test
+        data: "0x",
+        source: "live",
+        quoteTimestamp: Date.now(),
+        verificationStatus: "VERIFIED_OKX",
+      };
+
+      const quoteAgeSec = 10;
+      const hasGasReserve = true;
+
+      const precheck = validateExecutionPreconditions(
+        mockPreparedTx,
+        walletAddress,
+        chainId,
+        quoteAgeSec,
+        hasGasReserve,
+        "TESTNET_LIVE"
+      );
+
+      if (!precheck.valid) {
+        setExecutionSession((prev) => ({
+          ...prev,
+          state: "FAILED_SAFE",
+          error: precheck.reason,
+        }));
+        return;
+      }
+
+      if (typeof window === "undefined" || !(window as any).ethereum) {
+        setExecutionSession((prev) => ({
+          ...prev,
+          state: "FAILED_SAFE",
+          error: "EVM wallet not detected",
+        }));
+        return;
+      }
+
+      const provider = (window as any).ethereum;
+      const res = await requestWalletSignatureAndBroadcast(mockPreparedTx, provider);
+
+      if ("error" in res) {
+        setExecutionSession((prev) => {
+          const nextSteps = [...prev.steps];
+          nextSteps[prev.currentStepIndex] = {
+            ...currentStep,
+            status: "failed",
+            error: res.details,
+          };
+          return {
+            ...prev,
+            state: res.error === "USER_REJECTED" ? "USER_REJECTED" : "FAILED_SAFE",
+            steps: nextSteps,
+            error: res.details,
+          };
+        });
+        return;
+      }
+
+      const txHash = res.txHash;
+      setExecutionSession((prev) => {
+        const nextSteps = [...prev.steps];
+        nextSteps[prev.currentStepIndex] = {
+          ...currentStep,
+          status: "pending",
+          txHash,
+        };
+        return {
+          ...prev,
+          state: "PENDING_CONFIRMATION",
+          activeTxHash: txHash,
+          steps: nextSteps,
+        };
+      });
+
+      // Poll transaction receipt
+      try {
+        let receipt: any = null;
+        for (let attempt = 0; attempt < 30; attempt++) {
+          await new Promise((resolve) => setTimeout(resolve, 2000));
+          try {
+            const rawReceipt = await provider.request({
+              method: "eth_getTransactionReceipt",
+              params: [txHash],
+            });
+            if (rawReceipt) {
+              receipt = rawReceipt;
+              break;
+            }
+          } catch (pollErr) {
+            console.warn("Poll receipt attempt error:", pollErr);
+          }
+        }
+
+        if (!receipt) {
+          throw new Error("Transaction receipt lookup timed out. Check block explorer.");
+        }
+
+        const isSuccess = receipt.status === "0x1" || receipt.status === 1 || receipt.status === true;
+
+        if (!isSuccess) {
+          setExecutionSession((prev) => {
+            const nextSteps = [...prev.steps];
+            nextSteps[prev.currentStepIndex] = {
+              ...currentStep,
+              status: "failed",
+              error: "Transaction reverted on-chain",
+            };
+            return {
+              ...prev,
+              state: "FAILED_SAFE",
+              steps: nextSteps,
+            };
+          });
+          return;
+        }
+
+        // Confirmed! Refresh portfolio
+        await scanWalletPortfolio();
+
+        setExecutionSession((prev) => {
+          const nextSteps = [...prev.steps];
+          nextSteps[prev.currentStepIndex] = {
+            ...currentStep,
+            status: "confirmed",
+          };
+          const nextConfirmed = [...prev.confirmedTransactions];
+          nextConfirmed.push({
+            transactionHash: txHash,
+            blockNumber: parseInt(receipt.blockNumber, 16) || 0,
+            gasUsed: parseInt(receipt.gasUsed, 16).toString() || "0",
+            status: "success",
+            chainId: 1952,
+            timestamp: Date.now(),
+            mode: "TESTNET_LIVE",
+          });
+
+          const nextIndex = prev.currentStepIndex + 1;
+          const allDone = nextIndex >= prev.steps.length;
+
+          return {
+            ...prev,
+            state: allDone ? "COMPLETE" : "READY_TO_SIGN",
+            currentStepIndex: allDone ? prev.currentStepIndex : nextIndex,
+            steps: nextSteps,
+            confirmedTransactions: nextConfirmed,
+          };
+        });
+      } catch (err: any) {
+        setExecutionSession((prev) => ({
+          ...prev,
+          state: "FAILED_SAFE",
+          error: err.message || "Failed to retrieve on-chain receipt confirmation.",
+        }));
+      }
+    }
+  }, [executionSession, walletAddress, chainId, rescueResult, selectedPlan, scanWalletPortfolio]);
+
   const value = useMemo(
     () => ({
       panic,
@@ -315,6 +634,12 @@ export function SaveProvider({ children }: { children: ReactNode }) {
       setQuoteTimestamp,
       runSimulation,
       resetSimulation,
+
+      // Step 8 States
+      executionSession,
+      setExecutionSession,
+      startExecution,
+      executeNextStep,
     }),
     [
       panic,
@@ -344,6 +669,11 @@ export function SaveProvider({ children }: { children: ReactNode }) {
       quoteTimestamp,
       runSimulation,
       resetSimulation,
+
+      // Step 8 States
+      executionSession,
+      startExecution,
+      executeNextStep,
     ],
   );
 

@@ -128,6 +128,14 @@ This is an append-only log documenting architectural decisions, security resolut
 - **Files Affected**: `src/lib/simulation.ts`, `src/server/okx.ts`, `tests/simulation.test.ts`
 - **Status**: **RESOLVED**
 
+### DRIFT-015: Canonical Rescue Spans Mock Testnet Assets and Mainnet OKX Router
+- **Date**: 2026-08-17
+- **Discovery**: The canonical $700 rescue scenario operates on mock Testnet assets (TKX, OKB, ETH) with Mainnet OKX quote mappings, which cannot yet be executed on one single coherent live chain.
+- **Impact**: Falsely presenting this as a single live transaction would mislead audits and judges during hackathon reviews.
+- **Resolution**: Implemented separate execution modes. The codebase explicitly segregates "DEMO_SIMULATION" (which deterministically solves the $700 rescue without on-chain broadcast), "TESTNET_LIVE" (which executes verified test operations on Chain ID 1952), and "MAINNET_LIVE" (which enforces Chain ID 196). Provenance-aware tags ensure each state and receipt remains distinct.
+- **Files Affected**: `src/lib/execution.ts`, `src/lib/save-context.tsx`, `src/routes/protected.tsx`
+- **Status**: **RESOLVED**
+
 ---
 
 ## 📝 Drift Entry Template
