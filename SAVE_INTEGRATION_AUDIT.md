@@ -1,9 +1,10 @@
-# SAVE — Functional Integration Audit
+# SAVE — Functional Integration Audit (Visual Source: SAVE-Original)
 
-This audit document details the state of the recovered approved original SAVE frontend repository before implementing functional integration.
+This audit documents the state of the approved original SAVE frontend repository (`SAVE-Original`) and outlines the integration status for the X Layer hackathon MVP.
 
 ## 1. Technical Architecture & Environment
 
+- **Frontend Source of Truth**: `C:\Users\PC\Desktop\SAVE-Original` (Visual Design Locked).
 - **Framework**: TanStack Start (React 19 + Vite 8 + TanStack Router 1 + Nitro 3).
 - **Routing**: File-based routing located in `src/routes/` with path routing defined in `src/router.tsx` and generated tree in `src/routeTree.gen.ts`.
 - **State Management**: Simple React Context in `src/lib/save-context.tsx` (`SaveProvider` and `useSave` hook).

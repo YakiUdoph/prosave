@@ -1,6 +1,6 @@
-# SAVE — Functional Integration Plan
+# SAVE — Functional Integration Plan (Visual Source: SAVE-Original)
 
-This document maps out the integration architecture to connect the approved SAVE frontend with the validated X Layer RPC client and the OKX OnchainOS DEX aggregator quotes.
+This document maps out the integration architecture to connect the approved `SAVE-Original` frontend with the validated X Layer RPC client and the OKX OnchainOS DEX aggregator quotes.
 
 ## 1. Security Architecture (Secrets Management)
 
