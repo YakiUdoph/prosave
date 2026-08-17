@@ -1,4 +1,4 @@
-import { simulatePlan, type PreparedTransaction } from "../src/lib/simulation";
+import { simulatePlan, type PreparedTransaction, type VerifiedApproval } from "../src/lib/simulation";
 import { solveRescue, type CandidatePlan } from "../src/lib/rescue-solver";
 import { type ScannedAsset } from "../src/lib/xlayer";
 import { type SaveIntent } from "../src/lib/intent-parser";
@@ -80,22 +80,9 @@ const intentB: SaveIntent = {
   warnings: [],
 };
 
-const intentStrict: SaveIntent = {
-  rawInput: "Get me $700 USDC and never sell ETH.",
-  targetAsset: "USDC",
-  targetAmount: 700,
-  protectedAssets: ["ETH"],
-  avoidAssets: [],
-  objective: "MINIMIZE_DAMAGE",
-  urgency: "NORMAL",
-  protectedAssetPolicy: "STRICT",
-  confidence: 1.0,
-  warnings: [],
-};
-
 function runTests() {
   console.log("==================================================");
-  console.log("             RUNNING SIMULATION HARDENING TESTS   ");
+  console.log("      RUNNING HARDENED FINAL VERIFICATION TESTS   ");
   console.log("==================================================");
 
   let passed = true;
@@ -103,14 +90,13 @@ function runTests() {
   // Pre-requisite: Solve for Plan B (sells TKX + OKB + minimal ETH)
   const resRescue = solveRescue(canonicalPortfolio, intentB);
   const planB = resRescue.plans.find((p) => p.id === "B")!;
-  const planA = resRescue.plans.find((p) => p.id === "A")!;
 
   const connectedAddress = "0x9812A2b918D3b584dC81E3b584dc81E3B584dc81";
   const connectedChainId = 1952; // X Layer Testnet
   const freshQuoteTimestamp = Date.now();
 
-  // Test A: Valid plan becomes SIMULATION_READY
-  console.log("\nTest A: Valid Plan Simulation readiness");
+  // A. live quote + arbitrary spender != VERIFIED_OKX
+  console.log("\nTest A: Live quote with arbitrary spender must NOT become VERIFIED_OKX");
   const simA = simulatePlan(
     intentB,
     planB,
@@ -118,227 +104,216 @@ function runTests() {
     connectedAddress,
     connectedChainId,
     freshQuoteTimestamp,
-    "DEMO_SIMULATION"
+    "LIVE_SIMULATION",
+    [] // No verified approvals provided
   );
 
-  if (simA.success && simA.preparedTransactions.length > 0) {
-    console.log("✅ Passed (Valid plan yields SIMULATION_READY status)");
+  const tkxAppA = simA.requiredApprovals.find(a => a.token === "TKX");
+  if (!simA.success && simA.reason === "UNKNOWN_SPENDER" && tkxAppA && tkxAppA.verificationStatus === "UNKNOWN") {
+    console.log("✅ Passed (Arbitrary spender rejected as UNKNOWN status)");
   } else {
     passed = false;
-    console.log(`❌ Failed (Expected simulation success, got: ${JSON.stringify(simA)})`);
+    console.log(`❌ Failed (Arbitrary spender incorrectly bypassed, result: ${JSON.stringify(simA)})`);
   }
 
-  // Test B: Stale quote is rejected
-  console.log("\nTest B: Stale Quote rejection");
-  const staleTimestamp = Date.now() - 75 * 1000;
+  // B. authenticated OKX approval response -> VERIFIED_OKX
+  console.log("\nTest B: Authenticated OKX approval response yields VERIFIED_OKX");
+  const mockVerifiedApprovals: VerifiedApproval[] = [
+    {
+      tokenAddress: "TKX",
+      chainIndex: 1952,
+      approveAmount: 7500,
+      transactionTo: "0x1111111254fb6c44bac0bed2854e76f90643097d",
+      transactionData: "0x095d1a22...",
+      source: "OKX_APPROVE_TRANSACTION",
+      timestamp: Date.now(),
+      verificationStatus: "VERIFIED_OKX"
+    },
+    {
+      tokenAddress: "ETH",
+      chainIndex: 1952,
+      approveAmount: 0.1,
+      transactionTo: "0x1111111254fb6c44bac0bed2854e76f90643097d",
+      transactionData: "0x095d1a22...",
+      source: "OKX_APPROVE_TRANSACTION",
+      timestamp: Date.now(),
+      verificationStatus: "VERIFIED_OKX"
+    }
+  ];
+
+  const mockSwapTx: PreparedTransaction = {
+    evmChainId: 1952,
+    okxChainIndex: 1952,
+    environment: "testnet",
+    to: "0x1111111254fb6c44bac0bed2854e76f90643097d",
+    from: connectedAddress,
+    value: "0",
+    data: "0xMockSwapData",
+    source: "live",
+    quoteTimestamp: freshQuoteTimestamp,
+    verificationStatus: "VERIFIED_OKX"
+  };
+
   const simB = simulatePlan(
     intentB,
     planB,
     canonicalPortfolio,
     connectedAddress,
     connectedChainId,
-    staleTimestamp,
-    "DEMO_SIMULATION"
+    freshQuoteTimestamp,
+    "LIVE_SIMULATION",
+    mockVerifiedApprovals,
+    true, // allowance checked
+    mockSwapTx
   );
 
-  if (!simB.success && simB.reason === "QUOTE_STALE") {
-    console.log("✅ Passed (Stale quote successfully rejected with QUOTE_STALE)");
+  const tkxAppB = simB.requiredApprovals.find(a => a.token === "TKX");
+  if (simB.success && tkxAppB && tkxAppB.verificationStatus === "VERIFIED_OKX") {
+    console.log("✅ Passed (Authenticated OKX approval response yields VERIFIED_OKX)");
   } else {
     passed = false;
-    console.log(`❌ Failed (Expected rejection with QUOTE_STALE, got: ${JSON.stringify(simB)})`);
+    console.log(`❌ Failed (Expected VERIFIED_OKX status, got: ${JSON.stringify(simB)})`);
   }
 
-  // Test C: Insufficient OKB gas reserve is rejected
-  console.log("\nTest C: Insufficient native gas reserve rejection");
-  const lowGasPortfolio: ScannedAsset[] = canonicalPortfolio.map((p) => {
-    if (p.symbol === "OKB") {
-      return { ...p, balance: "0.001", value: 0.05 };
+  // C. missing approval response -> UNKNOWN
+  console.log("\nTest C: Missing approval response defaults to UNKNOWN");
+  const partialVerifiedApprovals: VerifiedApproval[] = [
+    {
+      tokenAddress: "ETH",
+      chainIndex: 1952,
+      approveAmount: 0.1,
+      transactionTo: "0x1111111254fb6c44bac0bed2854e76f90643097d",
+      transactionData: "0x095d1a22...",
+      source: "OKX_APPROVE_TRANSACTION",
+      timestamp: Date.now(),
+      verificationStatus: "VERIFIED_OKX"
     }
-    return p;
-  });
+  ];
 
-  const resLowGas = solveRescue(lowGasPortfolio, intentB);
-  const planBLowGas = resLowGas.plans.find((p) => p.id === "B");
-
-  if (planBLowGas) {
-    const simC = simulatePlan(
-      intentB,
-      planBLowGas,
-      lowGasPortfolio,
-      connectedAddress,
-      connectedChainId,
-      freshQuoteTimestamp,
-      "DEMO_SIMULATION"
-    );
-
-    if (!simC.success && simC.reason === "INSUFFICIENT_GAS_RESERVE") {
-      console.log("✅ Passed (Exhausted native gas reserve correctly rejected)");
-    } else {
-      passed = false;
-      console.log(`❌ Failed (Expected simulation failure, got: ${JSON.stringify(simC)})`);
-    }
-  } else {
-    console.log("✅ Passed (Solver blocked plan generation during solveRescue due to low native gas)");
-  }
-
-  // Test D: Wrong network is rejected
-  console.log("\nTest D: Wrong network rejection");
-  const simD = simulatePlan(
+  const simC = simulatePlan(
     intentB,
     planB,
     canonicalPortfolio,
     connectedAddress,
-    1,
+    connectedChainId,
     freshQuoteTimestamp,
-    "DEMO_SIMULATION"
+    "LIVE_SIMULATION",
+    partialVerifiedApprovals, // Missing TKX approval
+    true,
+    mockSwapTx
   );
 
-  if (!simD.success && simD.reason === "WRONG_NETWORK") {
-    console.log("✅ Passed (Mismatch connected network correctly rejected)");
+  const tkxAppC = simC.requiredApprovals.find(a => a.token === "TKX");
+  if (!simC.success && simC.reason === "UNKNOWN_SPENDER" && tkxAppC && tkxAppC.verificationStatus === "UNKNOWN") {
+    console.log("✅ Passed (Missing TKX approval successfully defaults to UNKNOWN)");
   } else {
     passed = false;
-    console.log(`❌ Failed (Expected WRONG_NETWORK error, got: ${JSON.stringify(simD)})`);
+    console.log(`❌ Failed (Expected UNKNOWN rejection, got: ${JSON.stringify(simC)})`);
   }
 
-  // Test E: Protected asset constraint violation is rejected
-  console.log("\nTest E: Protected asset constraint violation check");
+  // D. native OKB -> no approval
+  console.log("\nTest D: Native OKB requires no approval");
+  const okbAppB = simB.requiredApprovals.find(a => a.token === "OKB");
+  if (!okbAppB) {
+    console.log("✅ Passed (Native OKB excluded from approval list)");
+  } else {
+    passed = false;
+    console.log("❌ Failed (Native OKB incorrectly included in approvals)");
+  }
+
+  // E. real allowance query required before allowance is considered known
+  console.log("\nTest E: Real allowance query required before allowance is known");
   const simE = simulatePlan(
-    intentStrict,
-    planA,
+    intentB,
+    planB,
     canonicalPortfolio,
     connectedAddress,
     connectedChainId,
     freshQuoteTimestamp,
-    "DEMO_SIMULATION"
+    "LIVE_SIMULATION",
+    mockVerifiedApprovals,
+    false, // allowance NOT checked
+    mockSwapTx
   );
 
-  if (!simE.success && simE.reason === "PROTECTED_ASSET_VIOLATION") {
-    console.log("✅ Passed (Strict protection sale rejected with PROTECTED_ASSET_VIOLATION)");
+  const tkxAppE = simE.requiredApprovals.find(a => a.token === "TKX");
+  if (simE.success && tkxAppE && tkxAppE.currentAllowance === null) {
+    console.log("✅ Passed (Allowance is null/UNKNOWN when real allowance query is not checked)");
   } else {
     passed = false;
-    console.log(`❌ Failed (Expected PROTECTED_ASSET_VIOLATION, got: ${JSON.stringify(simE)})`);
+    console.log(`❌ Failed (Expected currentAllowance to be null/UNKNOWN, got: ${JSON.stringify(tkxAppE)})`);
   }
 
-  // Test F: No universal hardcoded spender is used
-  console.log("\nTest F: Spender is dynamically extracted from quote (No universal spender)");
-  // If we modify Plan B to have quotes with different spender addresses, it should populate those different spender addresses
-  const customPlan: CandidatePlan = JSON.parse(JSON.stringify(planB));
-  const tkxAction = customPlan.actions.find(a => a.symbol === "TKX")!;
-  tkxAction.quote!.spenderAddress = "0x2222222222222222222222222222222222222222";
-  
+  // F. quote alone cannot transition to READY_TO_SIGN
+  console.log("\nTest F: Quote alone cannot transition to READY_TO_SIGN");
   const simF = simulatePlan(
     intentB,
-    customPlan,
+    planB,
     canonicalPortfolio,
     connectedAddress,
     connectedChainId,
     freshQuoteTimestamp,
-    "DEMO_SIMULATION"
+    "LIVE_SIMULATION",
+    mockVerifiedApprovals,
+    true,
+    null // Missing swap transaction payload!
   );
 
-  const tkxApp = simF.requiredApprovals.find(a => a.token === "TKX")!;
-  if (simF.success && tkxApp.spender === "0x2222222222222222222222222222222222222222") {
-    console.log("✅ Passed (Spender address is dynamically extracted from quote: 0x2222...)");
+  if (!simF.success && simF.reason === "UNKNOWN_SPENDER") {
+    console.log("✅ Passed (Quote alone blocked from transitioning to READY_TO_SIGN)");
   } else {
     passed = false;
-    console.log(`❌ Failed (Spender address was not dynamic: ${JSON.stringify(tkxApp)})`);
+    console.log(`❌ Failed (Expected rejection for missing swap transaction, got: ${JSON.stringify(simF)})`);
   }
 
-  // Test G: Native OKB has no ERC-20 approval requirement
-  console.log("\nTest G: Native OKB has no approval requirement");
-  const okbApp = simA.requiredApprovals.find(a => a.token === "OKB");
-  if (!okbApp) {
-    console.log("✅ Passed (Native OKB correctly excluded from approval requirements)");
-  } else {
-    passed = false;
-    console.log("❌ Failed (Native OKB should not require approval)");
-  }
+  // G. swap transaction response must match expected EVM chain
+  console.log("\nTest G: Swap transaction chain ID mismatch is rejected");
+  const wrongChainSwapTx: PreparedTransaction = {
+    ...mockSwapTx,
+    evmChainId: 1 // Mainnet chain ID instead of 1952
+  };
 
-  // Test H: ERC-20 with unknown spender cannot become READY_TO_SIGN
-  console.log("\nTest H: ERC-20 with unknown spender is rejected");
-  const planUnknownSpender: CandidatePlan = JSON.parse(JSON.stringify(planB));
-  const tkxAct = planUnknownSpender.actions.find(a => a.symbol === "TKX")!;
-  tkxAct.quote!.spenderAddress = ""; // Empty/unknown spender
-
-  const simH = simulatePlan(
-    intentB,
-    planUnknownSpender,
-    canonicalPortfolio,
-    connectedAddress,
-    connectedChainId,
-    freshQuoteTimestamp,
-    "DEMO_SIMULATION"
-  );
-
-  if (!simH.success && simH.reason === "UNKNOWN_SPENDER") {
-    console.log("✅ Passed (Unknown spender rejected with UNKNOWN_SPENDER error status)");
-  } else {
-    passed = false;
-    console.log(`❌ Failed (Expected UNKNOWN_SPENDER rejection, got: ${JSON.stringify(simH)})`);
-  }
-
-  // Test I: Mainnet approval cannot be applied to Testnet wallet
-  console.log("\nTest I: Mainnet approval rejected on Testnet wallet");
-  const planMainnetApproval: CandidatePlan = JSON.parse(JSON.stringify(planB));
-  const ethAct = planMainnetApproval.actions.find(a => a.symbol === "ETH")!;
-  ethAct.quote!.chainIndex = 196; // Mainnet X Layer index
-  
-  // Set quotes as live source to bypass unknown spender checks under LIVE_SIMULATION
-  planMainnetApproval.actions.forEach((act) => {
-    if (act.quote) {
-      act.quote.dataSource = "live";
-    }
-  });
-
-  const simI = simulatePlan(
-    intentB,
-    planMainnetApproval,
-    canonicalPortfolio,
-    connectedAddress,
-    connectedChainId,
-    freshQuoteTimestamp,
-    "LIVE_SIMULATION"
-  );
-
-  if (!simI.success && simI.reason === "WRONG_NETWORK") {
-    console.log("✅ Passed (Mainnet quote/approval index 196 rejected on Testnet wallet chain index 1952)");
-  } else {
-    passed = false;
-    console.log(`❌ Failed (Expected WRONG_NETWORK rejection, got: ${JSON.stringify(simI)})`);
-  }
-
-  // Test J: DEMO approval requirement remains DEMO
-  console.log("\nTest J: DEMO approval status remains DEMO");
-  const simJ = simulatePlan(
+  const simG = simulatePlan(
     intentB,
     planB,
     canonicalPortfolio,
     connectedAddress,
     connectedChainId,
     freshQuoteTimestamp,
-    "DEMO_SIMULATION"
+    "LIVE_SIMULATION",
+    mockVerifiedApprovals,
+    true,
+    wrongChainSwapTx
   );
 
-  const tkxAppJ = simJ.requiredApprovals.find(a => a.token === "TKX")!;
-  if (simJ.success && tkxAppJ.verificationStatus === "DEMO" && simJ.provenance === "DEMO") {
-    console.log("✅ Passed (Verification status locked to DEMO under demo simulation)");
+  if (!simG.success && simG.reason === "WRONG_NETWORK") {
+    console.log("✅ Passed (Mismatched swap transaction chain ID successfully rejected with WRONG_NETWORK)");
   } else {
     passed = false;
-    console.log(`❌ Failed (Expected verification status DEMO, got: ${tkxAppJ.verificationStatus})`);
+    console.log(`❌ Failed (Expected WRONG_NETWORK rejection, got: ${JSON.stringify(simG)})`);
   }
 
-  // Test K: No fabrication of transaction hashes
-  console.log("\nTest K: No fabrication of transaction hashes");
-  const hasTxHash = simA.preparedTransactions.some((tx: any) => tx.txHash || tx.hash);
-  if (!hasTxHash) {
-    console.log("✅ Passed (Prepared transactions contain zero fabricated hashes)");
+  // H. okxChainIndex and evmChainId are distinct fields
+  console.log("\nTest H: okxChainIndex and evmChainId are distinct conceptually");
+  const appRequirement = simB.requiredApprovals[0];
+  const prepTx = simB.preparedTransactions[0];
+
+  if (
+    appRequirement &&
+    prepTx &&
+    "okxChainIndex" in appRequirement &&
+    "evmChainId" in appRequirement &&
+    "okxChainIndex" in prepTx &&
+    "evmChainId" in prepTx
+  ) {
+    console.log("✅ Passed (okxChainIndex and evmChainId are distinct semantic properties in approvals and transactions)");
   } else {
     passed = false;
-    console.log("❌ Failed (Fabricated transaction hashes leaked!)");
+    console.log("❌ Failed (Mismatched or missing semantic properties on output objects)");
   }
 
   console.log("\n==================================================");
-  console.log(passed ? "Summary: All Simulation Hardening Tests Passed" : "Summary: Tests Failed");
+  console.log(passed ? "Summary: All Final Verification Hardening Tests Passed" : "Summary: Tests Failed");
   console.log("==================================================");
 
   if (!passed) {

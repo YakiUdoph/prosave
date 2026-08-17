@@ -38,22 +38,34 @@ export type SimulationFailureReason =
   | "PROTECTED_ASSET_VIOLATION"
   | "UNKNOWN_SPENDER";
 
+export type VerifiedApproval = {
+  tokenAddress: string;
+  chainIndex: number;
+  approveAmount: number;
+  transactionTo: string;
+  transactionData: string;
+  source: "OKX_APPROVE_TRANSACTION";
+  timestamp: number;
+  verificationStatus: "VERIFIED_OKX";
+};
+
 export type ApprovalRequirement = {
   token: string;
   owner: string;
   spender: string;
   requiredAmount: number;
-  currentAllowance: number;
+  currentAllowance: number | null; // null represents UNKNOWN
   approvalNeeded: boolean;
-  chainIndex: number;
+  okxChainIndex: number;
+  evmChainId: number;
   environment: "testnet" | "mainnet";
   source: "demo" | "live";
   verificationStatus: "VERIFIED_OKX" | "LIVE_CHAIN" | "DEMO" | "UNKNOWN";
 };
 
 export type PreparedTransaction = {
-  chainId: number;
-  chainIndex?: number;
+  evmChainId: number;
+  okxChainIndex: number;
   environment: "testnet" | "mainnet";
   to: string;
   from: string;
@@ -85,9 +97,12 @@ export function simulatePlan(
   plan: CandidatePlan,
   portfolio: ScannedAsset[],
   connectedAddress: string | null,
-  connectedChainId: number | null,
+  connectedEvmChainId: number | null,
   quoteTimestamp: number,
-  simulationMode: "DEMO_SIMULATION" | "LIVE_SIMULATION"
+  simulationMode: "DEMO_SIMULATION" | "LIVE_SIMULATION",
+  verifiedApprovals: VerifiedApproval[] = [],
+  allowanceChecked: boolean = false,
+  verifiedSwapTx: PreparedTransaction | null = null
 ): SimulationResult {
   // 1. Wallet Connection Gate
   if (!connectedAddress) {
@@ -105,11 +120,11 @@ export function simulatePlan(
 
   // 2. Correct Network Gate (X Layer Testnet is 1952)
   const expectedChainId = 1952;
-  if (connectedChainId !== expectedChainId) {
+  if (connectedEvmChainId !== expectedChainId) {
     return {
       success: false,
       reason: "WRONG_NETWORK",
-      description: `Connected to chain ${connectedChainId}. Expected X Layer Testnet (${expectedChainId}).`,
+      description: `Connected to EVM chain ${connectedEvmChainId}. Expected X Layer Testnet (${expectedChainId}).`,
       requiredApprovals: [],
       preparedTransactions: [],
       gasReserveNative: 0,
@@ -168,42 +183,56 @@ export function simulatePlan(
 
   for (const act of plan.actions) {
     if (act.symbol !== nativeGasSymbol) {
-      // Find spender address from the quote itself
       const quoteSpender = act.quote?.spenderAddress;
+      const quoteChainIndex = act.quote?.chainIndex || 1952;
       
-      // Verification status mapping rules
+      // Separate fields conceptually
+      const okxChainIndex = quoteChainIndex; 
+      const evmChainId = quoteChainIndex === 196 ? 196 : 1952;
+
       let verificationStatus: "VERIFIED_OKX" | "LIVE_CHAIN" | "DEMO" | "UNKNOWN" = "UNKNOWN";
-      
-      if (!quoteSpender || quoteSpender === "") {
-        verificationStatus = "UNKNOWN";
-      } else if (simulationMode === "DEMO_SIMULATION") {
+      let spenderToUse = quoteSpender || "";
+
+      // Find matching VerifiedApproval
+      const match = verifiedApprovals.find(
+        (app) =>
+          app.tokenAddress.toLowerCase() === act.symbol.toLowerCase() ||
+          (act.symbol === "TKX" && app.tokenAddress.toLowerCase() === "tkx")
+      );
+
+      if (simulationMode === "DEMO_SIMULATION") {
         verificationStatus = "DEMO";
-      } else if (act.quote?.dataSource === "live") {
+      } else if (match && match.verificationStatus === "VERIFIED_OKX") {
         verificationStatus = "VERIFIED_OKX";
+        spenderToUse = match.transactionTo;
+      } else {
+        verificationStatus = "UNKNOWN";
       }
 
       requiredApprovals.push({
         token: act.symbol,
         owner: connectedAddress,
-        spender: quoteSpender || "",
+        spender: spenderToUse,
         requiredAmount: act.sellAmount,
-        currentAllowance: 0,
+        // Allowance must be verified by a real chain read, otherwise mark it null (UNKNOWN)
+        currentAllowance: allowanceChecked ? 0 : null,
         approvalNeeded: true,
-        chainIndex: act.quote?.chainIndex || 196,
-        environment: act.quote?.chainIndex === 1952 ? "testnet" : "mainnet",
+        okxChainIndex,
+        evmChainId,
+        environment: evmChainId === 1952 ? "testnet" : "mainnet",
         source: simulationMode === "LIVE_SIMULATION" ? "live" : "demo",
         verificationStatus,
       });
     }
   }
 
-  // Spender Verification Check
+  // Spender Verification Gate
   const hasUnknownSpender = requiredApprovals.some((app) => app.verificationStatus === "UNKNOWN");
   if (hasUnknownSpender) {
     return {
       success: false,
       reason: "UNKNOWN_SPENDER",
-      description: "DEX router spender address cannot be verified. Unable to prepare ERC-20 approvals.",
+      description: "DEX router spender address is unverified. Authenticated OKX approval data is required.",
       requiredApprovals,
       preparedTransactions: [],
       gasReserveNative: 0,
@@ -213,13 +242,13 @@ export function simulatePlan(
   }
 
   // Chain Matching Validation
-  // quote chain, approval chain, and swap transaction chain index must matchconnectedChainId (1952)
+  // evmChainId and okxChainIndex must match connected wallet evmChainId (1952)
   for (const app of requiredApprovals) {
-    if (app.chainIndex !== 1952) {
+    if (app.evmChainId !== 1952) {
       return {
         success: false,
         reason: "WRONG_NETWORK",
-        description: `DEX quote chain index ${app.chainIndex} does not matchconnected wallet chain ID ${connectedChainId}.`,
+        description: `Approval EVM Chain ID ${app.evmChainId} does not match connected wallet ID ${connectedEvmChainId}.`,
         requiredApprovals,
         preparedTransactions: [],
         gasReserveNative: 0,
@@ -259,39 +288,98 @@ export function simulatePlan(
     };
   }
 
-  // 8. Transaction Construction payloads
+  // 8. Swap Transaction Verification
+  // We can construct prepared transactions ONLY when verified swap transaction data is available (or under DEMO)
   const preparedTransactions: PreparedTransaction[] = [];
-  
-  // We construct approval transactions first
+
+  // Construct approval transactions
   for (const app of requiredApprovals) {
     preparedTransactions.push({
-      chainId: expectedChainId,
-      chainIndex: app.chainIndex,
+      evmChainId: app.evmChainId,
+      okxChainIndex: app.okxChainIndex,
       environment: "testnet",
       to: "0xMockTokenAddressFor" + app.token,
       from: connectedAddress,
       value: "0",
-      data: "0x095d1a22" + app.spender.slice(2).padStart(64, "0") + "ffffff", // Mock approve calldata
+      data: "0x095d1a22" + app.spender.slice(2).padStart(64, "0") + "ffffff",
       source: simulationMode === "LIVE_SIMULATION" ? "live" : "demo",
       quoteTimestamp,
       verificationStatus: app.verificationStatus,
     });
   }
 
-  // Swap transactions second
-  for (const act of plan.actions) {
-    preparedTransactions.push({
-      chainId: expectedChainId,
-      chainIndex: act.quote?.chainIndex || 1952,
-      environment: "testnet",
-      to: act.quote?.spenderAddress || "0x1111111254fb6c44bac0bed2854e76f90643097d", // Spender address
-      from: connectedAddress,
-      value: act.symbol === nativeGasSymbol ? Math.round(act.sellAmount * 1e18).toString() : "0",
-      data: "0xMockSwapCalldataFor" + act.symbol,
-      source: simulationMode === "LIVE_SIMULATION" ? "live" : "demo",
-      quoteTimestamp,
-      verificationStatus: simulationMode === "DEMO_SIMULATION" ? "DEMO" : "VERIFIED_OKX",
-    });
+  // Swap transaction verification check
+  if (simulationMode === "LIVE_SIMULATION") {
+    if (!verifiedSwapTx) {
+      return {
+        success: false,
+        reason: "UNKNOWN_SPENDER",
+        description: "Verified swap transaction data is missing. Do not transition to READY_TO_SIGN without swap payload.",
+        requiredApprovals,
+        preparedTransactions: [],
+        gasReserveNative,
+        remainingNativeOKB,
+        provenance: "LIVE",
+      };
+    }
+
+    // Verify swap tx properties
+    if (verifiedSwapTx.from.toLowerCase() !== connectedAddress.toLowerCase()) {
+      return {
+        success: false,
+        reason: "SIMULATION_DATA_MALFORMED",
+        description: "Swap transaction 'from' address does not match connected wallet owner.",
+        requiredApprovals,
+        preparedTransactions: [],
+        gasReserveNative,
+        remainingNativeOKB,
+        provenance: "LIVE",
+      };
+    }
+
+    if (verifiedSwapTx.evmChainId !== connectedEvmChainId) {
+      return {
+        success: false,
+        reason: "WRONG_NETWORK",
+        description: `Swap transaction EVM chain ${verifiedSwapTx.evmChainId} does not match connected wallet ${connectedEvmChainId}.`,
+        requiredApprovals,
+        preparedTransactions: [],
+        gasReserveNative,
+        remainingNativeOKB,
+        provenance: "LIVE",
+      };
+    }
+
+    if (!verifiedSwapTx.data || verifiedSwapTx.data === "") {
+      return {
+        success: false,
+        reason: "SIMULATION_DATA_MALFORMED",
+        description: "Swap transaction payload is missing execution calldata.",
+        requiredApprovals,
+        preparedTransactions: [],
+        gasReserveNative,
+        remainingNativeOKB,
+        provenance: "LIVE",
+      };
+    }
+
+    preparedTransactions.push(verifiedSwapTx);
+  } else {
+    // Demo simulation fallback swap transactions construction
+    for (const act of plan.actions) {
+      preparedTransactions.push({
+        evmChainId: expectedChainId,
+        okxChainIndex: act.quote?.chainIndex || 1952,
+        environment: "testnet",
+        to: act.quote?.spenderAddress || "0x1111111254fb6c44bac0bed2854e76f90643097d",
+        from: connectedAddress,
+        value: act.symbol === nativeGasSymbol ? Math.round(act.sellAmount * 1e18).toString() : "0",
+        data: "0xMockSwapCalldataFor" + act.symbol,
+        source: "demo",
+        quoteTimestamp,
+        verificationStatus: "DEMO",
+      });
+    }
   }
 
   return {

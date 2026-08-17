@@ -120,6 +120,14 @@ This is an append-only log documenting architectural decisions, security resolut
 - **Files Affected**: `src/lib/simulation.ts`, `src/lib/rescue-solver.ts`, `tests/simulation.test.ts`
 - **Status**: **RESOLVED**
 
+### DRIFT-014: Live Route Provenance Insufficient for VERIFIED_OKX Status
+- **Date**: 2026-08-17
+- **Discovery**: A "live" route quote was incorrectly treated as sufficient evidence to classify a spender as VERIFIED_OKX, without verifying the spender from authenticated, chain-specific OKX execution/approval data.
+- **Impact**: Could falsely elevate an unverified spender address into an approval-ready state, bypassing security verification gates.
+- **Resolution**: Spender address verification now requires authentic OKX approval or execution response data (via `GET /api/v6/dex/aggregator/approve-transaction`). Otherwise, the status defaults to `UNKNOWN` and the execution bridge blocks transition to `READY_TO_SIGN`.
+- **Files Affected**: `src/lib/simulation.ts`, `src/server/okx.ts`, `tests/simulation.test.ts`
+- **Status**: **RESOLVED**
+
 ---
 
 ## 📝 Drift Entry Template

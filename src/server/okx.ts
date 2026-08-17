@@ -342,6 +342,101 @@ export async function convergeExactIn(
   };
 }
 
+export type OkxApproveTxData = {
+  dexContractAddress: string;
+  tokenAddress: string;
+  to: string;
+  data: string;
+  value: string;
+};
+
+export type OkxSwapTxData = {
+  tx: {
+    to: string;
+    data: string;
+    value: string;
+    gas: string;
+    gasPrice: string;
+  };
+};
+
+/**
+ * Retrieve verified ERC-20 approval transaction parameters from OKX DEX aggregator.
+ */
+export async function getOkxApproveTransaction(
+  chainIndex: number,
+  tokenContractAddress: string,
+  approveAmount: string
+): Promise<OkxRequestResult<OkxApproveTxData>> {
+  const requestPath = `/api/v6/dex/aggregator/approve-transaction?chainIndex=${chainIndex}&tokenContractAddress=${tokenContractAddress}&approveAmount=${approveAmount}`;
+  
+  const res = await okxRequest<any[]>("GET", requestPath);
+  if (!res.success) {
+    return { success: false, error: res.error, details: res.details };
+  }
+
+  const data = res.data && res.data[0];
+  if (!data) {
+    return {
+      success: false,
+      error: "NO_APPROVE_DATA_FOUND",
+      details: "OKX DEX Aggregator did not return approval parameters.",
+    };
+  }
+
+  return {
+    success: true,
+    data: {
+      dexContractAddress: data.dexContractAddress,
+      tokenAddress: data.tokenAddress,
+      to: data.to,
+      data: data.data,
+      value: data.value,
+    },
+  };
+}
+
+/**
+ * Retrieve verified swap transaction parameters from OKX DEX aggregator.
+ */
+export async function getOkxSwapTransaction(
+  chainIndex: number,
+  fromTokenAddress: string,
+  toTokenAddress: string,
+  amount: string,
+  userAddress: string,
+  slippage: string = "0.01"
+): Promise<OkxRequestResult<OkxSwapTxData>> {
+  const requestPath = `/api/v6/dex/aggregator/swap?chainIndex=${chainIndex}&fromTokenAddress=${fromTokenAddress}&toTokenAddress=${toTokenAddress}&amount=${amount}&userAddress=${userAddress}&slippage=${slippage}`;
+
+  const res = await okxRequest<any[]>("GET", requestPath);
+  if (!res.success) {
+    return { success: false, error: res.error, details: res.details };
+  }
+
+  const data = res.data && res.data[0];
+  if (!data || !data.tx) {
+    return {
+      success: false,
+      error: "NO_SWAP_DATA_FOUND",
+      details: "OKX DEX Aggregator did not return swap transaction parameters.",
+    };
+  }
+
+  return {
+    success: true,
+    data: {
+      tx: {
+        to: data.tx.to,
+        data: data.tx.data,
+        value: data.tx.value,
+        gas: data.tx.gas,
+        gasPrice: data.tx.gasPrice,
+      },
+    },
+  };
+}
+
 // ====================================================
 // TANSTACK START SERVER FUNCTIONS WRAPPER (SECURE)
 // ====================================================
@@ -366,4 +461,16 @@ export const serverConvergeExactIn = createServerFn({ method: "GET" })
   .validator((d: { fromToken: string; toToken: string; targetOutput: number; price: number }) => d)
   .handler(async ({ data }) => {
     return await convergeExactIn(196, data.fromToken, data.toToken, data.targetOutput, data.price);
+  });
+
+export const serverGetOkxApproveTransaction = createServerFn({ method: "GET" })
+  .validator((d: { chainIndex: number; tokenAddress: string; amount: string }) => d)
+  .handler(async ({ data }) => {
+    return await getOkxApproveTransaction(data.chainIndex, data.tokenAddress, data.amount);
+  });
+
+export const serverGetOkxSwapTransaction = createServerFn({ method: "GET" })
+  .validator((d: { chainIndex: number; fromToken: string; toToken: string; amount: string; user: string }) => d)
+  .handler(async ({ data }) => {
+    return await getOkxSwapTransaction(data.chainIndex, data.fromToken, data.toToken, data.amount, data.user);
   });
