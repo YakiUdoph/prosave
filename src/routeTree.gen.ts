@@ -10,33 +10,128 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as CommandRouteImport } from './routes/command'
+import { Route as ConnectRouteImport } from './routes/connect'
+import { Route as IntentRouteImport } from './routes/intent'
+import { Route as PlanRouteImport } from './routes/plan'
+import { Route as ProtectedRouteImport } from './routes/protected'
+import { Route as ScanRouteImport } from './routes/scan'
+import { Route as SimulateRouteImport } from './routes/simulate'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CommandRoute = CommandRouteImport.update({
+  id: '/command',
+  path: '/command',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ConnectRoute = ConnectRouteImport.update({
+  id: '/connect',
+  path: '/connect',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const IntentRoute = IntentRouteImport.update({
+  id: '/intent',
+  path: '/intent',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PlanRoute = PlanRouteImport.update({
+  id: '/plan',
+  path: '/plan',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProtectedRoute = ProtectedRouteImport.update({
+  id: '/protected',
+  path: '/protected',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ScanRoute = ScanRouteImport.update({
+  id: '/scan',
+  path: '/scan',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SimulateRoute = SimulateRouteImport.update({
+  id: '/simulate',
+  path: '/simulate',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/command': typeof CommandRoute
+  '/connect': typeof ConnectRoute
+  '/intent': typeof IntentRoute
+  '/plan': typeof PlanRoute
+  '/protected': typeof ProtectedRoute
+  '/scan': typeof ScanRoute
+  '/simulate': typeof SimulateRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/command': typeof CommandRoute
+  '/connect': typeof ConnectRoute
+  '/intent': typeof IntentRoute
+  '/plan': typeof PlanRoute
+  '/protected': typeof ProtectedRoute
+  '/scan': typeof ScanRoute
+  '/simulate': typeof SimulateRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/command': typeof CommandRoute
+  '/connect': typeof ConnectRoute
+  '/intent': typeof IntentRoute
+  '/plan': typeof PlanRoute
+  '/protected': typeof ProtectedRoute
+  '/scan': typeof ScanRoute
+  '/simulate': typeof SimulateRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/command'
+    | '/connect'
+    | '/intent'
+    | '/plan'
+    | '/protected'
+    | '/scan'
+    | '/simulate'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/command'
+    | '/connect'
+    | '/intent'
+    | '/plan'
+    | '/protected'
+    | '/scan'
+    | '/simulate'
+  id:
+    | '__root__'
+    | '/'
+    | '/command'
+    | '/connect'
+    | '/intent'
+    | '/plan'
+    | '/protected'
+    | '/scan'
+    | '/simulate'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  CommandRoute: typeof CommandRoute
+  ConnectRoute: typeof ConnectRoute
+  IntentRoute: typeof IntentRoute
+  PlanRoute: typeof PlanRoute
+  ProtectedRoute: typeof ProtectedRoute
+  ScanRoute: typeof ScanRoute
+  SimulateRoute: typeof SimulateRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +143,67 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/command': {
+      id: '/command'
+      path: '/command'
+      fullPath: '/command'
+      preLoaderRoute: typeof CommandRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/connect': {
+      id: '/connect'
+      path: '/connect'
+      fullPath: '/connect'
+      preLoaderRoute: typeof ConnectRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/intent': {
+      id: '/intent'
+      path: '/intent'
+      fullPath: '/intent'
+      preLoaderRoute: typeof IntentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/plan': {
+      id: '/plan'
+      path: '/plan'
+      fullPath: '/plan'
+      preLoaderRoute: typeof PlanRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/protected': {
+      id: '/protected'
+      path: '/protected'
+      fullPath: '/protected'
+      preLoaderRoute: typeof ProtectedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/scan': {
+      id: '/scan'
+      path: '/scan'
+      fullPath: '/scan'
+      preLoaderRoute: typeof ScanRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/simulate': {
+      id: '/simulate'
+      path: '/simulate'
+      fullPath: '/simulate'
+      preLoaderRoute: typeof SimulateRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  CommandRoute: CommandRoute,
+  ConnectRoute: ConnectRoute,
+  IntentRoute: IntentRoute,
+  PlanRoute: PlanRoute,
+  ProtectedRoute: ProtectedRoute,
+  ScanRoute: ScanRoute,
+  SimulateRoute: SimulateRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
