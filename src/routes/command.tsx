@@ -12,7 +12,6 @@ import {
 import { PortfolioAssetCard } from "@/components/save/portfolio-asset-card";
 import { RiskMeter } from "@/components/save/risk-meter";
 import { ScoreDial } from "@/components/save/score-dial";
-import { PanicModeToggle } from "@/components/save/panic-toggle";
 import { PORTFOLIO, PORTFOLIO_VALUE, POTENTIAL_EXPOSURE, PROTECTION_METRICS } from "@/lib/save-data";
 import { useSave } from "@/lib/save-context";
 
@@ -47,7 +46,7 @@ function CommandCenter() {
           ? "Market volatility detected. SAVE recommendation ready."
           : "A single, calm view of exposure, protection quality and what needs attention right now."
       }
-      aside={<PanicModeToggle />}
+      aside={<StatusPill tone={panic ? "danger" : "primary"}>{panic ? "Panic mode active" : "Calm monitoring"}</StatusPill>}
     >
       {panic && (
         <div className="animate-rise mb-6 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-danger/35 bg-danger/10 px-6 py-4 animate-risk-pulse">
@@ -78,7 +77,7 @@ function CommandCenter() {
               <Eyebrow>Potential exposure</Eyebrow>
               <p className="mt-3 flex items-center gap-2 text-3xl font-semibold tracking-tight text-danger">
                 <TrendingDown className="size-5" />
-                <AnimatedNumber value={POTENTIAL_EXPOSURE} prefix="$" />
+                <AnimatedNumber value={Math.abs(POTENTIAL_EXPOSURE)} prefix="-$" />
               </p>
             </Panel>
             <Panel className="p-5">
