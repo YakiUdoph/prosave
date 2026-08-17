@@ -96,6 +96,14 @@ This is an append-only log documenting architectural decisions, security resolut
 - **Files Affected**: `src/lib/rescue-solver.ts`, `tests/rescue-solver.test.ts`
 - **Status**: **RESOLVED**
 
+### DRIFT-011: Multi-Network ChainIndex / Testnet Hybrid Mismatch
+- **Date**: 2026-08-17
+- **Discovery**: OKX OnchainOS Trade API uses mainnet chainIndex 196, while X Layer Testnet (Chain ID 1952) is used separately for development RPC wallet reads.
+- **Impact**: Mixing testnet wallets with mainnet DEX quotes could falsely imply a single coherent live transaction during execution verification.
+- **Resolution**: Implemented strict environment boundaries and data provenance tagging. The codebase explicitly tracks the chain index and data sources (e.g. `LIVE_RPC` for testnet balance scans, `LIVE_OKX` for mainnet aggregator queries, and `DEMO` for offline fallback parameters), preventing misleading client-side serialization leaks.
+- **Files Affected**: `src/server/okx.ts`, `tests/okx-integration.test.ts`, `SAVE_SPONSOR_INTEGRATION.md`
+- **Status**: **RESOLVED**
+
 ---
 
 ## 📝 Drift Entry Template

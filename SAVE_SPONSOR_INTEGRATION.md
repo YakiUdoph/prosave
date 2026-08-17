@@ -38,6 +38,34 @@ This section provides clear, defensible arguments for hackathon judges showing w
    - The gas overhead of executing multiple consecutive swap transactions on a L1 chain would wipe out the liquidity saved by the solver.
    - During high congestion, transaction queues would delay the rescue path, causing significant asset devaluation. X Layer's high throughput ensures the calculated rescue parameters remain valid at the moment of execution.
 
+## 📐 SAVE Solver vs. OKX Routing Architecture
+OKX and SAVE operate in separate, complementary domains:
+1. **OKX OnchainOS DEX Router**: Solves the single-pair route optimization problem: *"How can we swap asset A to asset B with the lowest slippage and price impact?"*
+2. **SAVE Rescue Solver**: Solves the global portfolio liquidation problem: *"Given the user's natural language intent, target stable amount, protected assets, and risk profiles, which assets should be sold, in what order, and what portion of their balances should be liquidated?"*
+
+### Exact-In Iterative Solver Integration
+Because the OKX DEX Router API on X Layer primarily supports `exactIn` quotes, SAVE implements a bounded, iterative numerical search to satisfy exact stablecoin outputs (e.g. $700 USDC).
+- **Process**:
+  1. The solver calculates an initial input estimate based on asset prices.
+  2. Query OKX `exactIn` quote to obtain the expected output.
+  3. Correct the input using a bounded binary search (upper limit capped at 1.5x initial estimate, lower limit at 0.8x).
+  4. Converges on the required target output within a tolerance threshold of $\$0.05$ over a maximum of 5 iterations.
+- **Fail-Safe Fallback**: If live quotes timeout or fail, the solver gracefully logs the API error and switches to the deterministic local mock router, ensuring the application remains responsive.
+
+### Gas Model & Native Gas Reserves
+In EVM networks like X Layer, executing transactions requires native OKB gas. Exhausting 100% of the wallet's native OKB to satisfy a swap target would leave the wallet bricked and incapable of executing the swaps.
+- **Gas Capping**:
+  - The solver estimates the USD gas cost of the proposed actions and converts it to native gas: `requiredGasOKB = totalGasUsd / nativeGasPrice`.
+  - Capped OKB Sellable Balance: `maxSellableOKB = Math.max(0, startingOKB - (requiredGasOKB * safetyMultiplier))`.
+  - The `safetyMultiplier` is set to `1.2` to account for dynamic network fee changes and potential ERC-20 approval transaction gas fees.
+- **Feasibility Gate**: If starting OKB is less than `requiredGasOKB * safetyMultiplier`, the plan is flagged with `INSUFFICIENT_GAS_RESERVE`.
+
+### Environment and Provenance Boundaries
+To maintain strict development integrity during the hackathon:
+- **X Layer Testnet (Chain ID 1952)**: Used for reading native balances from the connected browser wallet, switching networks, and simulating/executing transactions.
+- **OKX OnchainOS (Chain Index 196)**: Used to query live mainnet tokens (USDC contract: `0x74b7F...`, WETH contract: `0x5A77f...`) and real DEX routing configurations.
+- **Provenance Labeling**: All data cards and simulated timeline rows carry explicit `source` markers (`LIVE_OKX`, `LIVE_RPC`, `DEMO`) so that mock fixtures and live data are never silently or misleadingly merged.
+
 ---
 
 ## 🚦 Integration Status Definitions
