@@ -155,6 +155,14 @@ This is an append-only log documenting architectural decisions, security resolut
 - **Files Affected**: `src/routes/simulate.tsx`, `src/lib/execution.ts`, `tests/execution.test.ts`
 - **Status**: **RESOLVED**
 
+### DRIFT-018: Wallet Session Auto-Connected Without Explicit User Action
+- **Date**: 2026-08-18
+- **Discovery / Cause**: Previously authorized browser wallet accounts were detected on application mount and were incorrectly treated as an active SAVE session.
+- **Impact**: SAVE appeared connected without deliberate user interaction, weakening connection clarity and making wallet/session behavior confusing.
+- **Resolution**: Provider availability is now detected passively, while SAVE remains disconnected until the user explicitly clicks Connect Wallet. Intent example text was also moved from real state into a non-parsed placeholder.
+- **Files Affected**: `src/lib/save-context.tsx`, `src/routes/connect.tsx`, `src/components/save/intent-box.tsx`, `src/lib/save-data.ts`
+- **Status**: **RESOLVED**
+
 ---
 
 ## 📝 Drift Entry Template
