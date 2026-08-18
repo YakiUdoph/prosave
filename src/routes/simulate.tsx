@@ -44,6 +44,8 @@ function Simulate() {
     startExecution,
     executeNextStep,
     connected,
+    portfolio,
+    walletAddress,
   } = useSave();
 
   const navigate = useNavigate();
@@ -60,9 +62,18 @@ function Simulate() {
   // Handle auto-start execution session when simulation succeeds
   useEffect(() => {
     if (executionState === "SIMULATION_READY" && executionSession.steps.length === 0) {
-      startExecution(connected ? "TESTNET_LIVE" : "DEMO_SIMULATION");
+      const okbAsset = portfolio.find((a) => a.symbol === "OKB");
+      const okbBalance = okbAsset ? parseFloat(okbAsset.balance) : 0;
+      const minGasRequirement = 0.001;
+
+      const canActivateTestnetLive =
+        connected &&
+        chainId === 1952 &&
+        okbBalance > minGasRequirement;
+
+      startExecution(canActivateTestnetLive ? "TESTNET_LIVE" : "DEMO_SIMULATION");
     }
-  }, [executionState, executionSession.steps.length, startExecution, connected]);
+  }, [executionState, executionSession.steps.length, startExecution, connected, chainId, portfolio]);
 
   // Auto-navigate to protected page when execution successfully completes
   useEffect(() => {
@@ -253,6 +264,67 @@ function Simulate() {
             </Panel>
           )}
 
+          {connected && (
+            <Panel className="p-6">
+              <Eyebrow>Connected Wallet Status</Eyebrow>
+              <div className="mt-4 space-y-2.5">
+                <div className="flex justify-between items-center text-sm border-b border-border pb-2.5">
+                  <span className="text-muted-foreground">Connected address</span>
+                  <span className="num font-mono text-xs select-all bg-secondary/50 px-2 py-0.5 rounded">{walletAddress}</span>
+                </div>
+                <div className="flex justify-between items-center text-sm border-b border-border pb-2.5">
+                  <span className="text-muted-foreground">Detected EVM Chain ID</span>
+                  <span className={`num font-semibold ${chainId === 1952 ? "text-safe" : "text-critical"}`}>
+                    {chainId !== null ? `${chainId} ${chainId === 1952 ? "(X Layer Testnet)" : "(Unsupported Chain)"}` : "None"}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center text-sm border-b border-border pb-2.5">
+                  <span className="text-muted-foreground">Native OKB balance</span>
+                  {(() => {
+                    const okbAsset = portfolio.find((a) => a.symbol === "OKB");
+                    const okbBalance = okbAsset ? parseFloat(okbAsset.balance) : 0;
+                    return (
+                      <span className={`num font-semibold ${okbBalance > 0.001 ? "text-safe" : "text-critical"}`}>
+                        {okbBalance.toFixed(4)} OKB {okbBalance <= 0.001 && "(Requires > 0.001 OKB)"}
+                      </span>
+                    );
+                  })()}
+                </div>
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-muted-foreground">Execution mode</span>
+                  <span className={`label-mono px-2 py-0.5 rounded font-semibold ${executionSession.mode === "TESTNET_LIVE" ? "bg-safe/10 text-safe border border-safe/20" : "bg-primary/10 text-primary border border-primary/20"}`}>
+                    {executionSession.mode}
+                  </span>
+                </div>
+              </div>
+            </Panel>
+          )}
+
+          {connected && executionSession.mode !== "TESTNET_LIVE" && (
+            <Panel className="border-warning/30 bg-warning/10 p-6 flex gap-4 items-start rounded-lg">
+              <AlertTriangle className="size-5 text-warning shrink-0 mt-0.5" />
+              <div>
+                <h4 className="font-semibold text-warning">TESTNET_LIVE Mode Inactive</h4>
+                <p className="mt-1 text-sm leading-relaxed text-foreground">
+                  To execute on-chain transactions, please satisfy the following:
+                </p>
+                <ul className="mt-2 space-y-1 text-xs list-disc list-inside text-muted-foreground">
+                  {chainId !== 1952 && (
+                    <li>Switch network in MetaMask/OKX Wallet to <strong>X Layer Testnet (Chain ID 1952)</strong>.</li>
+                  )}
+                  {(() => {
+                    const okbAsset = portfolio.find((a) => a.symbol === "OKB");
+                    const okbBalance = okbAsset ? parseFloat(okbAsset.balance) : 0;
+                    if (okbBalance <= 0.001) {
+                      return <li>Deposit native Testnet OKB to cover gas (balance: {okbBalance.toFixed(4)} OKB, minimum: 0.001 OKB).</li>;
+                    }
+                    return null;
+                  })()}
+                </ul>
+              </div>
+            </Panel>
+          )}
+
           {executionState === "SIMULATION_READY" && (
             <Panel className="border-safe/30 bg-safe/10 p-6 flex gap-4 items-start rounded-lg">
               {showLoader ? (
@@ -263,7 +335,7 @@ function Simulate() {
               <div>
                 <h4 className="font-semibold text-safe">{statusText}</h4>
                 <p className="mt-1 text-sm leading-relaxed text-foreground">
-                  {connected
+                  {executionSession.mode === "TESTNET_LIVE"
                     ? "Wallet execution mode active. Transactions will be sent to X Layer Testnet."
                     : "Demo simulation mode active. Safety checks satisfied without broadcast."}
                 </p>

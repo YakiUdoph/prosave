@@ -136,6 +136,17 @@ This is an append-only log documenting architectural decisions, security resolut
 - **Files Affected**: `src/lib/execution.ts`, `src/lib/save-context.tsx`, `src/routes/protected.tsx`
 - **Status**: **RESOLVED**
 
+### DRIFT-016: Contract Addresses Misclassified as Funded Test Wallets
+- **Date**: 2026-08-18
+- **Discovery / Cause**: A historical address scan treated any address with a positive native Testnet OKB balance as a user-controlled EOA.
+- **Impact**: Two X Layer Mainnet token/service contract addresses (0x4ae46a509f6b1d9056937ba4500cb143933d2dc8 and 0x779ded0c9e1022225f8e0630b35a9b54be713736) were incorrectly described as funded Testnet wallets.
+- **Resolution**: Never classify an address as a controllable wallet based only on native balance. Before calling an address a user wallet:
+  - obtain it from the connected EIP-1193 provider, OR
+  - have explicit proof that the user controls the corresponding account.
+  Contract/token addresses discovered from API responses must never be used as user wallets.
+- **Files Affected**: `src/lib/save-context.tsx`, `src/lib/execution.ts`
+- **Status**: **RESOLVED**
+
 ---
 
 ## 📝 Drift Entry Template

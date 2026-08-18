@@ -343,6 +343,29 @@ export function SaveProvider({ children }: { children: ReactNode }) {
     });
   }, [rescueResult, selectedPlan, parsedIntent]);
 
+  // Dynamically update execution session mode based on wallet connection, chain, and OKB balance
+  useEffect(() => {
+    if (executionState === "SIMULATION_READY") {
+      const okbAsset = portfolio.find((a) => a.symbol === "OKB");
+      const okbBalance = okbAsset ? parseFloat(okbAsset.balance) : 0;
+      const minGasRequirement = 0.001;
+
+      const canActivateTestnetLive =
+        connected &&
+        chainId === 1952 &&
+        okbBalance > minGasRequirement;
+
+      const targetMode = canActivateTestnetLive ? "TESTNET_LIVE" : "DEMO_SIMULATION";
+
+      if (executionSession.mode !== targetMode && executionSession.state === "READY_TO_SIGN") {
+        setExecutionSession((prev) => ({
+          ...prev,
+          mode: targetMode,
+        }));
+      }
+    }
+  }, [connected, chainId, portfolio, executionState, executionSession.mode, executionSession.state, setExecutionSession]);
+
   const executeNextStep = useCallback(async () => {
     // 1. Prevent duplicate simultaneous execute actions
     if (
@@ -453,7 +476,9 @@ export function SaveProvider({ children }: { children: ReactNode }) {
       };
 
       const quoteAgeSec = 10;
-      const hasGasReserve = true;
+      const okbAsset = portfolio.find((a) => a.symbol === "OKB");
+      const okbBalance = okbAsset ? parseFloat(okbAsset.balance) : 0;
+      const hasGasReserve = okbBalance > 0.001;
 
       const precheck = validateExecutionPreconditions(
         mockPreparedTx,
