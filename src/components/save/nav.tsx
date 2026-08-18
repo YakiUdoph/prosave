@@ -22,20 +22,11 @@ export function SaveNav() {
     <header className="sticky top-0 z-50 border-b border-border bg-background/70 backdrop-blur-xl">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-6 px-6">
         <Link to="/" className="group flex items-center gap-2.5">
-          <svg className="size-7 text-primary" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path
-              d="M16 2.5C21 2.5 27 5.5 27 13C27 21.5 16 29.5 16 29.5C16 29.5 5 21.5 5 13C5 5.5 11 2.5 16 2.5Z"
-              className="stroke-primary/40 group-hover:stroke-primary transition-colors duration-500"
-              strokeWidth="2.0"
-              strokeLinecap="round"
-            />
-            <path
-              d="M16 7 C21 7 24 10 21 14 C18 18 15 17.5 12 21.5 C9.5 25.5 12 25 16 25"
-              className="stroke-primary group-hover:animate-pulse"
-              strokeWidth="3.0"
-              strokeLinecap="round"
-            />
-          </svg>
+          <img
+            src="/brand/save-mark-transparent.png"
+            alt="SAVE Logo"
+            className="size-7 object-contain group-hover:scale-105 transition-transform duration-300"
+          />
           <span className="text-sm font-semibold tracking-[0.22em] text-foreground group-hover:text-primary transition-colors duration-300">SAVE</span>
         </Link>
 
