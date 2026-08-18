@@ -6,7 +6,7 @@ import {
   getLiveQuote,
   convergeExactIn,
   XLAYER_MAINNET_TOKENS,
-} from "../src/server/okx";
+} from "../src/lib/okx.server";
 
 import fs from "fs";
 import path from "path";

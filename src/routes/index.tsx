@@ -29,6 +29,16 @@ function Landing() {
       {/* Hero */}
       <section className="hero-field relative overflow-hidden">
         <div aria-hidden className="grid-field pointer-events-none absolute inset-0 opacity-60" />
+        
+        {/* Large restrained background logo */}
+        <div aria-hidden className="absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none select-none opacity-[0.09] size-[350px] md:size-[550px] lg:size-[650px]">
+          <img
+            src="/brand/save-mark-transparent.png"
+            alt="SAVE Brandmark"
+            className="w-full h-full object-contain"
+          />
+        </div>
+
         <div className="relative mx-auto max-w-7xl px-6 pt-20 pb-16 md:pt-28 md:pb-24">
           <div className="grid items-center gap-14 lg:grid-cols-[1.05fr_1fr]">
             <div>

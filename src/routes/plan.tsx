@@ -246,6 +246,9 @@ function RescuePlan() {
                 </table>
               </div>
             )}
+            <div className="mt-4 p-3 rounded bg-secondary/30 text-xxs label-mono text-muted-foreground border border-border/40">
+              * Staged execution strategy — user authorization required at each stage. No autonomous background execution will occur.
+            </div>
           </Panel>
 
           <Link to="/simulate" className="block">

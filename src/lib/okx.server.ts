@@ -1,6 +1,6 @@
 import crypto from "crypto";
 import { createServerFn } from "@tanstack/react-start";
-import { type RouteQuote } from "../lib/rescue-solver";
+import { type RouteQuote } from "./rescue-solver";
 
 // Load environment variables manually if in Node test environment
 if (typeof process !== "undefined" && process.env) {
@@ -30,7 +30,7 @@ export const XLAYER_MAINNET_TOKENS = {
   WETH: {
     symbol: "WETH",
     name: "Wrapped Ether",
-    address: "0x5A77f1443D16ee5761d310e38b62f77f726bC71c",
+    address: "0x5A77f1443D16ee5761d310e38b62f77f726bc71c",
     decimals: 18,
     chainIndex: 196,
     source: "LIVE_OKX" as const,

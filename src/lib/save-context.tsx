@@ -302,7 +302,10 @@ export function SaveProvider({ children }: { children: ReactNode }) {
   const connectWalletConnect = useCallback(async () => {
     setError(null);
     try {
-      const projectId = (import.meta.env.VITE_WALLETCONNECT_PROJECT_ID as string) || "58150d27-fd35-4f29-b941-51aadc29c0b7";
+      const projectId = import.meta.env.VITE_WALLETCONNECT_PROJECT_ID as string;
+      if (!projectId) {
+        throw new Error("WalletConnect Project ID is missing. Add VITE_WALLETCONNECT_PROJECT_ID to .env to configure.");
+      }
       const EthereumProvider = (await import("@walletconnect/ethereum-provider")).EthereumProvider;
       
       const provider = await EthereumProvider.init({

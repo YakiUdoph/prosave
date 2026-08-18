@@ -1,6 +1,7 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import { cn } from "@/lib/utils";
 import { PanicModeToggle } from "./panic-toggle";
+import { useSave } from "@/lib/save-context";
 
 const FLOW = [
   { to: "/", label: "Overview" },
@@ -15,6 +16,7 @@ const FLOW = [
 
 export function SaveNav() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const { connected, walletAddress } = useSave();
 
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-background/70 backdrop-blur-xl">
@@ -53,6 +55,18 @@ export function SaveNav() {
         </nav>
 
         <div className="flex items-center gap-3">
+          {connected && walletAddress && (
+            <div className="flex items-center gap-2 rounded-full border border-border bg-secondary/50 px-2.5 py-1">
+              <img
+                src="/brand/save-mark-transparent.png"
+                alt="SAVE User Avatar"
+                className="size-5 rounded-full object-contain"
+              />
+              <span className="label-mono text-xs normal-case tracking-normal">
+                {walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}
+              </span>
+            </div>
+          )}
           <PanicModeToggle />
         </div>
       </div>

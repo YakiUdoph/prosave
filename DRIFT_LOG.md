@@ -174,6 +174,53 @@ This is an append-only log documenting architectural decisions, security resolut
 
 ---
 
+### DRIFT-020: Wallet connectivity was passively assumed rather than genuinely distinct
+- **Date**: 2026-08-18
+- **Discovery**: Wallet cards previously implied connectivity that was not genuinely distinct.
+- **Impact**: Falsely claimed connectivity states or connected automatically without user intent.
+- **Root Cause**: Hardcoded connected session triggers on provider presence check, and missing setup project ID checks for WalletConnect.
+- **Resolution**: Removed auto-connection on mount. Implemented explicit connection trigger. WalletConnect checks `VITE_WALLETCONNECT_PROJECT_ID` configuration, showing warnings when missing. EIP-6963 discovery list and OKX specific provider checks are fully active.
+- **Files Affected**: `src/routes/connect.tsx`, `src/lib/save-context.tsx`
+- **Status**: **RESOLVED**
+
+### DRIFT-021: Portfolio scanner architecture limited to static fixture tokens
+- **Date**: 2026-08-18
+- **Discovery**: The portfolio scanner architecture was limited to canonical fixture assets, blocking multi-chain or dust asset representations.
+- **Impact**: Multi-chain, blue-chip, stable, volatile, and dust positions could not be scanned or normalized.
+- **Root Cause**: Hardcoded 4-token list inside static client references.
+- **Resolution**: Redesigned mock assets array to 15 assets across 5 chains (Arbitrum, Base, Polygon, X Layer, Ethereum), covering blue-chip ETH, stable USDC, volatile TKX, and 5 distinct dust holdings (<$1) with full EVM chain ID and network tags, proving exact normalization.
+- **Files Affected**: `src/lib/xlayer.ts`, `tests/portfolio-normalization.test.ts`
+- **Status**: **RESOLVED**
+
+### DRIFT-022: Rescue plans lacked meaningful differentiation
+- **Date**: 2026-08-18
+- **Discovery**: Rescue plan candidates A, B, and C generated identical actions and trades for similar input profiles.
+- **Impact**: Undermined the capital preservation thesis and scoring credibility.
+- **Root Cause**: High-level heuristics and scoring offsets did not sufficiently enforce asset and sequence diversity constraints.
+- **Resolution**: Generalised the solver math to enforce plan-name invariance. Implemented `arePlansDiverse` check evaluating sold assets, gas costs, secured amounts, protected asset preservation ratios, time horizons, and transaction counts. Plan candidate B is optimized, Plan A prioritizes speed, and Plan C restricts swaps strictly to high-risk assets, resolving duplication.
+- **Files Affected**: `src/lib/rescue-solver.ts`, `tests/rescue-solver.test.ts`
+- **Status**: **RESOLVED**
+
+### DRIFT-023: Server/client import protection bypassed during OKX balance integration
+- **Date**: 2026-08-18
+- **Discovery**: Server-only modules containing crypto modules and process environment variables were dynamically imported to bypass static analyzers.
+- **Impact**: Security vulnerability of credentials leak and static analysis failure risk.
+- **Root Cause**: Bypassing TanStack Start's client-server directory limits.
+- **Resolution**: Created `src/lib/okx.server.ts` with all OKX request methods and server functions, removing all node imports and environment credential access from the client files. Client imports `serverGetAllTokenBalances` securely using the `.server.ts` compiler boundary.
+- **Files Affected**: `src/lib/xlayer.ts`, `src/lib/okx.server.ts`, `tests/okx-integration.test.ts`, `src/server/okx.ts` (deleted)
+- **Status**: **RESOLVED**
+
+### DRIFT-024: Manually redrawn SVG brandmark described as exact vectorization
+- **Date**: 2026-08-18
+- **Discovery**: The redrawn SVG was not an exact vectorization of the brand logo `public/save-logo-source.png`.
+- **Impact**: Misrepresented source brand fidelity.
+- **Root Cause**: Manually approximating detailed PNG visual components via vector equations.
+- **Resolution**: Renamed/documented the redrawn vector file as `save-mark-simplified.svg` and kept `save-mark-transparent.png` as the high-fidelity detailed brandmark derived from `save-logo-source.png`.
+- **Files Affected**: `public/brand/save-mark-simplified.svg`, `public/brand/save-mark-transparent.png`
+- **Status**: **RESOLVED**
+
+---
+
 ## 📝 Drift Entry Template
 Use this template to log future issues, limitations, or workarounds:
 

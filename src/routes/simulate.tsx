@@ -344,6 +344,9 @@ function Simulate() {
                     ? "Wallet execution mode active. Transactions will be sent to X Layer Testnet."
                     : "Demo simulation mode active. Safety checks satisfied without broadcast."}
                 </p>
+                <p className="mt-1.5 text-xxs label-mono text-muted-foreground/80 font-normal">
+                  * Staged execution strategy — user authorization required at each stage.
+                </p>
                 {executionSession.steps.length > 0 && (
                   <div className="mt-3 flex gap-4 text-xs text-muted-foreground">
                     <span>

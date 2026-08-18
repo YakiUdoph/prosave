@@ -44,6 +44,8 @@ function Connect() {
   const [status, setStatus] = useState<"idle" | "connecting" | "connected" | "rejected">("idle");
   const [showDiscovered, setShowDiscovered] = useState(false);
 
+  const hasWCProjectId = !!import.meta.env.VITE_WALLETCONNECT_PROJECT_ID;
+
   const WALLETS: WalletOption[] = [
     {
       id: "okx",
@@ -53,7 +55,13 @@ function Connect() {
         : "NOT INSTALLED — click to install",
       recommended: true,
     },
-    { id: "wc", name: "WalletConnect", detail: "Scan with any mobile wallet" },
+    { 
+      id: "wc", 
+      name: "WalletConnect", 
+      detail: hasWCProjectId 
+        ? "Scan with any mobile wallet" 
+        : "CONFIGURATION REQUIRED — Project ID missing" 
+    },
     { id: "browser", name: "Browser Wallet", detail: "Injected EIP-6963 discovery" },
   ];
 
@@ -72,6 +80,12 @@ function Connect() {
         const okxProvider = (window as any).okxwallet || detectedWallets.find(w => w.info.rdns === "com.okex.wallet")?.provider;
         await connectWallet(okxProvider);
       } else if (walletId === "wc") {
+        if (!hasWCProjectId) {
+          toast.error("WalletConnect Project ID is missing. Add VITE_WALLETCONNECT_PROJECT_ID to .env to configure.");
+          setStatus("idle");
+          setActive(null);
+          return;
+        }
         await connectWalletConnect();
       } else if (walletId === "browser") {
         if (customProvider) {

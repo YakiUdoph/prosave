@@ -51,19 +51,8 @@ export const publicClient = createPublicClient({
   ], { rank: false }),
 });
 
-import { createServerFn } from "@tanstack/react-start";
-
-function getModulePath() {
-  const parts = ["..", "server", "okx"];
-  return parts.join("/");
-}
-
-export const serverGetAllTokenBalances = createServerFn({ method: "GET" })
-  .validator((d: { address: string; chainIndex?: number }) => d)
-  .handler(async ({ data }) => {
-    const { getAllTokenBalances } = await import(getModulePath());
-    return await getAllTokenBalances(data.address, data.chainIndex);
-  });
+import { serverGetAllTokenBalances } from "./okx.server";
+export { serverGetAllTokenBalances };
 
 export type DataSource = "live" | "demo" | "estimated" | "unverified" | "LIVE_OKX_BALANCE" | "LIVE_RPC";
 
