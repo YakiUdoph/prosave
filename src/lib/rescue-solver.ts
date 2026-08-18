@@ -75,6 +75,7 @@ export type RescueResult = {
   rejected: RejectedPlan[];
   recommendedPlanId: "A" | "B" | "C" | null;
   explanation?: string; // Optional explanation for simple portfolios with fewer plans
+  portfolioMode?: string;
 };
 
 // Safety thresholds
@@ -238,13 +239,15 @@ export function arePlansDiverse(p1: CandidatePlan, p2: CandidatePlan): boolean {
 
 export function solveRescue(
   portfolio: ScannedAsset[],
-  intent: SaveIntent
+  intent: SaveIntent,
+  portfolioMode?: string
 ): RescueResult {
   const result: RescueResult = {
     feasible: false,
     plans: [],
     rejected: [],
     recommendedPlanId: null,
+    portfolioMode,
   };
 
   if (!intent.targetAmount) {

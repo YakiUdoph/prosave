@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowRight, Lock, Target } from "lucide-react";
+import { ArrowRight, Lock, Target, AlertTriangle } from "lucide-react";
 import { PageShell } from "@/components/save/page-shell";
 import { Eyebrow, MagneticButton, Panel, StatusPill } from "@/components/save/primitives";
 import { RescuePlanCard } from "@/components/save/rescue-plan-card";
@@ -29,7 +29,7 @@ export const Route = createFileRoute("/plan")({
 import { useState } from "react";
 
 function RescuePlan() {
-  const { selectedPlan, setSelectedPlan, rescueResult, portfolio, parsedIntent } = useSave();
+  const { selectedPlan, setSelectedPlan, rescueResult, portfolio, parsedIntent, portfolioMode, setPortfolioMode } = useSave();
   const [showComparison, setShowComparison] = useState(false);
 
   // Map rescueResult CandidatePlans to the Plan interface expected by RescuePlanCard
@@ -83,14 +83,48 @@ function RescuePlan() {
     return (
       <PageShell
         eyebrow="Step 05 · Rescue plan"
-        title="No feasible rescue plans found"
-        intro="The target amount could not be satisfied under your strict protection settings."
+        title="Rescue plan not feasible"
+        intro="The target amount could not be satisfied under your connected wallet assets."
+        aside={
+          <div className="flex gap-2">
+            {portfolioMode === "LIVE_WALLET" ? (
+              <StatusPill tone="safe">
+                LIVE WALLET DATA
+              </StatusPill>
+            ) : (
+              <StatusPill tone="warn">
+                DEMO PORTFOLIO — SAMPLE DATA
+              </StatusPill>
+            )}
+            <StatusPill tone="danger">
+              Not Feasible
+            </StatusPill>
+          </div>
+        }
       >
-        <div className="flex flex-col items-center justify-center p-12 text-center">
-          <p className="text-muted-foreground">Modify your target or ease your protection policy in the intent console.</p>
-          <Link to="/intent" className="mt-6">
-            <MagneticButton size="lg">Modify Intent</MagneticButton>
-          </Link>
+        <div className="flex flex-col items-center justify-center p-12 text-center border border-dashed border-border/80 bg-muted/10 rounded-xl max-w-2xl mx-auto my-8 animate-rise">
+          <div className="size-14 rounded-full bg-danger/10 border border-danger/20 flex items-center justify-center mb-4">
+            <AlertTriangle className="size-7 text-danger animate-pulse" />
+          </div>
+          <h3 className="text-lg font-bold text-foreground">Target Not Currently Feasible</h3>
+          <p className="text-sm text-muted-foreground mt-2 max-w-md leading-relaxed">
+            Your connected wallet balance is insufficient to cover the target rescue amount of ${parsedIntent.targetAmount || 700} under the current liquidity conditions.
+          </p>
+          <div className="flex flex-wrap gap-4 justify-center mt-6">
+            <Link to="/intent">
+              <button className="px-4 py-2 text-sm font-semibold rounded-md border border-border bg-background hover:bg-muted text-foreground transition">
+                Modify Intent Settings
+              </button>
+            </Link>
+            {portfolioMode === "LIVE_WALLET" && (
+              <button
+                onClick={() => setPortfolioMode("DEMO_PORTFOLIO")}
+                className="px-4 py-2 text-sm font-semibold rounded-md border border-primary/30 bg-primary/10 text-primary hover:bg-primary/20 transition animate-pulse"
+              >
+                Run this intent on Demo Portfolio
+              </button>
+            )}
+          </div>
         </div>
       </PageShell>
     );
@@ -102,9 +136,20 @@ function RescuePlan() {
       title="Your optimized rescue plan"
       intro={`SAVE evaluated liquidity routes against your constraints. Plan ${rescueResult.recommendedPlanId || "B"} delivers the goal with the least portfolio damage.`}
       aside={
-        <StatusPill tone="primary">
-          <Target className="size-3" /> Objective matched
-        </StatusPill>
+        <div className="flex gap-2">
+          {portfolioMode === "LIVE_WALLET" ? (
+            <StatusPill tone="safe">
+              LIVE WALLET DATA
+            </StatusPill>
+          ) : (
+            <StatusPill tone="warn">
+              DEMO PORTFOLIO — SAMPLE DATA
+            </StatusPill>
+          )}
+          <StatusPill tone="primary">
+            <Target className="size-3" /> Objective matched
+          </StatusPill>
+        </div>
       }
     >
       {rescueResult.explanation && (
@@ -138,6 +183,14 @@ function RescuePlan() {
           </Panel>
 
           <Panel className="p-8">
+            <div className="mb-4 flex items-center justify-between border-b border-border/40 pb-3">
+              <Eyebrow>Plan Provenance</Eyebrow>
+              <span className="text-xxs label-mono text-muted-foreground">
+                {portfolioMode === "LIVE_WALLET" 
+                  ? "Plan generated from live connected wallet" 
+                  : "Plan generated from SAVE demo portfolio"}
+              </span>
+            </div>
             <ScoreDial score={active.score} label={`SAVE score · Plan ${active.id}`} />
             <div className="mt-6 rounded-lg border border-primary/25 bg-primary/8 p-5">
               <Eyebrow>Why this plan</Eyebrow>

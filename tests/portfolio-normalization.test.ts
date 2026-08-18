@@ -28,7 +28,7 @@ describe("Portfolio Normalization & Filtering Tests", () => {
     
     // Verify provenance is set to demo/unverified for mocks
     for (const d of dustTokens) {
-      expect(["demo", "unverified"]).toContain(d.dataSource);
+      expect(["DEMO", "demo", "unverified"]).toContain(d.dataSource);
     }
   });
 

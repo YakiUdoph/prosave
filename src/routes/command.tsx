@@ -37,7 +37,7 @@ export const Route = createFileRoute("/command")({
 import { useState } from "react";
 
 function CommandCenter() {
-  const { panic, portfolio, totalPortfolioValue, rpcStatus, rescueResult } = useSave();
+  const { panic, portfolio, totalPortfolioValue, rpcStatus, rescueResult, portfolioMode } = useSave();
   const [showDust, setShowDust] = useState(false);
 
   const highRiskValue = portfolio.filter((a) => a.risk === "high").reduce((sum, a) => sum + a.value, 0);
@@ -80,8 +80,17 @@ function CommandCenter() {
       }
       aside={
         <div className="flex gap-2">
-          {rpcStatus === "offline" && (
-            <StatusPill tone="warn">Demo Mode (RPC Offline)</StatusPill>
+          {portfolioMode === "LIVE_WALLET" ? (
+            <StatusPill tone="safe">
+              LIVE WALLET DATA
+            </StatusPill>
+          ) : (
+            <StatusPill tone="warn">
+              DEMO PORTFOLIO — SAMPLE DATA
+            </StatusPill>
+          )}
+          {rpcStatus === "offline" && portfolioMode === "LIVE_WALLET" && (
+            <StatusPill tone="warn">RPC Offline</StatusPill>
           )}
           <StatusPill tone={panic ? "danger" : "primary"}>
             {panic ? "Panic mode active" : "Calm monitoring"}

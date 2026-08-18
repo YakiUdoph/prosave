@@ -25,7 +25,7 @@ export const Route = createFileRoute("/protected")({
 });
 
 function Success() {
-  const { selectedPlan, rescueResult, executionSession } = useSave();
+  const { selectedPlan, rescueResult, executionSession, portfolioMode } = useSave();
 
   const activePlan = rescueResult.plans.find((p) => p.id === selectedPlan);
 
@@ -67,12 +67,12 @@ function Success() {
   const isLive = executionSession.mode === "TESTNET_LIVE";
   const confirmedTx = executionSession.confirmedTransactions[0];
 
-  const pageTitle = isLive ? "Portfolio protected" : "Simulated outcome";
+  const pageTitle = isLive ? "LIVE X LAYER TESTNET VERIFICATION" : "SIMULATED RESCUE OUTCOME";
   const pageIntro = isLive
     ? "Your rescue transaction has successfully settled on X Layer Testnet."
     : "Your rescue parameters were evaluated. No transaction was broadcast to the network.";
   
-  const statusPillLabel = isLive ? "Executed on-chain" : "Demo simulation";
+  const statusPillLabel = isLive ? "LIVE EXECUTION PROOF" : "SIMULATED RESCUE OUTCOME";
   const statusPillTone = isLive ? "safe" : "primary";
 
   const txHashValue = confirmedTx
@@ -105,9 +105,20 @@ function Success() {
       title={pageTitle}
       intro={pageIntro}
       aside={
-        <StatusPill tone={statusPillTone}>
-          <CheckCircle className="size-3" /> {statusPillLabel}
-        </StatusPill>
+        <div className="flex gap-2">
+          {portfolioMode === "LIVE_WALLET" ? (
+            <StatusPill tone="safe">
+              LIVE WALLET DATA
+            </StatusPill>
+          ) : (
+            <StatusPill tone="warn">
+              DEMO PORTFOLIO — SAMPLE DATA
+            </StatusPill>
+          )}
+          <StatusPill tone={statusPillTone}>
+            <CheckCircle className="size-3" /> {statusPillLabel}
+          </StatusPill>
+        </div>
       }
     >
       <div className="relative">
@@ -119,23 +130,27 @@ function Success() {
         
         <div className="grid gap-4 sm:grid-cols-3">
           <Panel className="p-5 relative overflow-hidden">
-            <div className="absolute top-4 right-4 text-xxs label-mono rounded px-1.5 py-0.5 border border-primary/20 bg-primary/10 text-primary">SIMULATED</div>
+            <div className={`absolute top-4 right-4 text-[10px] label-mono rounded px-1.5 py-0.5 border ${isLive ? "border-safe/20 bg-safe/10 text-safe" : "border-primary/20 bg-primary/10 text-primary"}`}>
+              {isLive ? "LIVE" : "SIMULATED"}
+            </div>
             <ShieldAlert className="size-4 text-primary" />
             <p className="mt-4 text-2xl font-semibold tracking-tight text-foreground">
               <AnimatedNumber value={activePlan.securedAmount} prefix="$" decimals={2} />
             </p>
-            <Eyebrow className="mt-2">Simulated USDC Output</Eyebrow>
+            <Eyebrow className="mt-2">{isLive ? "Live USDC Recovered" : "Simulated USDC Output"}</Eyebrow>
           </Panel>
           <Panel className="p-5 relative overflow-hidden">
-            <div className="absolute top-4 right-4 text-xxs label-mono rounded px-1.5 py-0.5 border border-primary/20 bg-primary/10 text-primary">SIMULATED</div>
+            <div className={`absolute top-4 right-4 text-[10px] label-mono rounded px-1.5 py-0.5 border ${isLive ? "border-safe/20 bg-safe/10 text-safe" : "border-primary/20 bg-primary/10 text-primary"}`}>
+              {isLive ? "LIVE" : "SIMULATED"}
+            </div>
             <ShieldAlert className="size-4 text-safe" />
             <p className="mt-4 text-2xl font-semibold tracking-tight text-foreground">
               <AnimatedNumber value={activePlan.protectedPreservedPercent} suffix="%" decimals={0} />
             </p>
-            <Eyebrow className="mt-2">Simulated ETH Preserved</Eyebrow>
+            <Eyebrow className="mt-2">{isLive ? "Live ETH Preserved" : "Simulated ETH Preserved"}</Eyebrow>
           </Panel>
           <Panel className="p-5 relative overflow-hidden alert">
-            <div className="absolute top-4 right-4 text-xxs label-mono rounded px-1.5 py-0.5 border border-safe/20 bg-safe/10 text-safe">
+            <div className="absolute top-4 right-4 text-[10px] label-mono rounded px-1.5 py-0.5 border border-safe/20 bg-safe/10 text-safe">
               {isLive ? "LIVE PROOF" : "SIMULATED"}
             </div>
             <ShieldAlert className="size-4 text-warning" />

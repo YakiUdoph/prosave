@@ -54,7 +54,8 @@ export const publicClient = createPublicClient({
 import { serverGetAllTokenBalances } from "./okx.server";
 export { serverGetAllTokenBalances };
 
-export type DataSource = "live" | "demo" | "estimated" | "unverified" | "LIVE_OKX_BALANCE" | "LIVE_RPC";
+export type DataSource = "LIVE_RPC" | "LIVE_OKX" | "DEMO" | "live" | "demo" | "estimated" | "unverified" | "LIVE_OKX_BALANCE";
+export type PriceSource = "LIVE_OKX" | "ESTIMATED" | "UNAVAILABLE";
 
 export type ScannedAsset = {
   symbol: string;
@@ -70,7 +71,10 @@ export type ScannedAsset = {
   isProtected: boolean;
   contractAddress?: string;
   dataSource: DataSource;
-  priceSource: DataSource;
+  balanceSource?: DataSource;
+  priceSource: PriceSource;
+  valuationSource?: "LIVE_OKX" | "ESTIMATED" | "UNAVAILABLE";
+  sourceLabel?: string;
   
   // Normalized PortfolioAsset fields
   chainIndex?: number;
@@ -368,17 +372,26 @@ export async function scanPortfolio(address: string | null): Promise<{
       chainIndex: 137,
     },
   ];
+  
+  const mappedMockAssets: ScannedAsset[] = richMockAssets.map(a => ({
+    ...a,
+    dataSource: "DEMO" as const,
+    balanceSource: "DEMO" as const,
+    priceSource: "ESTIMATED" as const,
+    valuationSource: "ESTIMATED" as const,
+    sourceLabel: "SAVE Demo Portfolio",
+  }));
 
   if (!address) {
-    const total = richMockAssets.reduce((sum, a) => sum + a.value, 0);
+    const total = mappedMockAssets.reduce((sum, a) => sum + a.value, 0);
     return {
-      assets: richMockAssets,
+      assets: mappedMockAssets,
       rpcStatus: "offline",
       totalValue: total,
     };
   }
 
-  let finalAssets = [...richMockAssets];
+  let finalAssets: ScannedAsset[] = [];
   let isLive = false;
 
   // 1. Attempt to fetch live balances from OKX OnchainOS balance API via server function
@@ -411,6 +424,7 @@ export async function scanPortfolio(address: string | null): Promise<{
         };
 
         const chainIndex = Number(item.chainIndex || 196);
+        const hasPrice = priceUsd > 0;
 
         return {
           symbol,
@@ -425,8 +439,11 @@ export async function scanPortfolio(address: string | null): Promise<{
           isNative,
           isProtected: risk === "protected",
           contractAddress: tokenAddress,
-          dataSource: "LIVE_OKX_BALANCE",
-          priceSource: "estimated",
+          dataSource: "LIVE_OKX" as const,
+          balanceSource: "LIVE_OKX" as const,
+          priceSource: hasPrice ? ("LIVE_OKX" as const) : ("UNAVAILABLE" as const),
+          valuationSource: hasPrice ? ("LIVE_OKX" as const) : ("UNAVAILABLE" as const),
+          sourceLabel: "OKX OnchainOS API",
           chainIndex,
           evmChainId: chainIndex,
           logoUrl: item.logoUrl || item.iconUrl || "",
@@ -439,7 +456,7 @@ export async function scanPortfolio(address: string | null): Promise<{
       }
     }
   } catch (okxErr) {
-    console.warn("OKX Balance API fetch failed, falling back to mock assets:", okxErr);
+    console.warn("OKX Balance API fetch failed:", okxErr);
   }
 
   // 2. Query Live Native OKB balance on X Layer Testnet 1952 via viem RPC Client (TESTNET_LIVE execution proof requirement)
@@ -465,8 +482,11 @@ export async function scanPortfolio(address: string | null): Promise<{
       isNative: true,
       isProtected: false,
       contractAddress: TOKENS.OKB,
-      dataSource: "LIVE_RPC",
-      priceSource: "estimated",
+      dataSource: "LIVE_RPC" as const,
+      balanceSource: "LIVE_RPC" as const,
+      priceSource: "ESTIMATED" as const,
+      valuationSource: "ESTIMATED" as const,
+      sourceLabel: "X Layer RPC",
       chainIndex: 196,
       evmChainId: 1952,
     };

@@ -46,6 +46,7 @@ function Simulate() {
     connected,
     portfolio,
     walletAddress,
+    portfolioMode,
   } = useSave();
 
   const navigate = useNavigate();
@@ -55,9 +56,9 @@ function Simulate() {
   // Trigger simulation auto-run on component mount if IDLE
   useEffect(() => {
     if (executionState === "IDLE") {
-      runSimulation("DEMO_SIMULATION");
+      runSimulation(portfolioMode === "LIVE_WALLET" ? "LIVE_SIMULATION" : "DEMO_SIMULATION");
     }
-  }, [executionState, runSimulation]);
+  }, [executionState, runSimulation, portfolioMode]);
 
   // Handle auto-start execution session when simulation succeeds
   useEffect(() => {
@@ -69,11 +70,12 @@ function Simulate() {
       const canActivateTestnetLive =
         connected &&
         chainId === 1952 &&
-        okbBalance > minGasRequirement;
+        okbBalance > minGasRequirement &&
+        portfolioMode === "LIVE_WALLET";
 
       startExecution(canActivateTestnetLive ? "TESTNET_LIVE" : "DEMO_SIMULATION");
     }
-  }, [executionState, executionSession.steps.length, startExecution, connected, chainId, portfolio]);
+  }, [executionState, executionSession.steps.length, startExecution, connected, chainId, portfolio, portfolioMode]);
 
   // Auto-navigate to protected page when execution successfully completes
   useEffect(() => {
@@ -165,14 +167,25 @@ function Simulate() {
       title={executionState === "SIMULATING" ? "Running simulation..." : "Simulation complete"}
       intro="Executed against a forked state of X Layer. What you see is what settles."
       aside={
-        <StatusPill tone={executionState === "SIMULATION_READY" ? "safe" : executionState === "SIMULATION_FAILED" ? "critical" : "primary"}>
-          <CircuitBoard className="size-3" />{" "}
-          {executionState === "SIMULATING"
-            ? "Simulating X Layer..."
-            : executionState === "SIMULATION_READY"
-              ? "All safety checks passed"
-              : "Safety checks failed"}
-        </StatusPill>
+        <div className="flex gap-2">
+          {portfolioMode === "LIVE_WALLET" ? (
+            <StatusPill tone="safe">
+              LIVE WALLET DATA
+            </StatusPill>
+          ) : (
+            <StatusPill tone="warn">
+              DEMO PORTFOLIO — SAMPLE DATA
+            </StatusPill>
+          )}
+          <StatusPill tone={executionState === "SIMULATION_READY" ? "safe" : executionState === "SIMULATION_FAILED" ? "critical" : "primary"}>
+            <CircuitBoard className="size-3" />{" "}
+            {executionState === "SIMULATING"
+              ? "Simulating X Layer..."
+              : executionState === "SIMULATION_READY"
+                ? "All safety checks passed"
+                : "Safety checks failed"}
+          </StatusPill>
+        </div>
       }
     >
       <div className="grid gap-6 lg:grid-cols-[1.3fr_1fr]">
@@ -311,21 +324,25 @@ function Simulate() {
               <div>
                 <h4 className="font-semibold text-warning">TESTNET_LIVE Mode Inactive</h4>
                 <p className="mt-1 text-sm leading-relaxed text-foreground">
-                  To execute on-chain transactions, please satisfy the following:
+                  {portfolioMode === "DEMO_PORTFOLIO"
+                    ? "Demo simulation mode is locked. Switch to Live Wallet mode in the navbar to execute live transactions."
+                    : "To execute on-chain transactions, please satisfy the following:"}
                 </p>
-                <ul className="mt-2 space-y-1 text-xs list-disc list-inside text-muted-foreground">
-                  {chainId !== 1952 && (
-                    <li>Switch network in MetaMask/OKX Wallet to <strong>X Layer Testnet (Chain ID 1952)</strong>.</li>
-                  )}
-                  {(() => {
-                    const okbAsset = portfolio.find((a) => a.symbol === "OKB");
-                    const okbBalance = okbAsset ? parseFloat(okbAsset.balance) : 0;
-                    if (okbBalance <= 0.001) {
-                      return <li>Deposit native Testnet OKB to cover gas (balance: {okbBalance.toFixed(4)} OKB, minimum: 0.001 OKB).</li>;
-                    }
-                    return null;
-                  })()}
-                </ul>
+                {portfolioMode !== "DEMO_PORTFOLIO" && (
+                  <ul className="mt-2 space-y-1 text-xs list-disc list-inside text-muted-foreground">
+                    {chainId !== 1952 && (
+                      <li>Switch network in MetaMask/OKX Wallet to <strong>X Layer Testnet (Chain ID 1952)</strong>.</li>
+                    )}
+                    {(() => {
+                      const okbAsset = portfolio.find((a) => a.symbol === "OKB");
+                      const okbBalance = okbAsset ? parseFloat(okbAsset.balance) : 0;
+                      if (okbBalance <= 0.001) {
+                        return <li>Deposit native Testnet OKB to cover gas (balance: {okbBalance.toFixed(4)} OKB, minimum: 0.001 OKB).</li>;
+                      }
+                      return null;
+                    })()}
+                  </ul>
+                )}
               </div>
             </Panel>
           )}

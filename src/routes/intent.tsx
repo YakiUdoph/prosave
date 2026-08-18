@@ -27,7 +27,7 @@ export const Route = createFileRoute("/intent")({
 
 function Intent() {
   const navigate = useNavigate();
-  const { intent, setIntent, parsedIntent } = useSave();
+  const { intent, setIntent, parsedIntent, portfolioMode } = useSave();
   const [parsed, setParsed] = useState(false);
 
   const formattedIntent = [
@@ -69,9 +69,20 @@ function Intent() {
       title="What do you need your portfolio to do?"
       intro="No tickers, no routes, no guessing. Describe the outcome and the constraints that matter to you."
       aside={
-        <StatusPill tone="primary">
-          <BrainCircuit className="size-3" /> Intent parser online
-        </StatusPill>
+        <div className="flex gap-2">
+          {portfolioMode === "LIVE_WALLET" ? (
+            <StatusPill tone="safe">
+              LIVE WALLET DATA
+            </StatusPill>
+          ) : (
+            <StatusPill tone="warn">
+              DEMO PORTFOLIO — SAMPLE DATA
+            </StatusPill>
+          )}
+          <StatusPill tone="primary">
+            <BrainCircuit className="size-3" /> Intent parser online
+          </StatusPill>
+        </div>
       }
     >
       <div className="grid gap-6 lg:grid-cols-[1.2fr_1fr]">

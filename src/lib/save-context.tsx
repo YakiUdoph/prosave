@@ -13,6 +13,8 @@ import {
   recalculateRemainingTarget,
 } from "./execution";
 
+export type PortfolioMode = "LIVE_WALLET" | "DEMO_PORTFOLIO";
+
 export interface EIP6963ProviderDetail {
   info: {
     uuid: string;
@@ -46,6 +48,8 @@ type SaveState = {
   totalPortfolioValue: number;
   isScanning: boolean;
   scanWalletPortfolio: () => Promise<void>;
+  portfolioMode: PortfolioMode;
+  setPortfolioMode: (v: PortfolioMode) => void;
   
   // Step 7 states
   executionState: ExecutionState;
@@ -89,8 +93,24 @@ export function SaveProvider({ children }: { children: ReactNode }) {
   const [activeProvider, setActiveProvider] = useState<any>(null);
 
   // Portfolio states
-  const [portfolio, setPortfolio] = useState<ScannedAsset[]>([]);
-  const [rpcStatus, setRpcStatus] = useState<"online" | "offline">("offline");
+  const [portfolioMode, setPortfolioModeState] = useState<PortfolioMode>("DEMO_PORTFOLIO");
+  const [livePortfolio, setLivePortfolio] = useState<ScannedAsset[]>([]);
+  const [demoPortfolio, setDemoPortfolio] = useState<ScannedAsset[]>([]);
+  const [liveTotalValue, setLiveTotalValue] = useState<number>(0);
+  const [demoTotalValue, setDemoTotalValue] = useState<number>(0);
+  const [liveRpcStatus, setLiveRpcStatus] = useState<"online" | "offline">("offline");
+
+  const portfolio = useMemo(() => {
+    return portfolioMode === "LIVE_WALLET" ? livePortfolio : demoPortfolio;
+  }, [portfolioMode, livePortfolio, demoPortfolio]);
+
+  const totalPortfolioValue = useMemo(() => {
+    return portfolioMode === "LIVE_WALLET" ? liveTotalValue : demoTotalValue;
+  }, [portfolioMode, liveTotalValue, demoTotalValue]);
+
+  const rpcStatus = useMemo(() => {
+    return portfolioMode === "LIVE_WALLET" ? liveRpcStatus : "online";
+  }, [portfolioMode, liveRpcStatus]);
 
   // Step 7 Simulation States
   const [executionState, setExecutionState] = useState<ExecutionState>("IDLE");
@@ -109,13 +129,16 @@ export function SaveProvider({ children }: { children: ReactNode }) {
   }));
 
   const rescueResult = useMemo(() => {
-    return solveRescue(portfolio, parsedIntent);
-  }, [portfolio, parsedIntent]);
+    return solveRescue(portfolio, parsedIntent, portfolioMode);
+  }, [portfolio, parsedIntent, portfolioMode]);
   
-  const [totalPortfolioValue, setTotalPortfolioValue] = useState<number>(4832); // approved UI baseline default
   const [isScanning, setIsScanning] = useState(false);
 
   const setPanic = useCallback((v: boolean) => setPanicState(v), []);
+
+  const setPortfolioMode = useCallback((mode: PortfolioMode) => {
+    setPortfolioModeState(mode);
+  }, []);
 
   const setIntent = useCallback((v: string) => {
     setIntentState(v);
@@ -141,15 +164,16 @@ export function SaveProvider({ children }: { children: ReactNode }) {
     setConnected(false);
     setExecutionState("IDLE");
     setSimulationResult(null);
+    setPortfolioModeState("DEMO_PORTFOLIO");
   }, []);
 
   const scanWalletPortfolio = useCallback(async () => {
     setIsScanning(true);
     try {
       const result = await scanPortfolio(walletAddress);
-      setPortfolio(result.assets);
-      setRpcStatus(result.rpcStatus);
-      setTotalPortfolioValue(result.totalValue);
+      setLivePortfolio(result.assets);
+      setLiveRpcStatus(result.rpcStatus);
+      setLiveTotalValue(result.totalValue);
     } catch (err: any) {
       console.error("X Layer portfolio scan failed:", err);
     } finally {
@@ -185,9 +209,8 @@ export function SaveProvider({ children }: { children: ReactNode }) {
     // Load baseline demo portfolio initially
     const initBaseline = async () => {
       const result = await scanPortfolio(null);
-      setPortfolio(result.assets);
-      setRpcStatus(result.rpcStatus);
-      setTotalPortfolioValue(result.totalValue);
+      setDemoPortfolio(result.assets);
+      setDemoTotalValue(result.totalValue);
     };
     initBaseline();
 
@@ -292,6 +315,7 @@ export function SaveProvider({ children }: { children: ReactNode }) {
       setChainId(1952);
       setConnected(true);
       setActiveProvider(provider);
+      setPortfolioModeState("LIVE_WALLET");
     } catch (err: any) {
       const msg = err.message || "Failed to connect wallet";
       setError(msg);
@@ -348,6 +372,7 @@ export function SaveProvider({ children }: { children: ReactNode }) {
       setChainId(currentChainId);
       setConnected(true);
       setActiveProvider(provider);
+      setPortfolioModeState("LIVE_WALLET");
     } catch (err: any) {
       const msg = err.message || "Failed to connect via WalletConnect";
       setError(msg);
@@ -359,6 +384,8 @@ export function SaveProvider({ children }: { children: ReactNode }) {
     setExecutionState("SIMULATING");
     
     const activePlan = rescueResult.plans.find((p) => p.id === selectedPlan);
+    const activeMode = portfolioMode === "DEMO_PORTFOLIO" ? "DEMO_SIMULATION" : mode;
+
     if (!activePlan) {
       setExecutionState("SIMULATION_FAILED");
       setSimulationResult({
@@ -369,7 +396,7 @@ export function SaveProvider({ children }: { children: ReactNode }) {
         preparedTransactions: [],
         gasReserveNative: 0,
         remainingNativeOKB: 0,
-        provenance: mode === "LIVE_SIMULATION" ? "LIVE" : "DEMO",
+        provenance: activeMode === "LIVE_SIMULATION" ? "LIVE" : "DEMO",
       });
       return;
     }
@@ -381,7 +408,7 @@ export function SaveProvider({ children }: { children: ReactNode }) {
       walletAddress,
       chainId,
       quoteTimestamp,
-      mode
+      activeMode
     );
 
     // Simulate progress delay for smooth visual demonstration
@@ -393,7 +420,7 @@ export function SaveProvider({ children }: { children: ReactNode }) {
       setExecutionState("SIMULATION_FAILED");
     }
     setSimulationResult(simRes);
-  }, [rescueResult, selectedPlan, parsedIntent, portfolio, walletAddress, chainId, quoteTimestamp]);
+  }, [rescueResult, selectedPlan, parsedIntent, portfolio, walletAddress, chainId, quoteTimestamp, portfolioMode]);
 
   const resetSimulation = useCallback(() => {
     setExecutionState("IDLE");
@@ -404,6 +431,8 @@ export function SaveProvider({ children }: { children: ReactNode }) {
   const startExecution = useCallback(async (mode: ExecutionMode) => {
     const activePlan = rescueResult.plans.find((p) => p.id === selectedPlan);
     if (!activePlan) return;
+
+    const targetMode = portfolioMode === "DEMO_PORTFOLIO" ? "DEMO_SIMULATION" : mode;
 
     // Initialize multi-transaction sequential steps
     const steps: ExecutionStep[] = [];
@@ -425,7 +454,7 @@ export function SaveProvider({ children }: { children: ReactNode }) {
     }
 
     setExecutionSession({
-      mode,
+      mode: targetMode,
       state: "READY_TO_SIGN",
       steps,
       currentStepIndex: 0,
@@ -433,7 +462,7 @@ export function SaveProvider({ children }: { children: ReactNode }) {
       securedAmount: activePlan.securedAmount - (activePlan.actions.reduce((sum, a) => sum + (a.quote?.outputAmount || 0), 0)),
       confirmedTransactions: [],
     });
-  }, [rescueResult, selectedPlan, parsedIntent]);
+  }, [rescueResult, selectedPlan, parsedIntent, portfolioMode]);
 
   // Dynamically update execution session mode based on wallet connection, chain, and OKB balance
   useEffect(() => {
@@ -445,7 +474,8 @@ export function SaveProvider({ children }: { children: ReactNode }) {
       const canActivateTestnetLive =
         connected &&
         chainId === 1952 &&
-        okbBalance > minGasRequirement;
+        okbBalance > minGasRequirement &&
+        portfolioMode === "LIVE_WALLET";
 
       const targetMode = canActivateTestnetLive ? "TESTNET_LIVE" : "DEMO_SIMULATION";
 
@@ -456,7 +486,7 @@ export function SaveProvider({ children }: { children: ReactNode }) {
         }));
       }
     }
-  }, [connected, chainId, portfolio, executionState, executionSession.mode, executionSession.state, setExecutionSession]);
+  }, [connected, chainId, portfolio, executionState, executionSession.mode, executionSession.state, setExecutionSession, portfolioMode]);
 
   const executeNextStep = useCallback(async () => {
     // 1. Prevent duplicate simultaneous execute actions
@@ -808,6 +838,8 @@ export function SaveProvider({ children }: { children: ReactNode }) {
       totalPortfolioValue,
       isScanning,
       scanWalletPortfolio,
+      portfolioMode,
+      setPortfolioMode,
       
       // Step 7 States
       executionState,
@@ -851,6 +883,8 @@ export function SaveProvider({ children }: { children: ReactNode }) {
       totalPortfolioValue,
       isScanning,
       scanWalletPortfolio,
+      portfolioMode,
+      setPortfolioMode,
       
       // Step 7 States
       executionState,

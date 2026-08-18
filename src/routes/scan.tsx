@@ -27,7 +27,7 @@ export const Route = createFileRoute("/scan")({
 });
 
 function Scan() {
-  const { portfolio, rpcStatus, totalPortfolioValue } = useSave();
+  const { portfolio, rpcStatus, totalPortfolioValue, portfolioMode, setPortfolioMode } = useSave();
   const [step, setStep] = useState(0);
 
   useEffect(() => {
@@ -45,9 +45,20 @@ function Scan() {
       title={complete ? "Portfolio analyzed" : "Analyzing your portfolio…"}
       intro="Every position is checked for depth, slippage and viable exit paths before a single action is proposed."
       aside={
-        <StatusPill tone={rpcStatus === "offline" ? "warn" : (complete ? "safe" : "primary")}>
-          <Radar className="size-3" /> {rpcStatus === "offline" ? "Demo Mode (RPC Offline)" : (complete ? "Scan complete" : `Scanning ${progress}%`)}
-        </StatusPill>
+        <div className="flex gap-2">
+          {portfolioMode === "LIVE_WALLET" ? (
+            <StatusPill tone="safe">
+              LIVE WALLET DATA
+            </StatusPill>
+          ) : (
+            <StatusPill tone="warn">
+              DEMO PORTFOLIO — SAMPLE DATA
+            </StatusPill>
+          )}
+          <StatusPill tone={rpcStatus === "offline" && portfolioMode === "LIVE_WALLET" ? "warn" : (complete ? "safe" : "primary")}>
+            <Radar className="size-3" /> {rpcStatus === "offline" && portfolioMode === "LIVE_WALLET" ? "RPC Offline" : (complete ? "Scan complete" : `Scanning ${progress}%`)}
+          </StatusPill>
+        </div>
       }
     >
       <div className="grid gap-6 lg:grid-cols-[300px_1fr]">
@@ -127,10 +138,34 @@ function Scan() {
         <div className="grid gap-4 sm:grid-cols-2">
           {portfolio.map((asset, i) =>
             i < Math.max(step, 1) ? (
-              <PortfolioAssetCard key={asset.symbol} asset={asset} delay={i * 60} scanning={!complete} />
+              <PortfolioAssetCard key={`${asset.symbol}-${asset.chain}`} asset={asset} delay={i * 60} scanning={!complete} />
             ) : (
-              <div key={asset.symbol} className="glass h-[236px] animate-pulse opacity-40" />
+              <div key={`${asset.symbol}-${asset.chain}`} className="glass h-[236px] animate-pulse opacity-40" />
             ),
+          )}
+          {complete && portfolioMode === "LIVE_WALLET" && portfolio.length <= 1 && (
+            <Panel className="col-span-full border-dashed border-border/60 bg-muted/20 p-6 flex flex-col items-center text-center justify-center min-h-[236px]">
+              <div className="size-12 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center mb-3">
+                <Radar className="size-6 text-primary animate-pulse" />
+              </div>
+              <h3 className="text-base font-semibold text-foreground">Wallet connected successfully</h3>
+              <p className="text-sm text-muted-foreground mt-1 max-w-md leading-relaxed">
+                {portfolio[0] ? `${portfolio[0].balance} ${portfolio[0].symbol} detected on ${portfolio[0].chain}.` : "No assets detected on X Layer Testnet."} No additional portfolio assets were discovered.
+              </p>
+              <div className="flex flex-wrap gap-3 mt-5">
+                <Link to="/command">
+                  <button className="px-4 py-2 text-xs font-semibold rounded-md border border-border bg-foreground text-background hover:bg-muted transition">
+                    Continue with Live Wallet
+                  </button>
+                </Link>
+                <button
+                  onClick={() => setPortfolioMode("DEMO_PORTFOLIO")}
+                  className="px-4 py-2 text-xs font-semibold rounded-md border border-primary/30 bg-primary/10 text-primary hover:bg-primary/20 transition"
+                >
+                  Explore SAVE Demo Portfolio
+                </button>
+              </div>
+            </Panel>
           )}
         </div>
       </div>

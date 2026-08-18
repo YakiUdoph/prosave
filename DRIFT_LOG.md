@@ -237,6 +237,15 @@ This is an append-only log documenting architectural decisions, security resolut
 - **Files Affected**: `validate-gates.mjs`
 - **Status**: **RESOLVED**
 
+### DRIFT-027: Mock assets blended into connected wallet scans inflating holdings
+- **Date**: 2026-08-18
+- **Discovery**: Scan page displayed rich mock assets (ETH, USDC, PEPE) for connected wallets even if they only had a sparse native OKB balance.
+- **Impact**: Misrepresented actual on-chain connected wallet holdings, leading to trust/data honesty issues during audits.
+- **Root Cause**: `scanPortfolio` initialized the scan array with `richMockAssets` and simply inserted/replaced the native OKB row, leaking mock holdings into live scans.
+- **Resolution**: Introduced two explicit, user-toggleable states (`LIVE_WALLET` and `DEMO_PORTFOLIO`). Live wallets scan from an empty array `[]` capturing strictly OKX API and RPC balances, and sparse wallets are provided with a dedicated CTA to switch to Demo Portfolio. Simulation/execution locks prevent live transactions on simulated demo targets.
+- **Files Affected**: `src/lib/xlayer.ts`, `src/lib/save-context.tsx`, `src/lib/rescue-solver.ts`, `src/components/save/nav.tsx`, `src/components/save/portfolio-asset-card.tsx`, `src/routes/scan.tsx`, `src/routes/command.tsx`, `src/routes/intent.tsx`, `src/routes/plan.tsx`, `src/routes/simulate.tsx`, `src/routes/protected.tsx`
+- **Status**: **RESOLVED**
+
 ---
 
 ## 📝 Drift Entry Template

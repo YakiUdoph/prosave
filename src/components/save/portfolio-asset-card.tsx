@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import type { Asset } from "@/lib/save-data";
+import type { ScannedAsset } from "@/lib/xlayer";
 import { Panel, ProgressBar, StatusPill } from "./primitives";
 
 const RISK_LABEL = {
@@ -19,7 +19,7 @@ export function PortfolioAssetCard({
   delay = 0,
   scanning = false,
 }: {
-  asset: Asset;
+  asset: ScannedAsset;
   delay?: number;
   scanning?: boolean;
 }) {
@@ -42,7 +42,14 @@ export function PortfolioAssetCard({
               <span className="num text-xs font-semibold">{asset.symbol.slice(0, 3)}</span>
             </div>
             <div>
-              <p className="text-sm font-semibold">{asset.symbol}</p>
+              <div className="text-sm font-semibold flex flex-wrap items-center gap-1.5">
+                <span>{asset.symbol}</span>
+                {asset.sourceLabel && (
+                  <span className="text-[9px] label-mono text-muted-foreground px-1.5 py-0.5 bg-secondary/80 rounded border border-border/50 font-normal normal-case leading-none">
+                    {asset.sourceLabel}
+                  </span>
+                )}
+              </div>
               <p className="label-mono mt-0.5">{asset.chain}</p>
             </div>
           </div>
@@ -51,9 +58,20 @@ export function PortfolioAssetCard({
 
         <div className="mt-5 flex items-end justify-between">
           <div>
-            <p className="num text-xl font-semibold tracking-tight">
-              ${asset.value.toLocaleString("en-US")}
-            </p>
+            {asset.priceSource === "UNAVAILABLE" ? (
+              <p className="text-sm font-semibold tracking-tight text-muted-foreground">
+                Value unavailable
+              </p>
+            ) : (
+              <div className="num text-xl font-semibold tracking-tight">
+                ${asset.value.toLocaleString("en-US")}
+                {asset.priceSource === "ESTIMATED" && (
+                  <span className="text-[10px] label-mono block text-muted-foreground/75 font-normal normal-case mt-0.5 leading-none">
+                    Estimated price
+                  </span>
+                )}
+              </div>
+            )}
             <p className="num mt-1 text-xs text-muted-foreground">
               {asset.balance} {asset.symbol}
             </p>
