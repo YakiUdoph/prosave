@@ -1,1285 +1,209 @@
-# Portfolio Guardian
+# SAVE
 
-Build a premium Web3 AI product called:
+An intent-driven AI portfolio rescue engine.
 
+[Live Production Demo](https://prosave.vercel.app)
 
+SAVE is a Web3 intelligence product that helps users protect and restructure their assets during times of market volatility or personal security breaches. Instead of forcing users to guess which routes, slippage, and swap configurations are safest, SAVE takes a natural language intent (e.g., *"Get me $700 USDC. Don't sell my ETH unless necessary"*), analyzes their entire portfolio across multiple chains, optimizes the execution sequence, and guides them through safe, simulated on-chain actions.
 
+---
 
-SAVE
+## The Problem
 
+During sudden market volatility or network uncertainty, crypto users often know the high-level financial outcome they need, but struggle to calculate the safest sequence of on-chain operations. 
 
+Common user goals:
+* *"I need $700 USDC to cover a margin call immediately."*
+* *"Protect my long-term ETH holdings at all costs."*
+* *"Reduce my exposure to high-risk meme coins by 50%."*
+* *"Move my assets toward safer, stable holdings."*
 
+To execute this manually, a user must inspect and calculate:
+1. **Asset Balances**: Where are the assets held and across which chains?
+2. **Liquidity Depth**: Which DEX pools have enough depth to avoid high price impact?
+3. **Slippage & Gas**: What are the current slippage tolerances and native gas fees?
+4. **Safety Verification**: Which smart contracts are verified, and what spenders have approvals?
+5. **Asset Protection**: How to prevent selling protected assets when other options exist.
 
-Tagline:
+DEX aggregators solve routing for individual swaps, but they do not solve the portfolio-level decision problem. SAVE bridge the gap between user intent and multi-step portfolio recovery.
 
-"Your AI portfolio protection agent."
+---
 
+## What SAVE Does
 
+SAVE guides users through a highly visual, structured recovery journey:
 
-
-CORE PRODUCT IDEA:
-
-
-
-
-SAVE helps crypto users protect their portfolio during uncertainty.
-
-
-
-
-Instead of asking:
-
-"What token do you want to swap?"
-
-
-
-
-SAVE asks:
-
-"What outcome do you need?"
-
-
-
-
-Examples:
-
-- "Get me $700 USDC without selling ETH."
-
-- "Reduce my portfolio risk by 50%."
-
-- "Exit my meme coin exposure."
-
-- "Protect my long-term holdings."
-
-
-
-
-SAVE analyzes the user's portfolio, understands constraints, evaluates liquidity routes, creates an optimized action plan, simulates execution, and helps the user make safer on-chain decisions.
-
-
-
-
-This is NOT a generic crypto dashboard.
-
-
-
-
-This should feel like:
-
-
-
-
-- Apple Emergency SOS → simplicity, trust, calm under pressure
-
-- Bloomberg Terminal → intelligence, financial data, confidence
-
-- OKX Wallet → Web3 credibility
-
-- Mission Control → execution visibility
-
-
-
-
-The emotional feeling:
-
-
-
-
-Before SAVE:
-
-"I don't know what to do."
-
-
-
-
-After SAVE:
-
-"I understand my options and I am in control."
-
-
-
-
-==================================================
-
-
-
-
-DESIGN DIRECTION
-
-
-
-
-Style:
-
-
-
-
-Premium dark interface.
-
-
-
-
-Avoid:
-
-- neon crypto casino style
-
-- meme coin aesthetics
-
-- generic AI chatbot UI
-
-- crowded dashboards
-
-
-
-
-Use:
-
-
-
-
-- Carbon black backgrounds
-
-- Glass panels
-
-- Subtle gradients
-
-- Minimal futuristic elements
-
-- Professional financial interface
-
-
-
-
-Typography:
-
-
-
-
-Primary:
-
-Inter
-
-
-
-
-Data/metrics:
-
-JetBrains Mono
-
-
-
-
-UI should feel institutional but modern.
-
-
-
-
-==================================================
-
-
-
-
-MOTION SYSTEM
-
-
-
-
-Every interaction should feel alive.
-
-
-
-
-Include:
-
-
-
-
-1. Cursor interactions:
-
-- magnetic buttons
-
-- subtle hover glow
-
-- smooth card movement
-
-- cursor-following highlights
-
-
-
-
-2. Portfolio scan animation:
-
-- assets appear one by one
-
-- scanning line effect
-
-- AI analysis progress
-
-
-
-
-3. Risk detection:
-
-- calm mode becomes warning mode
-
-- subtle red pulse
-
-- portfolio risk meter changes
-
-
-
-
-4. Rescue calculation:
-
-- animated numbers
-
-- route calculation visualization
-
-- transaction timeline
-
-
-
-
-5. Success:
-
-- smooth confirmation animation
-
-- portfolio restored state
-
-
-
-
-Use motion carefully.
-
-Premium, not flashy.
-
-
-
-
-==================================================
-
-
-
-
-PAGE 1 — LANDING HERO
-
-
-
-
-Purpose:
-
-Explain SAVE instantly.
-
-
-
-
-Hero headline:
-
-
-
-
-"Markets move in seconds.
-
-Your exit shouldn't."
-
-
-
-
-Supporting text:
-
-
-
-
-"SAVE uses AI to understand your portfolio goals and find safer on-chain actions when you need them most."
-
-
-
-
-Main CTA:
-
-
-
-
-"Protect My Portfolio"
-
-
-
-
-Secondary CTA:
-
-
-
-
-"See How SAVE Works"
-
-
-
-
-Visual:
-
-
-
-
-Create a cinematic hero:
-
-
-
-
-Dark financial command center.
-
-
-
-
-A portfolio graph moving.
-
-
-
-
-AI scanning effect.
-
-
-
-
-Subtle blockchain/network visualization.
-
-
-
-
-Do not show random coins.
-
-
-
-
-Show intelligence.
-
-
-
-
-Sections below:
-
-
-
-
-Problem:
-
-Crypto decisions become stressful during volatility.
-
-
-
-
-Solution:
-
-SAVE converts goals into optimized portfolio actions.
-
-
-
-
-Trust:
-
-Powered by X Layer + OKX OnchainOS.
-
-
-
-
-==================================================
-
-
-
-
-PAGE 2 — WALLET CONNECTION
-
-
-
-
-Purpose:
-
-Create trust.
-
-
-
-
-Screen:
-
-
-
-
-"Connect your wallet"
-
-
-
-
-Explain:
-
-
-
-
-SAVE analyzes:
-
-
-
-
-✓ Portfolio assets
-
-✓ Liquidity
-
-✓ Risk exposure
-
-✓ Exit options
-
-
-
-
-Trust message:
-
-
-
-
-"Your keys never leave your wallet."
-
-
-
-
-Include:
-
-
-
-
-- OKX Wallet style connection button
-
-- wallet security indicators
-
-- smooth connection animation
-
-
-
-
-==================================================
-
-
-
-
-PAGE 3 — PORTFOLIO SCAN
-
-
-
-
-Purpose:
-
-Create the AI moment.
-
-
-
-
-After connection:
-
-
-
-
-Show:
-
-
-
-
-"Analyzing your portfolio..."
-
-
-
-
-Animated steps:
-
-
-
-
-Scanning ETH...
-
-Checking OKB...
-
-Evaluating liquidity...
-
-Finding exit routes...
-
-Calculating SAVE Score...
-
-
-
-
-Create:
-
-
-
-
-Portfolio cards.
-
-
-
-
-Example:
-
-
-
-
-ETH
-
-Protected
-
-
-
-
-OKB
-
-Medium Risk
-
-
-
-
-Token X
-
-High Risk
-
-
-
-
-==================================================
-
-
-
-
-PAGE 4 — PORTFOLIO RISK COMMAND CENTER
-
-
-
-
-Purpose:
-
-Show intelligence.
-
-
-
-
-Dashboard:
-
-
-
-
-Portfolio Value:
-
-
-
-
-$4,832
-
-
-
-
-Risk Level:
-
-
-
-
-HIGH
-
-
-
-
-Potential exposure:
-
-
-
-
--$713
-
-
-
-
-Protection Status:
-
-
-
-
-Needs Attention
-
-
-
-
-Show:
-
-
-
-
-SAVE Protection Score:
-
-
-
-
-82/100
-
-
-
-
-Metrics:
-
-
-
-
-Liquidity
-
-95
-
-
-
-
-Slippage
-
-91
-
-
-
-
-Execution Safety
-
-88
-
-
-
-
-Market Impact
-
-90
-
-
-
-
-Gas Efficiency
-
-96
-
-
-
-
-
-Include:
-
-
-
-
-"Panic Mode" toggle.
-
-
-
-
-When activated:
-
-
-
-
-Interface transforms:
-
-
-
-
-Normal:
-
-calm dark blue/teal
-
-
-
-
-Panic:
-
-carbon black + controlled crimson alerts
-
-
-
-
-Message:
-
-
-
-
-"Market volatility detected.
-
-SAVE recommendation ready."
-
-
-
-
-==================================================
-
-
-
-
-PAGE 5 — INTENT INPUT
-
-
-
-
-This is the signature interaction.
-
-
-
-
-Large conversational input:
-
-
-
-
-"What do you need your portfolio to do?"
-
-
-
-
-Example suggestions:
-
-
-
-
-"Get me $700 USDC."
-
-
-
-
-"Protect my ETH."
-
-
-
-
-"Reduce my risk."
-
-
-
-
-"Exit risky assets."
-
-
-
-
-User types:
-
-
-
-
-"Get me $700 USDC. Don't sell my ETH unless necessary."
-
-
-
-
-AI extracts:
-
-
-
-
-Goal:
-
-$700 USDC
-
-
-
-
-Protected Asset:
-
-ETH
-
-
-
-
-Risk Preference:
-
-Conservative
-
-
-
-
-Priority:
-
-Minimum damage
-
-
-
-
-Show this beautifully.
-
-
-
-
-==================================================
-
-
-
-
-PAGE 6 — AI RESCUE PLAN
-
-
-
-
-This is the hero product moment.
-
-
-
-
-Title:
-
-
-
-
-"Your optimized rescue plan"
-
-
-
-
-Show:
-
-
-
-
-OBJECTIVE:
-
-
-
-
-Receive:
-
-$700 USDC
-
-
-
-
-PROTECT:
-
-
-
-
-ETH
-
-
-
-
-Recommended Action:
-
-
-
-
-SELL:
-
-70% OKB
-
-
-
-
-SELL:
-
-100% risky token exposure
-
-
-
-
-KEEP:
-
-100% ETH
-
-
-
-
-
-SAVE SCORE:
-
-
-
-
-94/100
-
-
-
-
-
-Explain:
-
-
-
-
-Why:
-
-
-
-
-"Your ETH exposure is preserved while minimizing portfolio damage."
-
-
-
-
-Show alternative plans:
-
-
-
-
-Plan A:
-
-Higher output, higher damage
-
-
-
-
-Plan B:
-
-Recommended
-
-
-
-
-Plan C:
-
-More conservative
-
-
-
-
-Highlight Plan B.
-
-
-
-
-==================================================
-
-
-
-
-PAGE 7 — SIMULATION SCREEN
-
-
-
-
-Purpose:
-
-Build trust before execution.
-
-
-
-
-Title:
-
-
-
-
-"Simulation Complete"
-
-
-
-
-Show:
-
-
-
-
-Expected Output:
-
-
-
-
-$704.32 USDC
-
-
-
-
-Gas:
-
-
-
-
-$0.08
-
-
-
-
-Slippage:
-
-
-
-
-0.24%
-
-
-
-
-Execution Risk:
-
-
-
-
-LOW
-
-
-
-
-Route:
-
-
-
-
-OKX DEX Aggregator
-
-
-
-
-
-Create Bloomberg-style transaction timeline:
-
-
-
-
-✓ Portfolio analyzed
-
-
-
-
-✓ Route optimized
-
-
-
-
-✓ Transaction simulated
-
-
-
-
-✓ Safety checks passed
-
-
-
-
-
-Main button:
-
-
-
-
-"Protect My Portfolio"
-
-
-
-
-==================================================
-
-
-
-
-PAGE 8 — SUCCESS SCREEN
-
-
-
-
-Purpose:
-
-Emotional payoff.
-
-
-
-
-Title:
-
-
-
-
-"Portfolio Protected"
-
-
-
-
-Show:
-
-
-
-
-$704 USDC secured
-
-
-
-
-ETH preserved
-
-
-
-
-Estimated loss avoided:
-
-
-
-
-$84
-
-
-
-
-
-Create celebration animation:
-
-
-
-
-- subtle green glow
-
-- completed mission feeling
-
-- not fireworks
-
-
-
-
-Show:
-
-
-
-
-Transaction receipt
-
-
-
-
-Protection history
-
-
-
-
-"Your portfolio is now safer."
-
-
-
-
-==================================================
-
-
-
-
-COMPONENTS TO CREATE
-
-
-
-
-Reusable components:
-
-
-
-
-- Wallet Card
-
-- Portfolio Asset Card
-
-- Risk Meter
-
-- SAVE Protection Score Dial
-
-- Panic Mode Toggle
-
-- AI Intent Box
-
-- Rescue Plan Card
-
-- Simulation Timeline
-
-- Transaction Receipt
-
-- Success Summary
-
-
-
-
-==================================================
-
-
-
-
-TECHNICAL ASSUMPTIONS
-
-
-
-
-Frontend only.
-
-
-
-
-Use mock data initially.
-
-
-
-
-Prepare components for future connection with:
-
-
-
-
-- X Layer
-
-- OKX OnchainOS
-
-- wallet providers
-
-
-
-
-Do not build backend.
-
-
-
-
-Focus on:
-
-
-
-
-- visual excellence
-
-- interaction quality
-
-- hackathon demo impact
-
-
-
-
-==================================================
-
-
-
-
-FINAL GOAL:
-
-
-
-
-The finished product should feel like a startup that could launch after the hackathon.
-
-
-
-
-When judges see it, they should immediately understand:
-
-
-
-
-"SAVE helps crypto users make safer decisions during stressful moments."
-
-
-
-
-Build it like a $30K+ hackathon winner.
-
-This project was built with [Lovable](https://lovable.dev).
-
-**Live app**: https://prosave.lovable.app
-
-## Build with Lovable
-
-Continue developing this project in the [Lovable editor](https://lovable.dev/projects/712fc274-a98f-4cea-a47c-edb8aabc3d75).
-
-- **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: every change made in Lovable is committed straight to this repository.
-- **Full ownership**: this code is yours. Push to `main` on GitHub and your changes sync back into Lovable, ready for your next prompt.
-
-## Development
-
-Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
-
-```sh
-git clone <this-repository-url>
-cd <repository-name>
-npm i
-npm run dev
 ```
+[Connect Wallet]
+       │
+       ▼
+[Discover Portfolio]  ───> Scan balances & risk flags natively
+       │
+       ▼
+[Parse Intent]        ───> Extract goals & asset protection rules using AI
+       │
+       ▼
+[Solve Rescue]        ───> Calculate 3 distinct, scored execution plans
+       │
+       ▼
+[Simulate Closed]     ───> Evaluate gas, slippage, and price impact against forked state
+       │
+       ▼
+[Authorize Recovery]  ───> User signs sequentially; zero automatic broadcast
+```
+
+---
+
+## Why SAVE Is Different
+
+| DEX Aggregators | SAVE Portfolio Rescue |
+| :--- | :--- |
+| Optimize a single token pair route | Optimizes the entire portfolio outcome |
+| Focus on exchange rates (`ETH ──> USDC`) | Preserves protected assets while hitting dollar targets |
+| Blind to portfolio-level asset constraints | Scores routes based on overall risk reduction and asset preservation |
+| Require manual multi-transaction setups | Sequences approvals and swaps automatically |
+
+---
+
+## Example
+
+### Input Intent
+> *"Get me $700 USDC. Don't sell my ETH unless necessary."*
+
+When evaluated, SAVE's solver generates three distinct strategies:
+* **Plan A (Speed Priority)**: Liquidates assets directly to reach the target, potentially selling a portion of protected assets if high-risk assets are insufficient.
+* **Plan B (Balanced Outcome - Recommended)**: Sells medium and high-risk assets first, keeping the protected ETH reserve untouched by checking secondary liquidity pools.
+* **Plan C (High-Risk Disposal)**: Restricts liquidations strictly to meme coins/volatile tokens, accepting minor shortfall if the target cannot be reached without touching protected assets.
+
+*Note: For testing complex strategies with diverse token balances, judges can use the explicit **Demo Portfolio** toggle to load sample assets (e.g. ETH, PEPE, TKX) and inspect calculated execution routes.*
+
+---
+
+## Live vs Demo Data
+
+To maintain absolute trust and transparency, SAVE enforces strict data mode boundaries:
+* **`LIVE_WALLET`**: Populated strictly by the active connected EIP-1193 wallet address. It queries the local RPC client and the OKX balance API. If your wallet holds only native OKB, only OKB will be shown.
+* **`DEMO_PORTFOLIO`**: An explicit sample portfolio containing diverse assets, risk categories, and multi-chain positions used to demonstrate complex recovery scenarios.
+
+Demo assets are kept completely separate and are **never** mixed into live connected wallet balances.
+
+---
+
+## Architecture
+
+* **Wallet Connectivity (EIP-1193 / EIP-6963)**: Passive discovery of injected browser wallet providers (MetaMask, OKX Wallet) and Reown/WalletConnect connectivity.
+* **Portfolio Intelligence**: Scans native and ERC-20 balances, flags contract risk levels, and normalizes holdings.
+* **Intent Parser**: Normalizes natural language queries into goal amounts, target symbols, and protected assets.
+* **Rescue Solver**: An algorithmic solver that optimizes liquidation paths, calculates SAVE quality scores, and generates diverse candidate plans.
+* **OKX OnchainOS Integration**: Queries token lists, retrieves real-time pricing/quotes, and prepares raw transaction payloads.
+* **Simulation Engine**: Evaluates prepared transactions against a simulated forked state to verify output outcomes, gas costs, and price impact before signing.
+* **X Layer Execution Proof**: A lightweight, live on-chain execution target proving wallet sign-and-broadcast capabilities on-chain.
+
+---
+
+## OKX OnchainOS Integration
+
+SAVE natively integrates with OKX Web3 APIs to query live market states and prepare transactions:
+* **Token Discovery**: Normalizes multi-chain tokens across Ethereum, Arbitrum, Base, Polygon, and X Layer.
+* **DEX Routing & Quotes**: Retrieves executable quotes and swap parameters.
+* **Transaction Preparation**: Requests raw transaction data (swaps, approvals) via authenticated server-side endpoints using HMAC-SHA256 signature verification to protect client keys.
+
+> **Execution Division**: OKX OnchainOS provides raw liquidity and routing intelligence. SAVE acts as the brain that decides *which* combinations of trades satisfy the overall portfolio constraints.
+
+---
+
+## X Layer Integration
+
+SAVE is optimized for **X Layer (Chain ID 1952)**:
+* **Native gas**: Reads native OKB balances via X Layer RPC to ensure users hold sufficient gas before launching a rescue plan.
+* **Wallet network verification**: Checks and prompts the user to switch networks if they are connected to an unsupported chain.
+* **Live on-chain execution proof**: Users can trigger a live transaction (a micro-transfer of native OKB) to prove the sign-and-broadcast pipeline, block confirmations, and gas usage under real conditions.
+
+*Note: The live proof transaction is kept strictly separate from the simulated $700 rescue plan to prevent users from executing unverified trades during testing.*
+
+---
+
+## Live Execution Proof
+
+SAVE has successfully demonstrated a complete live verification flow:
+1. Connected MetaMask / OKX Wallet to the application.
+2. Verified active chain index (1952) and gas thresholds.
+3. Triggered authorization prompt.
+4. User signed and broadcast the transaction via MetaMask/OKX Wallet to the X Layer Testnet.
+5. Polled receipt block confirmations using the RPC client.
+6. Displayed final gas used, block number, and refreshed balances.
+
+---
+
+## Safety & Controls
+
+* **Non-Custodial**: SAVE never asks for private keys or seed phrases. All transactions must be authorized and signed by the user's wallet.
+* **No Automatic Broadcast**: Prepared transaction payloads are returned to the client and require manual approval.
+* **Gas Reserve Check**: Blocks execution if the wallet does not have enough native OKB to cover simulated network fees.
+* **Protected Asset Locks**: Enforces strict protection rules, preventing transaction preparation if a user's strategy violates their active intent settings.
+* **Spender Verification**: Verifies approval contracts against official OKX Router registry addresses.
+* **Demo Execution Lock**: Disables all live broadcast and signature calls when running inside `DEMO_PORTFOLIO` mode.
+
+---
+
+## Tech Stack
+
+* **Frontend**: React, TanStack Start (SSR/Vite framework)
+* **Language**: TypeScript
+* **Styling**: Vanilla CSS (Tailwind-free premium dark mode layout)
+* **Web3 Integration**: Viem, EIP-1193, EIP-6963 provider discovery
+* **Web3 APIs**: OKX OnchainOS Web3 API, OKX DEX API
+* **Deployment & Hosting**: Vercel (Edge Functions + SSR configuration)
+* **Testing & Tools**: Bun test runner
+
+---
+
+## Run Locally
+
+### 1. Clone the repository
+```bash
+git clone https://github.com/YakiUdoph/prosave.git
+cd SAVE-XLayer
+```
+
+### 2. Configure environment variables
+Create a `.env` file in the root directory:
+```env
+VITE_WALLETCONNECT_PROJECT_ID=your_walletconnect_project_id
+OKX_API_KEY=your_okx_api_key
+OKX_API_SECRET=your_okx_secret
+OKX_API_PASSPHRASE=your_okx_passphrase
+OKX_API_PROJECT_ID=your_okx_project_id
+```
+
+### 3. Install dependencies and run development server
+```bash
+bun install
+bun run dev
+```
+Open `http://localhost:3000` in your browser.
+
+---
+
+## Tests
+
+SAVE maintains a comprehensive unit and integration test suite:
+* `tests/data-honesty.test.ts`: Verifies mode isolation, sparse wallet filtering, and execution safety gates.
+* `tests/okx-integration.test.ts`: Verifies server-side HMAC authorization, quotes, and pricing feeds.
+* `tests/rescue-solver.test.ts`: Validates plan score math, gas limits, and diversity algorithms.
+* `tests/simulation.test.ts`: Verifies state-gate transition logic and transaction validation checks.
+
+Run tests:
+```bash
+bun test
+```
+
+---
+
+## Product Vision
+
+The hackathon version of SAVE demonstrates the core execution layer of a broader portfolio intelligence engine. Future extensions include:
+* **Cross-Chain Rescue**: Automatically bridges rescued stablecoins back to a safe vault on a secondary network (e.g. X Layer to Arbitrum).
+* **Derivatives Hedging**: Automatically opens delta-neutral hedges on OKX Perpetual DEX when assets cannot be easily swapped due to extreme price impact.
+* **RWA Integration**: Allows locking high-yield real-world assets (RWA) into vault parameters to serve as emergency collateral during credit events.
+* **Automated Policy Monitoring**: A passive guardian bot that alerts users to execute a SAVE plan when predefined threat triggers are breached.
