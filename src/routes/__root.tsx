@@ -79,16 +79,16 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "SAVE — Your AI Portfolio Protection Agent" },
+      { title: "SAVE — AI Portfolio Rescue Agent" },
       {
         name: "description",
         content:
-          "SAVE turns portfolio goals into safer on-chain actions. Analyze risk, plan an exit, simulate, execute.",
+          "Intent-driven portfolio rescue and liquidity intelligence powered by OKX OnchainOS and X Layer.",
       },
-      { property: "og:title", content: "SAVE — Your AI Portfolio Protection Agent" },
+      { property: "og:title", content: "SAVE — AI Portfolio Rescue Agent" },
       {
         property: "og:description",
-        content: "Markets move in seconds. Your exit shouldn't.",
+        content: "Intent-driven portfolio rescue and liquidity intelligence powered by OKX OnchainOS and X Layer.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
