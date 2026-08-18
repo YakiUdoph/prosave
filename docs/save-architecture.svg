@@ -1,0 +1,319 @@
+<svg width="1600" height="900" viewBox="0 0 1600 900" xmlns="http://www.w3.org/2000/svg" font-family="Inter, system-ui, -apple-system, sans-serif">
+  <!-- Stylesheet for animations, premium typography, and styles -->
+  <style>
+    .bg { fill: #07090e; }
+    .grid-line { stroke: #1e293b; stroke-width: 1; opacity: 0.15; }
+    .panel-bg { fill: #0d121f; stroke: #1f2937; stroke-width: 1.5; }
+    .client-panel { stroke: #0ea5e9; stroke-width: 1.5; }
+    .server-panel { stroke: #a855f7; stroke-width: 1.5; }
+    .boundary-line { stroke: #4b5563; stroke-dasharray: 8 6; stroke-width: 1.5; opacity: 0.7; }
+    
+    .card { fill: #111827; stroke: #374151; stroke-width: 1.5; rx: 8px; ry: 8px; }
+    .card-active { stroke: #06b6d4; }
+    .card-success { stroke: #10b981; }
+    .card-warning { stroke: #f59e0b; }
+    .card-server { stroke: #a855f7; }
+    .card-okx { stroke: #ec4899; }
+    
+    .text-title { fill: #ffffff; font-weight: 700; font-size: 16px; }
+    .text-subtitle { fill: #9ca3af; font-size: 12px; font-weight: 500; }
+    .text-body { fill: #d1d5db; font-size: 13px; }
+    .text-mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 12px; }
+    .text-bold { font-weight: 600; }
+    
+    .arrow { stroke: #4b5563; stroke-width: 2; fill: none; }
+    .arrow-active { stroke: #06b6d4; stroke-width: 2.5; }
+    .arrow-server { stroke: #c084fc; stroke-width: 2; }
+    .arrow-success { stroke: #10b981; stroke-width: 2; }
+    
+    .badge { rx: 4px; ry: 4px; }
+    .badge-live { fill: #065f46; }
+    .badge-demo { fill: #78350f; }
+    .badge-text { fill: #ffffff; font-weight: 700; font-size: 10px; }
+    
+    .glow { filter: drop-shadow(0px 0px 8px rgba(6, 182, 212, 0.4)); }
+    .glow-purple { filter: drop-shadow(0px 0px 8px rgba(168, 85, 247, 0.4)); }
+    .glow-green { filter: drop-shadow(0px 0px 8px rgba(16, 185, 129, 0.4)); }
+  </style>
+
+  <defs>
+    <!-- Arrow marker definitions -->
+    <marker id="arrow-head" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#4b5563" />
+    </marker>
+    <marker id="arrow-head-active" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#06b6d4" />
+    </marker>
+    <marker id="arrow-head-server" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#c084fc" />
+    </marker>
+    <marker id="arrow-head-success" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#10b981" />
+    </marker>
+  </defs>
+
+  <!-- Deep dark backdrop -->
+  <rect width="1600" height="900" class="bg" />
+
+  <!-- Background grid for tech aesthetic -->
+  <g id="grid">
+    <path d="M 0 100 L 1600 100 M 0 200 L 1600 200 M 0 300 L 1600 300 M 0 400 L 1600 400 M 0 500 L 1600 500 M 0 600 L 1600 600 M 0 700 L 1600 700 M 0 800 L 1600 800" class="grid-line" />
+    <path d="M 100 0 L 100 900 M 200 0 L 200 900 M 300 0 L 300 900 M 400 0 L 400 900 M 500 0 L 500 900 M 600 0 L 600 900 M 700 0 L 700 900 M 800 0 L 800 900 M 900 0 L 900 900 M 1000 0 L 1000 900 M 1100 0 L 1100 900 M 1200 0 L 1200 900 M 1300 0 L 1300 900 M 1400 0 L 1400 900 M 1500 0 L 1500 900" class="grid-line" />
+  </g>
+
+  <!-- Top Title Bar -->
+  <rect x="0" y="0" width="1600" height="60" fill="#0b0e14" stroke="#1f2937" stroke-width="1" />
+  <text x="30" y="38" class="text-title" font-size="20px" fill="#0ea5e9">SAVE SYSTEM ARCHITECTURE</text>
+  <text x="350" y="36" class="text-subtitle">INTELLIGENT PORTFOLIO RECOVERY ENGINE</text>
+  <rect x="1440" y="16" width="130" height="28" rx="14" fill="#065f46" />
+  <text x="1460" y="33" fill="#34d399" font-size="11px" font-weight="700" letter-spacing="1px">HACKATHON SUBMISSION</text>
+
+  <!-- ================= BROWSER / CLIENT PANELS ================= -->
+  <rect x="30" y="80" width="760" height="800" rx="12" class="panel-bg client-panel" />
+  <text x="50" y="112" class="text-title" fill="#38bdf8">BROWSER / CLIENT (App Shell)</text>
+  <text x="50" y="130" class="text-subtitle">React + TanStack Start Frontend Environment</text>
+
+  <!-- ================= SERVER PANEL ================= -->
+  <rect x="810" y="80" width="380" height="800" rx="12" class="panel-bg server-panel" />
+  <text x="830" y="112" class="text-title" fill="#c084fc">SERVER (Vercel Serverless)</text>
+  <text x="830" y="130" class="text-subtitle">Nitro Compiled Server Functions</text>
+
+  <!-- ================= CLIENT/SERVER BOUNDARY ================= -->
+  <line x1="800" y1="80" x2="800" y2="880" class="boundary-line" />
+
+  <!-- ================= EXTERNAL INFRASTRUCTURES ================= -->
+  <!-- OKX Web3 Infrastructure -->
+  <rect x="1210" y="80" width="360" height="380" rx="12" class="panel-bg" stroke="#ec4899" />
+  <text x="1230" y="112" class="text-title" fill="#f472b6">OKX OnchainOS Web3 API</text>
+  <text x="1230" y="130" class="text-subtitle">Liquidity Depth &amp; Transaction Assembly</text>
+
+  <!-- X Layer Testnet -->
+  <rect x="1210" y="480" width="360" height="400" rx="12" class="panel-bg" stroke="#10b981" />
+  <text x="1230" y="512" class="text-title" fill="#34d399">X Layer Testnet (Chain ID 1952)</text>
+  <text x="1230" y="530" class="text-subtitle">EVM Smart Contract Consensus</text>
+
+
+  <!-- ====================================================================== -->
+  <!-- ======================== LAYER 1: USER INTENT ======================== -->
+  <!-- ====================================================================== -->
+  <g class="glow">
+    <rect x="50" y="160" width="320" height="130" class="card card-active" />
+    <text x="70" y="190" class="text-title" fill="#38bdf8">1. User Intent Parser</text>
+    <text x="70" y="215" class="text-body font-normal">Natural-Language outcome target:</text>
+    <text x="70" y="240" class="text-mono text-bold" fill="#06b6d4">"Get me $700 USDC. Keep my ETH."</text>
+    <text x="70" y="265" class="text-subtitle">Target → 700 USDC | Rule → Preserve ETH</text>
+  </g>
+
+
+  <!-- ====================================================================== -->
+  <!-- ===================== DATA PROVENANCE SOURCES ======================== -->
+  <!-- ====================================================================== -->
+  <rect x="50" y="315" width="320" height="235" class="card" />
+  <text x="70" y="345" class="text-title">2. Data Provenance Split</text>
+  <text x="70" y="365" class="text-subtitle">Connected balances vs simulation inputs</text>
+
+  <!-- Live Wallet Box -->
+  <rect x="65" y="385" width="290" height="55" rx="6" fill="#064e3b" stroke="#059669" stroke-width="1" />
+  <text x="80" y="405" class="text-body text-bold" fill="#34d399">LIVE_WALLET (On-Chain Scan)</text>
+  <text x="80" y="423" class="text-subtitle" fill="#a7f3d0">Real address holdings discovered via OKX balance &amp; RPC</text>
+
+  <!-- Demo Portfolio Box -->
+  <rect x="65" y="455" width="290" height="55" rx="6" fill="#451a03" stroke="#d97706" stroke-width="1" />
+  <text x="80" y="475" class="text-body text-bold" fill="#fbbf24">DEMO_PORTFOLIO (Sample Setup)</text>
+  <text x="80" y="493" class="text-subtitle" fill="#fde68a">Pre-loaded multi-chain assets for strategy demo runs</text>
+  
+  <text x="70" y="535" class="text-mono" fill="#f3f4f6" font-size="10px">* Demo holdings are never mixed into connected live state.</text>
+
+
+  <!-- ====================================================================== -->
+  <!-- ================== LAYER 2: PORTFOLIO INTELLIGENCE =================== -->
+  <!-- ====================================================================== -->
+  <rect x="50" y="575" width="320" height="280" class="card" />
+  <text x="70" y="605" class="text-title">3. Portfolio Intelligence</text>
+  <text x="70" y="625" class="text-subtitle">Decimals, valuation, and risk markers</text>
+  
+  <!-- Content Details -->
+  <text x="70" y="655" class="text-body" fill="#9ca3af">• Wallet Discovery: <tspan fill="#f3f4f6" font-weight="600">EIP-1193 / EIP-6963</tspan></text>
+  <text x="70" y="680" class="text-body" fill="#9ca3af">• Asset Normalization: <tspan fill="#f3f4f6" font-weight="600">Symbol, decimals, chain</tspan></text>
+  <text x="70" y="705" class="text-body" fill="#9ca3af">• Price Provenance: <tspan fill="#f3f4f6" font-weight="600">OKX Feed vs Estimated</tspan></text>
+  <text x="70" y="730" class="text-body" fill="#9ca3af">• Risk Classification: <tspan fill="#34d399">Protected</tspan> / <tspan fill="#fbbf24">Medium</tspan> / <tspan fill="#f87171">High</tspan></text>
+  <text x="70" y="755" class="text-body" fill="#9ca3af">• Gas check: <tspan fill="#34d399">&gt;0.001 OKB required</tspan></text>
+  <text x="70" y="780" class="text-body" fill="#9ca3af">• Dust Filter: <tspan fill="#f87171">Auto-omit assets &lt;$1.00 value</tspan></text>
+  
+  <rect x="70" y="805" width="280" height="35" rx="4" fill="#1f2937" />
+  <text x="82" y="826" class="text-mono" fill="#e5e7eb" font-size="11px">Dust assets (e.g. PEPE, SHIB) are isolated</text>
+
+
+  <!-- ====================================================================== -->
+  <!-- ===================== LAYER 3: RESCUE SOLVER ======================== -->
+  <!-- ====================================================================== -->
+  <g class="glow">
+    <rect x="420" y="160" width="340" height="380" class="card card-active" />
+    <text x="440" y="195" class="text-title" fill="#38bdf8">4. Rescue Solver Engine</text>
+    <text x="440" y="215" class="text-subtitle">Generates plan scoring under intent constraints</text>
+
+    <!-- Strategy cards -->
+    <rect x="440" y="235" width="300" height="50" rx="6" fill="#1f2937" stroke="#374151" stroke-width="1" />
+    <text x="455" y="255" class="text-body text-bold" fill="#38bdf8">Plan A: Speed Priority</text>
+    <text x="455" y="272" class="text-subtitle">Direct liquidation; potential protected sale</text>
+
+    <rect x="440" y="295" width="300" height="50" rx="6" fill="#1f2937" stroke="#0ea5e9" stroke-width="2" />
+    <text x="455" y="315" class="text-body text-bold" fill="#38bdf8">Plan B: Balanced (Recommended)</text>
+    <text x="455" y="332" class="text-subtitle">Sells medium/high-risk first; preserves ETH</text>
+
+    <rect x="440" y="355" width="300" height="50" rx="6" fill="#1f2937" stroke="#374151" stroke-width="1" />
+    <text x="455" y="375" class="text-body text-bold" fill="#38bdf8">Plan C: High-Risk Disposal</text>
+    <text x="455" y="392" class="text-subtitle">Swaps meme coins only; accepts shortfall</text>
+    
+    <!-- Differentiation Callout -->
+    <rect x="440" y="415" width="300" height="45" rx="6" fill="#082f49" stroke="#0ea5e9" stroke-width="1" />
+    <text x="450" y="440" class="text-body text-bold" font-size="12px" fill="#38bdf8">DEX aggregators optimize individual swaps.</text>
+    
+    <rect x="440" y="470" width="300" height="45" rx="6" fill="#065f46" stroke="#059669" stroke-width="1" />
+    <text x="450" y="495" class="text-body text-bold" font-size="12px" fill="#34d399">SAVE optimizes total portfolio outcomes.</text>
+  </g>
+
+
+  <!-- ====================================================================== -->
+  <!-- ==================== LAYER 4: SIMULATION & SAFETY ==================== -->
+  <!-- ====================================================================== -->
+  <rect x="420" y="575" width="340" height="280" class="card card-warning" />
+  <text x="440" y="605" class="text-title" fill="#f59e0b">5. Simulation &amp; Safety Gates</text>
+  <text x="440" y="625" class="text-subtitle">Validates trade outcomes before signing</text>
+
+  <text x="440" y="655" class="text-body" fill="#9ca3af">• State Fork: <tspan fill="#f3f4f6">Simulates balances on virtual nodes</tspan></text>
+  <text x="440" y="680" class="text-body" fill="#9ca3af">• Spender verification: <tspan fill="#f3f4f6">Quotes checked against OKX Router</tspan></text>
+  <text x="440" y="705" class="text-body" fill="#9ca3af">• slippage check: <tspan fill="#f3f4f6">Slippage verification &lt;3% bounds</tspan></text>
+  <text x="440" y="730" class="text-body" fill="#9ca3af">• Price Impact: <tspan fill="#f3f4f6">Checks DEX liquidity depth &lt;5% impact</tspan></text>
+  <text x="440" y="755" class="text-body" fill="#9ca3af">• Quote Freshness: <tspan fill="#fbbf24">Time window validation (stale &gt;60s)</tspan></text>
+  
+  <rect x="440" y="785" width="300" height="50" rx="4" fill="#78350f" stroke="#fbbf24" stroke-width="1" />
+  <text x="452" y="805" class="text-mono text-bold" fill="#fef3c7">DEMO_PORTFOLIO SAFETY LOCK</text>
+  <text x="452" y="823" class="text-subtitle" fill="#fde68a">Prevents active transaction broadcast in demo runs</text>
+
+
+  <!-- ====================================================================== -->
+  <!-- ==================== LAYER 5: SERVER FUNCTIONS ===================== -->
+  <!-- ====================================================================== -->
+  <g class="glow-purple">
+    <rect x="830" y="160" width="340" height="280" class="card card-server" />
+    <text x="850" y="195" class="text-title" fill="#c084fc">6. HMAC-Authenticated Server API</text>
+    <text x="850" y="215" class="text-subtitle">Vercel Serverless Function Boundaries</text>
+    
+    <rect x="850" y="240" width="300" height="110" rx="6" fill="#3b0764" stroke="#a855f7" stroke-width="1" />
+    <text x="865" y="265" class="text-body text-bold" fill="#d8b4fe">HMAC-SHA256 Auth Handler</text>
+    <text x="865" y="285" class="text-subtitle" fill="#e9d5ff">Signs request headers with secret credentials</text>
+    <text x="865" y="305" class="text-mono" fill="#a855f7">OKX_API_KEY / OKX_API_SECRET</text>
+    <text x="865" y="325" class="text-mono" fill="#a855f7">OKX_API_PASSPHRASE</text>
+
+    <text x="850" y="375" class="text-mono" fill="#c084fc">• Client-side is completely isolated from secrets</text>
+    <text x="850" y="395" class="text-mono" fill="#c084fc">• Strict JSON interface protects credentials leak</text>
+    <text x="850" y="415" class="text-mono" fill="#c084fc">• Avoids client environment injection</text>
+  </g>
+
+
+  <!-- ====================================================================== -->
+  <!-- ================= LAYER 6: USER AUTHORIZATION ======================== -->
+  <!-- ====================================================================== -->
+  <rect x="830" y="470" width="340" height="385" class="card card-warning" />
+  <text x="850" y="505" class="text-title" fill="#fbbf24">7. User Authorization Gate</text>
+  <text x="850" y="525" class="text-subtitle">Manual user signing checkpoint</text>
+
+  <rect x="850" y="550" width="300" height="70" rx="6" fill="#2d1510" stroke="#f97316" stroke-width="1" />
+  <text x="865" y="575" class="text-body text-bold" fill="#fed7aa">MetaMask / OKX Wallet Popup</text>
+  <text x="865" y="595" class="text-subtitle" fill="#ffedd5">Requests explicit signature to authorize tx broadcast</text>
+
+  <rect x="850" y="635" width="300" height="50" rx="6" fill="#1f2937" stroke="#374151" stroke-width="1" />
+  <text x="865" y="655" class="text-body text-bold" fill="#9ca3af">Zero Private Key Custody</text>
+  <text x="865" y="672" class="text-subtitle">SAVE never holds passphrases or keys</text>
+
+  <rect x="850" y="700" width="300" height="50" rx="6" fill="#1f2937" stroke="#374151" stroke-width="1" />
+  <text x="865" y="720" class="text-body text-bold" fill="#9ca3af">No Silent Broadcasting</text>
+  <text x="865" y="737" class="text-subtitle">Every swap/approval step must be user-approved</text>
+
+  <text x="850" y="775" class="text-bold" fill="#f87171" font-size="12px">CRITICAL PROTOCOL SAFETY CHECK:</text>
+  <text x="850" y="795" class="text-body" fill="#cbd5e1" font-size="11.5px">Transaction broadcast fails closed if RPC connection fails,</text>
+  <text x="850" y="815" class="text-body" fill="#cbd5e1" font-size="11.5px">or if gas balances drift below network fee requirements.</text>
+
+
+  <!-- ====================================================================== -->
+  <!-- ===================== LAYER 7: OKX INTEGRATION ======================= -->
+  <!-- ====================================================================== -->
+  <g class="glow-purple">
+    <rect x="1230" y="160" width="320" height="280" class="card card-okx" />
+    <text x="1250" y="195" class="text-title" fill="#f472b6">8. OKX OnchainOS Integration</text>
+    <text x="1250" y="215" class="text-subtitle">Queries real route &amp; DEX payloads</text>
+    
+    <text x="1250" y="245" class="text-body" fill="#9ca3af">• Metadata discovery: <tspan fill="#f3f4f6" font-weight="600">Decimals &amp; decimals formats</tspan></text>
+    <text x="1250" y="270" class="text-body" fill="#9ca3af">• DEX liquidity routes: <tspan fill="#f3f4f6" font-weight="600">Calculates pools paths</tspan></text>
+    <text x="1250" y="295" class="text-body" fill="#9ca3af">• Live Quotes API: <tspan fill="#f3f4f6" font-weight="600">Fetches exact swap rates</tspan></text>
+    <text x="1250" y="320" class="text-body" fill="#9ca3af">• Approval payloads: <tspan fill="#f3f4f6" font-weight="600">Creates approve data</tspan></text>
+    <text x="1250" y="345" class="text-body" fill="#9ca3af">• Swap transaction payloads: <tspan fill="#f3f4f6" font-weight="600">Builds execute data</tspan></text>
+
+    <rect x="1250" y="375" width="280" height="45" rx="4" fill="#370f24" stroke="#db2777" stroke-width="1" />
+    <text x="1260" y="395" class="text-mono text-bold" fill="#fbcfe8" font-size="11.5px">OKX Web3 Router Registry verified</text>
+    <text x="1260" y="410" class="text-subtitle" fill="#fbcfe8" font-size="9px">Client compares spender address against OKX Router</text>
+  </g>
+
+
+  <!-- ====================================================================== -->
+  <!-- ======================= LAYER 8: X LAYER ============================ -->
+  <!-- ====================================================================== -->
+  <g class="glow-green">
+    <rect x="1230" y="550" width="320" height="305" class="card card-success" />
+    <text x="1250" y="585" class="text-title" fill="#34d399">9. X Layer Consensus</text>
+    <text x="1250" y="605" class="text-subtitle">On-chain transaction execution and proof</text>
+
+    <!-- Details -->
+    <text x="1250" y="635" class="text-body" fill="#9ca3af">• Gas: <tspan fill="#f3f4f6" font-weight="600">Native OKB</tspan></text>
+    <text x="1250" y="660" class="text-body" fill="#9ca3af">• Target EVM network: <tspan fill="#f3f4f6" font-weight="600">Chain ID 1952 (Testnet)</tspan></text>
+    <text x="1250" y="685" class="text-body" fill="#9ca3af">• Gas reserve minimums: <tspan fill="#cbd5e1">&gt; 0.0001 OKB consumed</tspan></text>
+    <text x="1250" y="710" class="text-body" fill="#9ca3af">• Verification Receipt: <tspan fill="#34d399">Tx Hash, confirm block</tspan></text>
+
+    <rect x="1250" y="735" width="280" height="100" rx="6" fill="#064e3b" stroke="#059669" stroke-width="1" />
+    <text x="1265" y="758" class="text-body text-bold" fill="#34d399">LIVE TESTNET EXECUTION PROOF</text>
+    <text x="1265" y="778" class="text-subtitle" fill="#a7f3d0">Uses micro-transfers of OKB to prove wallet signing,</text>
+    <text x="1265" y="798" class="text-subtitle" fill="#a7f3d0">broadcasting, and block settlement natively.</text>
+    <text x="1265" y="818" class="text-mono text-bold" fill="#34d399" font-size="10px">* Completely distinct from simulated swaps.</text>
+  </g>
+
+
+  <!-- ====================================================================== -->
+  <!-- ==================== CONNECTION PATHWAYS (ARROWS) ==================== -->
+  <!-- ====================================================================== -->
+  <g id="connectors">
+    <!-- User Intent -> Intent Parser -->
+    <path d="M 370 225 L 410 225" class="arrow arrow-active" marker-end="url(#arrow-head-active)" />
+    
+    <!-- Data provenance split -> Solver -->
+    <path d="M 370 435 L 410 435" class="arrow arrow-active" marker-end="url(#arrow-head-active)" />
+    
+    <!-- Portfolio intelligence -> Solver -->
+    <path d="M 370 715 L 395 715 L 395 500 L 410 500" class="arrow" marker-end="url(#arrow-head)" />
+
+    <!-- Intent parser -> Solver -->
+    <path d="M 580 290 L 580 310" class="arrow arrow-active" marker-end="url(#arrow-head-active)" />
+
+    <!-- Solver -> Simulation & Safety -->
+    <path d="M 580 500 L 580 565" class="arrow arrow-active" marker-end="url(#arrow-head-active)" />
+
+    <!-- Solver asks Server for Quotes -->
+    <path d="M 760 350 L 820 350" class="arrow arrow-server" marker-end="url(#arrow-head-server)" />
+
+    <!-- Server calls OKX Web3 API -->
+    <path d="M 1170 300 L 1220 300" class="arrow arrow-server" marker-end="url(#arrow-head-server)" />
+    
+    <!-- OKX API returns prepared data to Server -->
+    <path d="M 1220 330 L 1170 330" class="arrow arrow-server" marker-end="url(#arrow-head-server)" />
+
+    <!-- Server returns compiled payloads to Simulation Engine -->
+    <path d="M 830 380 L 800 380 L 800 620 L 760 620" class="arrow arrow-server" marker-end="url(#arrow-head-server)" />
+
+    <!-- Simulation Engine -> User Authorization checkpoint -->
+    <path d="M 760 760 L 800 760 L 800 680 L 820 680" class="arrow arrow-active" marker-end="url(#arrow-head-active)" />
+
+    <!-- User authorization -> X Layer consensus -->
+    <path d="M 1170 680 L 1220 680" class="arrow arrow-success" marker-end="url(#arrow-head-success)" />
+  </g>
+
+</svg>

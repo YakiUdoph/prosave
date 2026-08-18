@@ -91,6 +91,10 @@ Demo assets are kept completely separate and are **never** mixed into live conne
 
 ## Architecture
 
+![SAVE Architecture Diagram](docs/save-architecture.svg)
+
+SAVE separates portfolio reasoning from execution infrastructure. The rescue solver determines the portfolio-level strategy, OKX provides route and transaction intelligence, and X Layer provides the user-authorized execution and verification environment.
+
 * **Wallet Connectivity (EIP-1193 / EIP-6963)**: Passive discovery of injected browser wallet providers (MetaMask, OKX Wallet) and Reown/WalletConnect connectivity.
 * **Portfolio Intelligence**: Scans native and ERC-20 balances, flags contract risk levels, and normalizes holdings.
 * **Intent Parser**: Normalizes natural language queries into goal amounts, target symbols, and protected assets.
