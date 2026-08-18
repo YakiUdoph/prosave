@@ -219,6 +219,24 @@ This is an append-only log documenting architectural decisions, security resolut
 - **Files Affected**: `public/brand/save-mark-simplified.svg`, `public/brand/save-mark-transparent.png`
 - **Status**: **RESOLVED**
 
+### DRIFT-025: Production deployment guidance incorrectly targeted Cloudflare Pages
+- **Date**: 2026-08-18
+- **Discovery**: Production deployment documentation incorrectly targeted Cloudflare Pages rather than the current Cloudflare Workers TanStack Start deployment path.
+- **Impact**: Could lead to invalid build output target assumption (.output/public only) and static deployments that break server functions.
+- **Root Cause**: Overlooking the auto-generated Nitro configuration which outputs a Cloudflare Workers compatibility structure in `.output/server/wrangler.json`.
+- **Resolution**: Corrected deployment guidance to specify Cloudflare Workers (using `wrangler deploy`) with native static assets bindings.
+- **Files Affected**: `DRIFT_LOG.md`, final deployment guidance reports
+- **Status**: **RESOLVED**
+
+### DRIFT-026: Removed Ankr RPC fallback was accidentally reintroduced into deployment configuration
+- **Date**: 2026-08-18
+- **Discovery**: The stale Ankr RPC fallback (`https://rpc.ankr.com/xlayer_testnet`) was reintroduced in `validate-gates.mjs`.
+- **Impact**: Reintroduced connection attempts to an endpoint returning HTTP 403.
+- **Root Cause**: Overlooked duplicate fallback initialization during security/reality verification tasks.
+- **Resolution**: Removed the Ankr reference and aligned backup configurations to use verified official terigon RPC endpoints.
+- **Files Affected**: `validate-gates.mjs`
+- **Status**: **RESOLVED**
+
 ---
 
 ## 📝 Drift Entry Template

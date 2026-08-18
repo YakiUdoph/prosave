@@ -44,7 +44,7 @@ const rpcUrls = rpcUrlsEnv.split(',').map(r => r.trim()).filter(Boolean);
 if (rpcUrls.length === 0) {
   rpcUrls.push('https://xlayertestrpc.okx.com');
 }
-const backupRpcUrl = 'https://rpc.ankr.com/xlayer_testnet';
+const backupRpcUrl = 'https://testrpc.xlayer.tech/terigon';
 
 // Wallet address from env
 const walletAddress = process.env.WALLET_ADDRESS || '0x0000000000000000000000000000000000000000';
