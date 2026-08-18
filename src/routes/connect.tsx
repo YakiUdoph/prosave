@@ -36,9 +36,9 @@ const ANALYSES = ["Portfolio assets", "Liquidity", "Risk exposure", "Exit option
 
 function Connect() {
   const navigate = useNavigate();
-  const { connectWallet } = useSave();
+  const { connectWallet, connected, chainId, walletDetected } = useSave();
   const [active, setActive] = useState<string | null>(null);
-  const [status, setStatus] = useState<"idle" | "connecting" | "connected">("idle");
+  const [status, setStatus] = useState<"idle" | "connecting" | "connected" | "rejected">("idle");
 
   const handleConnect = async (walletId: string) => {
     setActive(walletId);
@@ -59,11 +59,41 @@ function Connect() {
         }, 2400);
       }
     } catch (err: any) {
-      setStatus("idle");
+      setStatus("rejected");
       setActive(null);
       const msg = err.message || "Failed to connect wallet";
       toast.error(msg);
     }
+  };
+
+  let statusLabel = "CONNECT WALLET";
+  let statusTone: "primary" | "safe" | "warn" | "critical" = "primary";
+
+  if (connected) {
+    if (chainId === 1952) {
+      statusLabel = "CONNECTED";
+      statusTone = "safe";
+    } else {
+      statusLabel = "WRONG_NETWORK";
+      statusTone = "critical";
+    }
+  } else if (status === "connecting") {
+    statusLabel = "CONNECTING";
+    statusTone = "primary";
+  } else if (status === "rejected") {
+    statusLabel = "CONNECTION REJECTED";
+    statusTone = "critical";
+  } else if (walletDetected) {
+    statusLabel = "WALLET DETECTED";
+    statusTone = "warn";
+  }
+
+  const walletCardState = (walletId: string): "idle" | "connecting" | "connected" => {
+    if (active === walletId) {
+      if (status === "connecting") return "connecting";
+      if (status === "connected") return "connected";
+    }
+    return "idle";
   };
 
   return (
@@ -72,8 +102,8 @@ function Connect() {
       title="Connect your wallet"
       intro="SAVE needs read access to reason about your positions. Nothing is signed until you approve a simulated plan."
       aside={
-        <StatusPill tone="safe">
-          <Lock className="size-3" /> Read-only session
+        <StatusPill tone={statusTone}>
+          <Lock className="size-3" /> {statusLabel}
         </StatusPill>
       }
     >
@@ -84,7 +114,7 @@ function Connect() {
               key={w.id}
               wallet={w}
               delay={i * 90}
-              state={active === w.id ? status : "idle"}
+              state={walletCardState(w.id)}
               onConnect={() => handleConnect(w.id)}
             />
           ))}

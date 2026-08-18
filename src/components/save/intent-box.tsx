@@ -37,8 +37,8 @@ export function AIIntentBox({
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
           rows={3}
-          placeholder="What do you need your portfolio to do?"
-          className="mt-4 w-full resize-none bg-transparent text-xl leading-relaxed tracking-tight text-foreground placeholder:text-muted-foreground/70 focus:outline-none md:text-2xl"
+          placeholder="Get me $300 USDC. Don't sell my ETH unless necessary."
+          className="mt-4 w-full resize-none bg-transparent text-xl leading-relaxed tracking-tight text-foreground placeholder:text-muted-foreground/40 focus:outline-none md:text-2xl"
         />
         <div className="mt-5 flex flex-wrap items-center justify-between gap-4 border-t border-border pt-5">
           <p className="label-mono normal-case tracking-normal">

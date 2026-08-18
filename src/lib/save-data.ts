@@ -133,10 +133,9 @@ export const PLANS: Plan[] = [
 ];
 
 export const INTENT_SUGGESTIONS = [
-  "Get me $700 USDC.",
-  "Protect my ETH.",
-  "Reduce my risk.",
-  "Exit risky assets.",
+  "Get me $700 USDC. Protect my ETH.",
+  "Reduce my risky exposure by 50%.",
+  "Move me toward safer assets.",
 ];
 
 export const PARSED_INTENT = [

@@ -26,6 +26,7 @@ type SaveState = {
   setSelectedPlan: (v: "A" | "B" | "C") => void;
   walletAddress: string | null;
   chainId: number | null;
+  walletDetected: boolean;
   connectWallet: () => Promise<void>;
   disconnectWallet: () => void;
   error: string | null;
@@ -57,12 +58,13 @@ const SaveContext = createContext<SaveState | null>(null);
 export function SaveProvider({ children }: { children: ReactNode }) {
   const [panic, setPanicState] = useState(false);
   const [connected, setConnected] = useState(false);
-  const [intent, setIntentState] = useState("Get me $700 USDC. Don't sell my ETH unless necessary.");
+  const [intent, setIntentState] = useState("");
   const [parsedIntent, setParsedIntent] = useState<SaveIntent>(() =>
-    parseSaveIntent("Get me $700 USDC. Don't sell my ETH unless necessary.")
+    parseSaveIntent("")
   );
   const [selectedPlan, setSelectedPlan] = useState<"A" | "B" | "C">("B");
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
+  const [walletDetected, setWalletDetected] = useState(false);
   const [chainId, setChainId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -137,50 +139,17 @@ export function SaveProvider({ children }: { children: ReactNode }) {
 
   // Handle auto-connect and listeners
   useEffect(() => {
-    const checkConnection = async () => {
-      if (typeof window !== "undefined" && (window as any).ethereum) {
-        const provider = (window as any).ethereum;
-        try {
-          const accounts = await provider.request({ method: "eth_accounts" });
-          if (accounts && accounts.length > 0) {
-            const chainIdHex = await provider.request({ method: "eth_chainId" });
-            const currentChainId = parseInt(chainIdHex, 16);
-            setWalletAddress(accounts[0]);
-            setChainId(currentChainId);
-            setConnected(true);
-
-            // Listeners
-            provider.on("accountsChanged", (newAccounts: string[]) => {
-              if (newAccounts.length === 0) {
-                setWalletAddress(null);
-                setConnected(false);
-              } else {
-                setWalletAddress(newAccounts[0]);
-              }
-            });
-
-            provider.on("chainChanged", (newChainIdHex: string) => {
-              setChainId(parseInt(newChainIdHex, 16));
-            });
-          } else {
-            // Disconnected: load demo baseline portfolio
-            const result = await scanPortfolio(null);
-            setPortfolio(result.assets);
-            setRpcStatus(result.rpcStatus);
-            setTotalPortfolioValue(result.totalValue);
-          }
-        } catch (err) {
-          console.error("Auto-connect check failed:", err);
-        }
-      } else {
-        // No wallet: load demo baseline portfolio
-        const result = await scanPortfolio(null);
-        setPortfolio(result.assets);
-        setRpcStatus(result.rpcStatus);
-        setTotalPortfolioValue(result.totalValue);
-      }
+    if (typeof window !== "undefined" && (window as any).ethereum) {
+      setWalletDetected(true);
+    }
+    // Load baseline demo portfolio initially
+    const initBaseline = async () => {
+      const result = await scanPortfolio(null);
+      setPortfolio(result.assets);
+      setRpcStatus(result.rpcStatus);
+      setTotalPortfolioValue(result.totalValue);
     };
-    checkConnection();
+    initBaseline();
   }, []);
 
   // Automatically scan portfolio when wallet address changes
@@ -197,8 +166,21 @@ export function SaveProvider({ children }: { children: ReactNode }) {
     const provider = (window as any).ethereum;
 
     try {
-      // Request accounts
-      const accounts = await provider.request({ method: "eth_requestAccounts" });
+      // Explicit account request flow (wallet_requestPermissions with eth_accounts, fallback to eth_requestAccounts)
+      let accounts: string[] = [];
+      try {
+        const permissions = await provider.request({
+          method: "wallet_requestPermissions",
+          params: [{ eth_accounts: {} }],
+        });
+        if (permissions) {
+          accounts = await provider.request({ method: "eth_accounts" });
+        }
+      } catch (permError) {
+        // Fallback to eth_requestAccounts
+        accounts = await provider.request({ method: "eth_requestAccounts" });
+      }
+
       if (!accounts || accounts.length === 0) {
         throw new Error("No accounts returned from wallet.");
       }
@@ -641,6 +623,7 @@ export function SaveProvider({ children }: { children: ReactNode }) {
       setSelectedPlan,
       walletAddress,
       chainId,
+      walletDetected,
       connectWallet,
       disconnectWallet,
       error,
@@ -679,6 +662,7 @@ export function SaveProvider({ children }: { children: ReactNode }) {
       setSelectedPlan,
       walletAddress,
       chainId,
+      walletDetected,
       connectWallet,
       disconnectWallet,
       error,
