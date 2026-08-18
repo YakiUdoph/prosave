@@ -63,11 +63,15 @@ export const PORTFOLIO_VALUE = 4832;
 export const POTENTIAL_EXPOSURE = -713;
 
 export const SCAN_STEPS = [
-  "Scanning ETH…",
-  "Checking OKB…",
-  "Evaluating liquidity…",
-  "Finding exit routes…",
-  "Calculating SAVE Score…",
+  "CONNECT ADDRESS",
+  "DISCOVER CHAINS",
+  "DISCOVER ASSETS",
+  "VALUE PORTFOLIO",
+  "CLASSIFY RISK",
+  "CHECK LIQUIDITY",
+  "CHECK GAS RESERVES",
+  "BUILD EXIT UNIVERSE",
+  "PORTFOLIO READY",
 ];
 
 export const PROTECTION_METRICS = [

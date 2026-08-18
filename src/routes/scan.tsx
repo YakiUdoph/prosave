@@ -27,7 +27,7 @@ export const Route = createFileRoute("/scan")({
 });
 
 function Scan() {
-  const { portfolio, rpcStatus } = useSave();
+  const { portfolio, rpcStatus, totalPortfolioValue } = useSave();
   const [step, setStep] = useState(0);
 
   useEffect(() => {
@@ -70,6 +70,50 @@ function Scan() {
               </li>
             ))}
           </ul>
+
+          {step > 1 && (
+            <div className="mt-6 border-t border-border pt-5 space-y-3">
+              <Eyebrow>Scan Telemetry</Eyebrow>
+              <div className="space-y-2 text-xs">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Chains discovered</span>
+                  <span className="num font-semibold text-foreground">
+                    {step >= 2 ? new Set(portfolio.map((a) => a.chainIndex || a.chain)).size : "Calculating..."}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Assets found</span>
+                  <span className="num font-semibold text-foreground">
+                    {step >= 3 ? portfolio.length : "Scanning..."}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Portfolio value</span>
+                  <span className="num font-semibold text-primary">
+                    {step >= 4 ? `$${totalPortfolioValue.toLocaleString()}` : "Valuing..."}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Relevant positions</span>
+                  <span className="num font-semibold text-foreground">
+                    {step >= 5 ? portfolio.filter((a) => a.value >= 1.0).length : "Classifying..."}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Dust assets hidden</span>
+                  <span className="num font-semibold text-muted-foreground">
+                    {step >= 5 ? portfolio.filter((a) => a.value < 1.0).length : "Evaluating..."}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Risk concentrations</span>
+                  <span className="num font-semibold text-danger">
+                    {step >= 5 ? portfolio.filter((a) => a.risk === "high").length : "Analyzing..."}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
 
           {complete && (
             <Link to="/command" className="mt-8 block">

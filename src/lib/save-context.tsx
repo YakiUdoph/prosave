@@ -13,6 +13,16 @@ import {
   recalculateRemainingTarget,
 } from "./execution";
 
+export interface EIP6963ProviderDetail {
+  info: {
+    uuid: string;
+    name: string;
+    icon: string;
+    rdns: string;
+  };
+  provider: any;
+}
+
 type SaveState = {
   panic: boolean;
   setPanic: (v: boolean) => void;
@@ -27,7 +37,7 @@ type SaveState = {
   walletAddress: string | null;
   chainId: number | null;
   walletDetected: boolean;
-  connectWallet: () => Promise<void>;
+  connectWallet: (customProvider?: any) => Promise<void>;
   disconnectWallet: () => void;
   error: string | null;
   setError: (err: string | null) => void;
@@ -51,6 +61,11 @@ type SaveState = {
   setExecutionSession: React.Dispatch<React.SetStateAction<ExecutionSession>>;
   startExecution: (mode: ExecutionMode) => Promise<void>;
   executeNextStep: () => Promise<void>;
+
+  // Wallet Connectivity Additions
+  detectedWallets: EIP6963ProviderDetail[];
+  isOkxWalletInstalled: boolean;
+  connectWalletConnect: () => Promise<void>;
 };
 
 const SaveContext = createContext<SaveState | null>(null);
@@ -67,6 +82,11 @@ export function SaveProvider({ children }: { children: ReactNode }) {
   const [walletDetected, setWalletDetected] = useState(false);
   const [chainId, setChainId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  
+  // Discovered wallet states
+  const [detectedWallets, setDetectedWallets] = useState<EIP6963ProviderDetail[]>([]);
+  const [isOkxWalletInstalled, setIsOkxWalletInstalled] = useState(false);
+  const [activeProvider, setActiveProvider] = useState<any>(null);
 
   // Portfolio states
   const [portfolio, setPortfolio] = useState<ScannedAsset[]>([]);
@@ -137,11 +157,31 @@ export function SaveProvider({ children }: { children: ReactNode }) {
     }
   }, [walletAddress]);
 
-  // Handle auto-connect and listeners
+  // Handle EIP-6963 provider announcements and check OKX wallet installation
   useEffect(() => {
-    if (typeof window !== "undefined" && (window as any).ethereum) {
+    if (typeof window === "undefined") return;
+
+    if ((window as any).ethereum) {
       setWalletDetected(true);
     }
+    if ((window as any).okxwallet) {
+      setIsOkxWalletInstalled(true);
+    }
+
+    const handleAnnounce = (event: any) => {
+      const detail = event.detail as EIP6963ProviderDetail;
+      if (detail.info.rdns === "com.okex.wallet") {
+        setIsOkxWalletInstalled(true);
+      }
+      setDetectedWallets((prev) => {
+        if (prev.some((w) => w.info.uuid === detail.info.uuid)) return prev;
+        return [...prev, detail];
+      });
+    };
+
+    window.addEventListener("eip6963:announceProvider" as any, handleAnnounce);
+    window.dispatchEvent(new Event("eip6963:requestProvider"));
+
     // Load baseline demo portfolio initially
     const initBaseline = async () => {
       const result = await scanPortfolio(null);
@@ -150,6 +190,10 @@ export function SaveProvider({ children }: { children: ReactNode }) {
       setTotalPortfolioValue(result.totalValue);
     };
     initBaseline();
+
+    return () => {
+      window.removeEventListener("eip6963:announceProvider" as any, handleAnnounce);
+    };
   }, []);
 
   // Automatically scan portfolio when wallet address changes
@@ -157,13 +201,22 @@ export function SaveProvider({ children }: { children: ReactNode }) {
     scanWalletPortfolio();
   }, [walletAddress, scanWalletPortfolio]);
 
-  const connectWallet = useCallback(async () => {
+  const connectWallet = useCallback(async (customProvider?: any) => {
     setError(null);
-    if (typeof window === "undefined" || !(window as any).ethereum) {
-      throw new Error("No EVM wallet detected. Please install OKX Wallet or MetaMask.");
+    let provider = customProvider;
+    if (!provider) {
+      if (typeof window === "undefined") {
+        throw new Error("Cannot connect wallet in server environment.");
+      }
+      // Prefer OKX injected provider if available, otherwise check window.ethereum
+      if ((window as any).okxwallet) {
+        provider = (window as any).okxwallet;
+      } else if ((window as any).ethereum) {
+        provider = (window as any).ethereum;
+      } else {
+        throw new Error("No EVM wallet detected. Please install OKX Wallet or MetaMask.");
+      }
     }
-
-    const provider = (window as any).ethereum;
 
     try {
       // Explicit account request flow (wallet_requestPermissions with eth_accounts, fallback to eth_requestAccounts)
@@ -238,8 +291,62 @@ export function SaveProvider({ children }: { children: ReactNode }) {
       setWalletAddress(address);
       setChainId(1952);
       setConnected(true);
+      setActiveProvider(provider);
     } catch (err: any) {
       const msg = err.message || "Failed to connect wallet";
+      setError(msg);
+      throw err;
+    }
+  }, [disconnectWallet]);
+
+  const connectWalletConnect = useCallback(async () => {
+    setError(null);
+    try {
+      const projectId = (import.meta.env.VITE_WALLETCONNECT_PROJECT_ID as string) || "58150d27-fd35-4f29-b941-51aadc29c0b7";
+      const EthereumProvider = (await import("@walletconnect/ethereum-provider")).EthereumProvider;
+      
+      const provider = await EthereumProvider.init({
+        projectId,
+        showQrModal: true,
+        qrModalOptions: {
+          themeMode: "dark",
+        },
+        optionalChains: [1952],
+        chains: [1], // Init chain required
+        optionalMethods: ["eth_sendTransaction", "eth_accounts", "personal_sign"],
+      });
+
+      await provider.connect();
+
+      const accounts = await provider.request({ method: "eth_accounts" });
+      if (!accounts || accounts.length === 0) {
+        throw new Error("No accounts returned from WalletConnect.");
+      }
+      
+      const address = accounts[0];
+      const chainIdHex = await provider.request({ method: "eth_chainId" });
+      const currentChainId = typeof chainIdHex === "string" ? parseInt(chainIdHex, 16) : chainIdHex;
+
+      // Handle events
+      provider.on("accountsChanged", (newAccounts: string[]) => {
+        if (newAccounts.length === 0) {
+          disconnectWallet();
+        } else {
+          setWalletAddress(newAccounts[0]);
+        }
+      });
+
+      provider.on("chainChanged", (newChainIdHex: string) => {
+        const id = typeof newChainIdHex === "string" ? parseInt(newChainIdHex, 16) : newChainIdHex;
+        setChainId(id);
+      });
+
+      setWalletAddress(address);
+      setChainId(currentChainId);
+      setConnected(true);
+      setActiveProvider(provider);
+    } catch (err: any) {
+      const msg = err.message || "Failed to connect via WalletConnect";
       setError(msg);
       throw err;
     }
@@ -483,7 +590,7 @@ export function SaveProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      if (typeof window === "undefined" || !(window as any).ethereum) {
+      if (typeof window === "undefined" || (!activeProvider && !(window as any).ethereum)) {
         setExecutionSession((prev) => ({
           ...prev,
           state: "FAILED_SAFE",
@@ -492,7 +599,7 @@ export function SaveProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      const provider = (window as any).ethereum;
+      const provider = activeProvider || (window as any).ethereum;
 
       const existingHash = currentStep.txHash || executionSession.activeTxHash;
       let txHash = existingHash;
@@ -713,6 +820,11 @@ export function SaveProvider({ children }: { children: ReactNode }) {
       setExecutionSession,
       startExecution,
       executeNextStep,
+
+      // Wallet Connectivity Additions
+      detectedWallets,
+      isOkxWalletInstalled,
+      connectWalletConnect,
     }),
     [
       panic,
@@ -748,6 +860,11 @@ export function SaveProvider({ children }: { children: ReactNode }) {
       executionSession,
       startExecution,
       executeNextStep,
+
+      // Wallet Connectivity Additions
+      detectedWallets,
+      isOkxWalletInstalled,
+      connectWalletConnect,
     ],
   );
 

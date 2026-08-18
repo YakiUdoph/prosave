@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+  <defs>
+    <linearGradient id="favGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00F2FE" />
+      <stop offset="100%" stop-color="#34C759" />
+    </linearGradient>
+  </defs>
+  <!-- Simplified Shield Outline -->
+  <path d="M16 2.5C21 2.5 27 5.5 27 13C27 21.5 16 29.5 16 29.5C16 29.5 5 21.5 5 13C5 5.5 11 2.5 16 2.5Z" 
+        stroke="url(#favGrad)" stroke-width="2" stroke-linecap="round" />
+  <!-- Simplified S-flow -->
+  <path d="M16 7 C21 7 24 10 21 14 C18 18 15 17.5 12 21.5 C9.5 25.5 12 25 16 25" 
+        stroke="url(#favGrad)" stroke-width="3.5" stroke-linecap="round" />
+</svg>

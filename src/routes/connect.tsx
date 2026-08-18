@@ -26,38 +26,69 @@ export const Route = createFileRoute("/connect")({
   component: Connect,
 });
 
-const WALLETS: WalletOption[] = [
-  { id: "okx", name: "OKX Wallet", detail: "X Layer native · fastest analysis", recommended: true },
-  { id: "wc", name: "WalletConnect", detail: "Scan with any mobile wallet" },
-  { id: "browser", name: "Browser Wallet", detail: "Injected EIP-1193 provider" },
-];
-
 const ANALYSES = ["Portfolio assets", "Liquidity", "Risk exposure", "Exit options"];
 
 function Connect() {
   const navigate = useNavigate();
-  const { connectWallet, connected, chainId, walletDetected } = useSave();
+  const {
+    connectWallet,
+    connectWalletConnect,
+    connected,
+    chainId,
+    walletDetected,
+    detectedWallets,
+    isOkxWalletInstalled,
+  } = useSave();
+
   const [active, setActive] = useState<string | null>(null);
   const [status, setStatus] = useState<"idle" | "connecting" | "connected" | "rejected">("idle");
+  const [showDiscovered, setShowDiscovered] = useState(false);
 
-  const handleConnect = async (walletId: string) => {
+  const WALLETS: WalletOption[] = [
+    {
+      id: "okx",
+      name: "OKX Wallet",
+      detail: isOkxWalletInstalled
+        ? "X Layer native · fastest analysis"
+        : "NOT INSTALLED — click to install",
+      recommended: true,
+    },
+    { id: "wc", name: "WalletConnect", detail: "Scan with any mobile wallet" },
+    { id: "browser", name: "Browser Wallet", detail: "Injected EIP-6963 discovery" },
+  ];
+
+  const handleConnect = async (walletId: string, customProvider?: any) => {
     setActive(walletId);
     setStatus("connecting");
     try {
-      if (walletId === "okx" || walletId === "browser") {
-        await connectWallet();
-        setStatus("connected");
-        toast.success("Wallet connected on X Layer Testnet!");
-        setTimeout(() => {
-          navigate({ to: "/scan" });
-        }, 1000);
-      } else {
-        // Fallback simulated flow for wc / other wallets
-        setTimeout(() => setStatus("connected"), 1400);
-        setTimeout(() => {
-          navigate({ to: "/scan" });
-        }, 2400);
+      if (walletId === "okx") {
+        if (!isOkxWalletInstalled) {
+          window.open("https://www.okx.com/web3", "_blank");
+          setStatus("idle");
+          setActive(null);
+          toast.info("OKX Wallet is not installed. Redirected to download page.");
+          return;
+        }
+        const okxProvider = (window as any).okxwallet || detectedWallets.find(w => w.info.rdns === "com.okex.wallet")?.provider;
+        await connectWallet(okxProvider);
+      } else if (walletId === "wc") {
+        await connectWalletConnect();
+      } else if (walletId === "browser") {
+        if (customProvider) {
+          await connectWallet(customProvider);
+        } else {
+          setShowDiscovered(true);
+          setStatus("idle");
+          setActive(null);
+          return;
+        }
       }
+      
+      setStatus("connected");
+      toast.success("Wallet connected on X Layer Testnet!");
+      setTimeout(() => {
+        navigate({ to: "/scan" });
+      }, 1000);
     } catch (err: any) {
       setStatus("rejected");
       setActive(null);
@@ -108,7 +139,7 @@ function Connect() {
       }
     >
       <div className="grid gap-6 lg:grid-cols-[1.1fr_1fr]">
-         <div className="space-y-3">
+        <div className="space-y-3">
           {WALLETS.map((w, i) => (
             <WalletCard
               key={w.id}
@@ -118,7 +149,6 @@ function Connect() {
               onConnect={() => handleConnect(w.id)}
             />
           ))}
-
 
           <Panel className="mt-6 p-6">
             <Eyebrow>Security indicators</Eyebrow>
@@ -163,6 +193,54 @@ function Connect() {
           </div>
         </Panel>
       </div>
+
+      {showDiscovered && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-md p-4">
+          <Panel className="w-full max-w-md p-6 relative">
+            <button 
+              onClick={() => setShowDiscovered(false)}
+              className="absolute top-4 right-4 text-muted-foreground hover:text-foreground text-sm label-mono"
+            >
+              [CLOSE]
+            </button>
+            <Eyebrow>Detected Browser Wallets</Eyebrow>
+            <p className="text-xs text-muted-foreground mt-1 mb-5">
+              Select an announced EIP-6963 provider installed in your browser.
+            </p>
+            {detectedWallets.length === 0 ? (
+              <div className="p-4 border border-dashed border-border rounded-lg text-center">
+                <p className="text-sm text-muted-foreground">No injected browser wallets announced.</p>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Ensure MetaMask, Rainbow, or other wallet extensions are active.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {detectedWallets.map((w) => (
+                  <button
+                    key={w.info.uuid}
+                    onClick={() => {
+                      setShowDiscovered(false);
+                      handleConnect("browser", w.provider);
+                    }}
+                    className="flex w-full items-center gap-4 border border-border bg-secondary/30 hover:border-primary/50 hover:bg-secondary/60 transition-all p-3 rounded-lg text-left"
+                  >
+                    {w.info.icon ? (
+                      <img src={w.info.icon} alt={w.info.name} className="size-6 shrink-0" />
+                    ) : (
+                      <span className="size-6 rounded-full bg-primary/20 flex items-center justify-center text-xs font-bold text-primary">W</span>
+                    )}
+                    <div>
+                      <p className="text-sm font-semibold">{w.info.name}</p>
+                      <p className="text-xxs label-mono text-muted-foreground tracking-normal">{w.info.rdns}</p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </Panel>
+        </div>
+      )}
     </PageShell>
   );
 }

@@ -34,13 +34,40 @@ export const Route = createFileRoute("/command")({
   component: CommandCenter,
 });
 
+import { useState } from "react";
+
 function CommandCenter() {
-  const { panic, portfolio, totalPortfolioValue, rpcStatus } = useSave();
+  const { panic, portfolio, totalPortfolioValue, rpcStatus, rescueResult } = useSave();
+  const [showDust, setShowDust] = useState(false);
 
   const highRiskValue = portfolio.filter((a) => a.risk === "high").reduce((sum, a) => sum + a.value, 0);
   const mediumRiskValue = portfolio.filter((a) => a.risk === "medium").reduce((sum, a) => sum + a.value, 0);
   const exposureValue = highRiskValue + Math.round(mediumRiskValue * 0.133);
   const flaggedCount = portfolio.filter((a) => a.risk === "high" || a.risk === "medium").length;
+
+  const dustAssets = portfolio.filter((a) => a.value < 1.00);
+  const nonDustAssets = portfolio.filter((a) => a.value >= 1.00);
+  const dustTotalValue = dustAssets.reduce((sum, a) => sum + a.value, 0);
+  
+  const visibleAssets = showDust ? portfolio : nonDustAssets;
+
+  // Prioritize sorting: high risk first, then by value descending
+  const sortedAssets = [...visibleAssets].sort((a, b) => {
+    const riskWeight = { high: 3, medium: 2, protected: 1 };
+    if (riskWeight[a.risk] !== riskWeight[b.risk]) {
+      return riskWeight[b.risk] - riskWeight[a.risk];
+    }
+    return b.value - a.value;
+  });
+
+  const recommendedPlan = rescueResult.plans.find((p) => p.id === "B");
+  const activeScore = recommendedPlan?.score || 82;
+
+  const stablecoinValue = portfolio
+    .filter((a) => a.symbol === "USDC" || a.symbol === "USDT")
+    .reduce((sum, a) => sum + a.value, 0);
+  const stablecoinPercent = Math.round((stablecoinValue / (totalPortfolioValue || 1)) * 100);
+  const highRiskPercent = Math.round((highRiskValue / (totalPortfolioValue || 1)) * 100);
 
   return (
     <PageShell
@@ -109,16 +136,60 @@ function CommandCenter() {
             <RiskMeter level={panic ? 84 : 74} />
           </Panel>
 
+          <Panel className="p-6">
+            <Eyebrow>Institutional Telemetry Report</Eyebrow>
+            <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4 text-left">
+              <div>
+                <span className="text-xxs label-mono text-muted-foreground block">Chains Detected</span>
+                <span className="num mt-1 block text-lg font-semibold">
+                  {new Set(portfolio.map((a) => a.chainIndex || a.chain)).size}
+                </span>
+              </div>
+              <div>
+                <span className="text-xxs label-mono text-muted-foreground block">Assets Scanned</span>
+                <span className="num mt-1 block text-lg font-semibold">{portfolio.length}</span>
+              </div>
+              <div>
+                <span className="text-xxs label-mono text-muted-foreground block">Stablecoin Coverage</span>
+                <span className="num mt-1 block text-lg font-semibold text-safe">
+                  {stablecoinPercent}%
+                </span>
+              </div>
+              <div>
+                <span className="text-xxs label-mono text-muted-foreground block">High-Risk Exposure</span>
+                <span className="num mt-1 block text-lg font-semibold text-danger">
+                  {highRiskPercent}%
+                </span>
+              </div>
+            </div>
+          </Panel>
+
           <div className="grid gap-4 sm:grid-cols-2">
-            {portfolio.map((asset, i) => (
-              <PortfolioAssetCard key={asset.symbol} asset={asset} delay={i * 70} />
+            {sortedAssets.map((asset, i) => (
+              <PortfolioAssetCard key={`${asset.chain}-${asset.symbol}`} asset={asset} delay={i * 70} />
             ))}
           </div>
+
+          {dustAssets.length > 0 && (
+            <button
+              onClick={() => setShowDust(!showDust)}
+              className="flex w-full items-center justify-between border border-border bg-secondary/15 hover:bg-secondary/35 transition-colors p-4 rounded-xl text-left"
+            >
+              <span className="text-xs text-muted-foreground">
+                {showDust
+                  ? `Showing all holdings (including ${dustAssets.length} dust assets)`
+                  : `${dustAssets.length} dust assets hidden — $${dustTotalValue.toFixed(2)} total`}
+              </span>
+              <span className="label-mono text-xs text-primary">
+                {showDust ? "[ Hide Dust ]" : "[ Show Dust ]"}
+              </span>
+            </button>
+          )}
         </div>
 
         <div className="space-y-6">
           <Panel className="p-8">
-            <ScoreDial score={82} />
+            <ScoreDial score={activeScore} />
           </Panel>
 
           <Panel className="p-6">

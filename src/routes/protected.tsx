@@ -117,52 +117,47 @@ function Success() {
           style={{ background: "color-mix(in oklab, var(--safe) 14%, transparent)" }}
         />
         
-        {/* SuccessSummary components inline */}
         <div className="grid gap-4 sm:grid-cols-3">
-          <Panel className="p-5">
+          <Panel className="p-5 relative overflow-hidden">
+            <div className="absolute top-4 right-4 text-xxs label-mono rounded px-1.5 py-0.5 border border-primary/20 bg-primary/10 text-primary">SIMULATED</div>
             <ShieldAlert className="size-4 text-primary" />
             <p className="mt-4 text-2xl font-semibold tracking-tight text-foreground">
               <AnimatedNumber value={activePlan.securedAmount} prefix="$" decimals={2} />
             </p>
-            <Eyebrow className="mt-2">USDC secured</Eyebrow>
+            <Eyebrow className="mt-2">Simulated USDC Output</Eyebrow>
           </Panel>
-          <Panel className="p-5">
+          <Panel className="p-5 relative overflow-hidden">
+            <div className="absolute top-4 right-4 text-xxs label-mono rounded px-1.5 py-0.5 border border-primary/20 bg-primary/10 text-primary">SIMULATED</div>
             <ShieldAlert className="size-4 text-safe" />
             <p className="mt-4 text-2xl font-semibold tracking-tight text-foreground">
               <AnimatedNumber value={activePlan.protectedPreservedPercent} suffix="%" decimals={0} />
             </p>
-            <Eyebrow className="mt-2">ETH preserved</Eyebrow>
+            <Eyebrow className="mt-2">Simulated ETH Preserved</Eyebrow>
           </Panel>
-          <Panel className="p-5">
+          <Panel className="p-5 relative overflow-hidden alert">
+            <div className="absolute top-4 right-4 text-xxs label-mono rounded px-1.5 py-0.5 border border-safe/20 bg-safe/10 text-safe">
+              {isLive ? "LIVE PROOF" : "SIMULATED"}
+            </div>
             <ShieldAlert className="size-4 text-warning" />
-            <p className="mt-4 text-2xl font-semibold tracking-tight text-foreground">
-              <AnimatedNumber value={lossAvoided} prefix="$" decimals={2} />
+            <p className="mt-4 text-lg font-semibold tracking-tight text-foreground">
+              {isLive ? "0.0001 OKB Transfer" : "No Tx Broadcast"}
             </p>
-            <Eyebrow className="mt-2">Loss avoided</Eyebrow>
+            <Eyebrow className="mt-2">On-Chain Verification</Eyebrow>
           </Panel>
         </div>
       </div>
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-[1.15fr_1fr]">
-        
-        {/* TransactionReceipt components inline */}
+      <div className="mt-6 grid gap-6 lg:grid-cols-2">
+        {/* Panel 1: Live On-Chain Verification Receipt */}
         <Panel className="p-0">
-          <div className="flex items-center gap-2 border-b border-border px-6 py-4">
-            <Key className="size-3.5 text-primary" />
-            <Eyebrow>Transaction receipt</Eyebrow>
+          <div className="flex items-center gap-2 border-b border-border px-6 py-4 bg-safe/5">
+            <Key className="size-3.5 text-safe" />
+            <Eyebrow>Live On-Chain Verification Receipt</Eyebrow>
           </div>
           <dl className="divide-y divide-border">
             <div className="flex items-center justify-between gap-6 px-6 py-3.5">
-              <dt className="label-mono">Target Received</dt>
-              <dd className="num text-sm text-foreground">{activePlan.securedAmount.toFixed(2)} USDC</dd>
-            </div>
-            <div className="flex items-center justify-between gap-6 px-6 py-3.5">
-              <dt className="label-mono">Swaps Executed</dt>
-              <dd className="num text-sm text-foreground">{soldAssetsList || "None (Existing USDC covers target)"}</dd>
-            </div>
-            <div className="flex items-center justify-between gap-6 px-6 py-3.5">
-              <dt className="label-mono">Preservation State</dt>
-              <dd className="num text-sm text-safe">{activePlan.protectedPreservedPercent}% preserved</dd>
+              <dt className="label-mono">Verification Action</dt>
+              <dd className="num text-sm text-foreground">0.0001 OKB Self-Transfer (Gas Test)</dd>
             </div>
             <div className="flex items-center justify-between gap-6 px-6 py-3.5">
               <dt className="label-mono">Network</dt>
@@ -171,8 +166,10 @@ function Success() {
               </dd>
             </div>
             <div className="flex items-center justify-between gap-6 px-6 py-3.5">
-              <dt className="label-mono">DEX Aggregator</dt>
-              <dd className="num text-sm text-foreground">OKX DEX Router (mainnet 196 reference)</dd>
+              <dt className="label-mono">Status</dt>
+              <dd className={`num text-sm font-semibold ${isLive ? "text-safe" : "text-primary"}`}>
+                {statusLabelValue}
+              </dd>
             </div>
             <div className="flex items-center justify-between gap-6 px-6 py-3.5">
               <dt className="label-mono">Gas Used</dt>
@@ -182,10 +179,6 @@ function Success() {
               <dt className="label-mono">Block Number</dt>
               <dd className="num text-sm text-foreground">{blockNumberValue}</dd>
             </div>
-            <div className="flex items-center justify-between gap-6 px-6 py-3.5">
-              <dt className="label-mono">Status</dt>
-              <dd className={`num text-sm font-semibold ${isLive ? "text-safe" : "text-primary"}`}>{statusLabelValue}</dd>
-            </div>
             <div className="flex flex-col gap-1 px-6 py-3.5">
               <dt className="label-mono">Transaction Hash</dt>
               <dd className="num text-xs break-all text-foreground mt-1 select-all">{txHashValue}</dd>
@@ -193,43 +186,84 @@ function Success() {
           </dl>
         </Panel>
 
-        <div className="space-y-6">
-          <Panel className="p-6">
-            <Eyebrow>Execution trace</Eyebrow>
-            <div className="mt-6">
-              <SimulationTimeline steps={[...traceSteps, "Transaction confirmed"]} autoRun={false} />
+        {/* Panel 2: Simulated Rescue Parameters */}
+        <Panel className="p-0 border-primary/25">
+          <div className="flex items-center justify-between border-b border-border px-6 py-4 bg-primary/5">
+            <div className="flex items-center gap-2">
+              <ShieldAlert className="size-3.5 text-primary" />
+              <Eyebrow>Simulated Rescue Parameters</Eyebrow>
             </div>
-          </Panel>
+            <span className="text-xxs label-mono text-primary border border-primary/20 bg-primary/10 rounded px-1.5 py-0.5">NOT BROADCAST</span>
+          </div>
+          <dl className="divide-y divide-border">
+            <div className="flex items-center justify-between gap-6 px-6 py-3.5">
+              <dt className="label-mono">Target Asset Output</dt>
+              <dd className="num text-sm text-foreground">{activePlan.securedAmount.toFixed(2)} USDC</dd>
+            </div>
+            <div className="flex items-center justify-between gap-6 px-6 py-3.5">
+              <dt className="label-mono">Swaps Simulated</dt>
+              <dd className="num text-sm text-foreground">{soldAssetsList || "None (Existing USDC covers target)"}</dd>
+            </div>
+            <div className="flex items-center justify-between gap-6 px-6 py-3.5">
+              <dt className="label-mono">Preservation State</dt>
+              <dd className="num text-sm text-safe">{activePlan.protectedPreservedPercent}% preserved</dd>
+            </div>
+            <div className="flex items-center justify-between gap-6 px-6 py-3.5">
+              <dt className="label-mono">Expected Slippage</dt>
+              <dd className="num text-sm text-foreground">{activePlan.slippagePercent.toFixed(2)}%</dd>
+            </div>
+            <div className="flex items-center justify-between gap-6 px-6 py-3.5">
+              <dt className="label-mono">Expected Price Impact</dt>
+              <dd className="num text-sm text-foreground">{activePlan.priceImpactPercent.toFixed(2)}%</dd>
+            </div>
+            <div className="flex items-center justify-between gap-6 px-6 py-3.5">
+              <dt className="label-mono">Expected Gas Cost</dt>
+              <dd className="num text-sm text-foreground">${activePlan.gasCostUsd.toFixed(2)}</dd>
+            </div>
+            <div className="flex items-center justify-between gap-6 px-6 py-3.5">
+              <dt className="label-mono">DEX Aggregator</dt>
+              <dd className="num text-sm text-foreground">OKX DEX Router (mainnet 196 reference)</dd>
+            </div>
+          </dl>
+        </Panel>
+      </div>
 
-          <Panel className="p-6">
-            <Eyebrow>Protection history</Eyebrow>
-            <ul className="mt-5 divide-y divide-border">
-              {isLive && confirmedTx && (
-                <li className="flex items-center justify-between gap-4 py-3.5">
-                  <div>
-                    <p className="text-sm">Rescue executed · live swap confirmed</p>
-                    <p className="label-mono mt-1">Today</p>
-                  </div>
-                  <span className="num text-sm font-semibold text-primary">{activePlan.saveScore}</span>
-                </li>
-              )}
+      <div className="mt-6 grid gap-6 lg:grid-cols-2">
+        <Panel className="p-6">
+          <Eyebrow>Execution trace</Eyebrow>
+          <div className="mt-6">
+            <SimulationTimeline steps={[...traceSteps, "Transaction confirmed"]} autoRun={false} />
+          </div>
+        </Panel>
+
+        <Panel className="p-6">
+          <Eyebrow>Protection history</Eyebrow>
+          <ul className="mt-5 divide-y divide-border">
+            {isLive && confirmedTx && (
               <li className="flex items-center justify-between gap-4 py-3.5">
                 <div>
-                  <p className="text-sm">Rescue simulated · {activePlan.securedAmount.toFixed(0)} USDC simulation</p>
-                  <p className="label-mono mt-1">17 Aug</p>
+                  <p className="text-sm">Rescue executed · live swap confirmed</p>
+                  <p className="label-mono mt-1">Today</p>
                 </div>
                 <span className="num text-sm font-semibold text-primary">{activePlan.saveScore}</span>
               </li>
-              <li className="flex items-center justify-between gap-4 py-3.5">
-                <div>
-                  <p className="text-sm">Risk reduced 38% · meme exposure exited</p>
-                  <p className="label-mono mt-1">02 Aug</p>
-                </div>
-                <span className="num text-sm font-semibold text-primary">91</span>
-              </li>
-            </ul>
-          </Panel>
-        </div>
+            )}
+            <li className="flex items-center justify-between gap-4 py-3.5">
+              <div>
+                <p className="text-sm">Rescue simulated · {activePlan.securedAmount.toFixed(0)} USDC simulation</p>
+                <p className="label-mono mt-1">17 Aug</p>
+              </div>
+              <span className="num text-sm font-semibold text-primary">{activePlan.saveScore}</span>
+            </li>
+            <li className="flex items-center justify-between gap-4 py-3.5">
+              <div>
+                <p className="text-sm">Risk reduced 38% · meme exposure exited</p>
+                <p className="label-mono mt-1">02 Aug</p>
+              </div>
+              <span className="num text-sm font-semibold text-primary">91</span>
+            </li>
+          </ul>
+        </Panel>
       </div>
 
       <Panel className="mt-6 p-8">

@@ -20,10 +20,21 @@ export function SaveNav() {
     <header className="sticky top-0 z-50 border-b border-border bg-background/70 backdrop-blur-xl">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-6 px-6">
         <Link to="/" className="group flex items-center gap-2.5">
-          <span className="relative flex size-7 items-center justify-center rounded-md border border-primary/40 bg-primary/10">
-            <span className="size-2 rounded-full bg-primary transition-transform duration-500 group-hover:scale-125" />
-          </span>
-          <span className="text-sm font-semibold tracking-[0.22em]">SAVE</span>
+          <svg className="size-7 text-primary" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path
+              d="M16 2.5C21 2.5 27 5.5 27 13C27 21.5 16 29.5 16 29.5C16 29.5 5 21.5 5 13C5 5.5 11 2.5 16 2.5Z"
+              className="stroke-primary/40 group-hover:stroke-primary transition-colors duration-500"
+              strokeWidth="2.0"
+              strokeLinecap="round"
+            />
+            <path
+              d="M16 7 C21 7 24 10 21 14 C18 18 15 17.5 12 21.5 C9.5 25.5 12 25 16 25"
+              className="stroke-primary group-hover:animate-pulse"
+              strokeWidth="3.0"
+              strokeLinecap="round"
+            />
+          </svg>
+          <span className="text-sm font-semibold tracking-[0.22em] text-foreground group-hover:text-primary transition-colors duration-300">SAVE</span>
         </Link>
 
         <nav className="hidden items-center gap-1 lg:flex">

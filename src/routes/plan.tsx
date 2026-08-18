@@ -26,8 +26,11 @@ export const Route = createFileRoute("/plan")({
   component: RescuePlan,
 });
 
+import { useState } from "react";
+
 function RescuePlan() {
   const { selectedPlan, setSelectedPlan, rescueResult, portfolio, parsedIntent } = useSave();
+  const [showComparison, setShowComparison] = useState(false);
 
   // Map rescueResult CandidatePlans to the Plan interface expected by RescuePlanCard
   const mappedPlans = useMemo(() => {
@@ -104,6 +107,14 @@ function RescuePlan() {
         </StatusPill>
       }
     >
+      {rescueResult.explanation && (
+        <div className="animate-rise mb-6 rounded-xl border border-primary/25 bg-primary/5 px-6 py-4">
+          <p className="text-xs text-muted-foreground leading-relaxed label-mono">
+            {rescueResult.explanation}
+          </p>
+        </div>
+      )}
+
       <div className="grid gap-6 lg:grid-cols-[1fr_1.35fr]">
         <div className="space-y-6">
           <Panel className="p-6">
@@ -134,6 +145,107 @@ function RescuePlan() {
                 {activeRaw?.whyRecommended || active.summary}
               </p>
             </div>
+          </Panel>
+
+          <Panel className="p-6">
+            <button
+              onClick={() => setShowComparison(!showComparison)}
+              className="flex w-full items-center justify-between font-semibold text-sm label-mono"
+            >
+              <span>[ {showComparison ? "Hide Strategy Comparison" : "Compare Rescue Strategies"} ]</span>
+              <span className="text-primary">{showComparison ? "↑" : "↓"}</span>
+            </button>
+
+            {showComparison && (
+              <div className="mt-6 overflow-x-auto">
+                <table className="w-full text-left border-collapse text-xxs label-mono">
+                  <thead>
+                    <tr className="border-b border-border">
+                      <th className="pb-2 text-muted-foreground font-normal">Metric</th>
+                      {rescueResult.plans.map((p) => (
+                        <th key={p.id} className={`pb-2 font-semibold ${p.id === selectedPlan ? "text-primary" : "text-foreground"}`}>
+                          Plan {p.id} {p.id === rescueResult.recommendedPlanId && "(Rec)"}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border/40">
+                    <tr>
+                      <td className="py-2 text-muted-foreground font-normal">Time Horizon</td>
+                      {rescueResult.plans.map((p) => (
+                        <td key={p.id} className="py-2 text-foreground font-semibold">
+                          {p.timeHorizon} ({p.eta})
+                        </td>
+                      ))}
+                    </tr>
+                    <tr>
+                      <td className="py-2 text-muted-foreground font-normal">Execution Cost</td>
+                      {rescueResult.plans.map((p) => (
+                        <td key={p.id} className="py-2 text-foreground font-semibold">
+                          ${p.gasCostUsd.toFixed(2)}
+                        </td>
+                      ))}
+                    </tr>
+                    <tr>
+                      <td className="py-2 text-muted-foreground font-normal">Slippage</td>
+                      {rescueResult.plans.map((p) => (
+                        <td key={p.id} className="py-2 text-foreground font-semibold">
+                          {p.slippagePercent.toFixed(2)}%
+                        </td>
+                      ))}
+                    </tr>
+                    <tr>
+                      <td className="py-2 text-muted-foreground font-normal">Core Preservation</td>
+                      {rescueResult.plans.map((p) => (
+                        <td key={p.id} className={`py-2 font-semibold ${p.protectedPreservedPercent === 100 ? "text-safe" : "text-danger"}`}>
+                          {p.protectedPreservedPercent}%
+                        </td>
+                      ))}
+                    </tr>
+                    <tr>
+                      <td className="py-2 text-muted-foreground font-normal">Stablecoin post</td>
+                      {rescueResult.plans.map((p) => (
+                        <td key={p.id} className="py-2 text-foreground font-semibold">
+                          {p.postRescueStablecoinPercent}%
+                        </td>
+                      ))}
+                    </tr>
+                    <tr>
+                      <td className="py-2 text-muted-foreground font-normal">Meme/High-Risk post</td>
+                      {rescueResult.plans.map((p) => (
+                        <td key={p.id} className="py-2 text-foreground font-semibold">
+                          {p.postRescueHighRiskPercent}%
+                        </td>
+                      ))}
+                    </tr>
+                    <tr>
+                      <td className="py-2 text-muted-foreground font-normal">Swaps / Tx Count</td>
+                      {rescueResult.plans.map((p) => (
+                        <td key={p.id} className="py-2 text-foreground font-semibold">
+                          {p.actions.length} swap{p.actions.length !== 1 && "s"}
+                        </td>
+                      ))}
+                    </tr>
+                    <tr>
+                      <td className="py-2 text-muted-foreground font-normal">Readiness</td>
+                      {rescueResult.plans.map((p) => (
+                        <td key={p.id} className={`py-2 font-semibold ${p.executionReadiness === "READY_TO_SIGN" ? "text-safe" : "text-warn"}`}>
+                          {p.executionReadiness === "READY_TO_SIGN" ? "Ready" : "Bridge required"}
+                        </td>
+                      ))}
+                    </tr>
+                    <tr>
+                      <td className="py-2 text-muted-foreground font-normal">Trade-off</td>
+                      {rescueResult.plans.map((p) => (
+                        <td key={p.id} className="py-2 text-xxs text-muted-foreground leading-normal" style={{ minWidth: "120px" }}>
+                          {p.tradeOff}
+                        </td>
+                      ))}
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            )}
           </Panel>
 
           <Link to="/simulate" className="block">

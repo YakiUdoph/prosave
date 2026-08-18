@@ -442,25 +442,27 @@ export async function getOkxSwapTransaction(
 // ====================================================
 
 export const serverCheckSupportedChain = createServerFn({ method: "GET" })
-  .handler(async () => {
-    return await checkSupportedChain(196);
+  .validator((chainIndex: number) => chainIndex)
+  .handler(async ({ data }) => {
+    return await checkSupportedChain(data);
   });
 
 export const serverGetOkxTokens = createServerFn({ method: "GET" })
-  .handler(async () => {
-    return await getOkxTokens(196);
+  .validator((chainIndex: number) => chainIndex)
+  .handler(async ({ data }) => {
+    return await getOkxTokens(data);
   });
 
 export const serverGetLiveQuote = createServerFn({ method: "GET" })
-  .validator((d: { fromToken: string; toToken: string; amount: string }) => d)
+  .validator((d: { fromToken: string; toToken: string; amount: string; chainIndex: number }) => d)
   .handler(async ({ data }) => {
-    return await getLiveQuote(196, data.fromToken, data.toToken, data.amount);
+    return await getLiveQuote(data.chainIndex, data.fromToken, data.toToken, data.amount);
   });
 
 export const serverConvergeExactIn = createServerFn({ method: "GET" })
-  .validator((d: { fromToken: string; toToken: string; targetOutput: number; price: number }) => d)
+  .validator((d: { fromToken: string; toToken: string; targetOutput: number; price: number; chainIndex: number }) => d)
   .handler(async ({ data }) => {
-    return await convergeExactIn(196, data.fromToken, data.toToken, data.targetOutput, data.price);
+    return await convergeExactIn(data.chainIndex, data.fromToken, data.toToken, data.targetOutput, data.price);
   });
 
 export const serverGetOkxApproveTransaction = createServerFn({ method: "GET" })
@@ -473,4 +475,19 @@ export const serverGetOkxSwapTransaction = createServerFn({ method: "GET" })
   .validator((d: { chainIndex: number; fromToken: string; toToken: string; amount: string; user: string }) => d)
   .handler(async ({ data }) => {
     return await getOkxSwapTransaction(data.chainIndex, data.fromToken, data.toToken, data.amount, data.user);
+  });
+
+export async function getAllTokenBalances(
+  address: string,
+  chainIndex?: number
+): Promise<OkxRequestResult<any[]>> {
+  const query = `address=${address}` + (chainIndex ? `&chainIndex=${chainIndex}` : "");
+  const path = `/api/v6/dex/balance/all-token-balances-by-address?${query}`;
+  return await okxRequest<any[]>("GET", path);
+}
+
+export const serverGetAllTokenBalances = createServerFn({ method: "GET" })
+  .validator((d: { address: string; chainIndex?: number }) => d)
+  .handler(async ({ data }) => {
+    return await getAllTokenBalances(data.address, data.chainIndex);
   });
