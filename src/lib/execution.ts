@@ -30,6 +30,7 @@ export type ExecutionState =
   | "CONFIRMED"
   | "REFRESHING_PORTFOLIO"
   | "COMPLETE"
+  | "CONFIRMATION_TIMEOUT"
   | "FAILED_SAFE";
 
 export type ConfirmedTransaction = {
@@ -165,6 +166,12 @@ export async function requestWalletSignatureAndBroadcast(
     if (!txHash || typeof txHash !== "string") {
       console.log("PROVIDER_ERROR", "Empty transaction hash received");
       return { error: "BROADCAST_ERROR", details: "Provider returned empty transaction hash" };
+    }
+
+    const isValidHash = typeof txHash === "string" && /^0x[a-fA-F0-9]{64}$/.test(txHash);
+    if (!isValidHash) {
+      console.log("PROVIDER_ERROR", "invalid transaction hash format");
+      return { error: "BROADCAST_ERROR", details: "Provider returned invalid transaction hash format" };
     }
 
     console.log("TX_HASH_RECEIVED", txHash);

@@ -267,14 +267,14 @@ function runTests() {
       }
       if (method === "eth_sendTransaction") {
         sendTransactionReached = true;
-        return "0xRealTxHash12345";
+        return "0x1234567890123456789012345678901234567890123456789012345678901234";
       }
       return null;
     },
   };
 
   requestWalletSignatureAndBroadcast(mockPreparedTx, mockSuccessProvider).then((res) => {
-    if (sendTransactionReached && "txHash" in res && res.txHash === "0xRealTxHash12345") {
+    if (sendTransactionReached && "txHash" in res && res.txHash === "0x1234567890123456789012345678901234567890123456789012345678901234") {
       console.log("✅ Passed (TESTNET_LIVE authorization successfully reached provider request layer)");
     } else {
       passed = false;

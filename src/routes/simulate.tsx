@@ -133,21 +133,26 @@ function Simulate() {
   let errorMsg = "";
 
   if (executionSession.state === "AWAITING_WALLET_SIGNATURE") {
-    statusText = "Awaiting signature confirmation from your wallet...";
+    statusText = "Waiting for wallet authorization";
     buttonLabel = "Signing...";
     showLoader = true;
   } else if (executionSession.state === "BROADCASTING") {
-    statusText = "Broadcasting transaction to X Layer Testnet...";
+    statusText = "Waiting for wallet authorization";
     buttonLabel = "Broadcasting...";
     showLoader = true;
   } else if (executionSession.state === "PENDING_CONFIRMATION") {
-    statusText = "Transaction pending. Awaiting block confirmation...";
+    statusText = "Transaction broadcast — awaiting confirmation";
     buttonLabel = "Confirming...";
     showLoader = true;
   } else if (executionSession.state === "USER_REJECTED") {
     statusText = "Signature request rejected by user. You can retry.";
     buttonLabel = "Retry Authorization";
     errorMsg = "Signature rejected by user.";
+  } else if (executionSession.state === "CONFIRMATION_TIMEOUT") {
+    statusText = "Confirmation is taking longer than expected. Transaction hash: " + (executionSession.activeTxHash || "");
+    buttonLabel = "Confirmation delayed";
+    showLoader = false;
+    errorMsg = "Confirmation delayed. Please check the block explorer with the transaction hash.";
   } else if (executionSession.state === "FAILED_SAFE") {
     statusText = "Execution failed closed. Funds are safe.";
     buttonLabel = "Execution Failed";

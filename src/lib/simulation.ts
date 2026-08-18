@@ -21,6 +21,7 @@ export type ExecutionState =
   | "CONFIRMED"
   | "REPLANNING"
   | "COMPLETE"
+  | "CONFIRMATION_TIMEOUT"
   | "FAILED_SAFE";
 
 export type SimulationFailureReason =

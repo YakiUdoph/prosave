@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
-import { scanPortfolio, type ScannedAsset, type DataSource } from "./xlayer";
+import { scanPortfolio, type ScannedAsset, type DataSource, publicClient } from "./xlayer";
 import { parseSaveIntent, type SaveIntent } from "./intent-parser";
 import { solveRescue, type RescueResult } from "./rescue-solver";
 import { simulatePlan, type ExecutionState, type SimulationResult, type PreparedTransaction } from "./simulation";
@@ -362,22 +362,25 @@ export function SaveProvider({ children }: { children: ReactNode }) {
     const currentStep = executionSession.steps[executionSession.currentStepIndex];
     if (!currentStep) return;
 
-    // Transition to AWAITING_WALLET_SIGNATURE
-    setExecutionSession((prev) => {
-      const nextSteps = [...prev.steps];
-      nextSteps[prev.currentStepIndex] = {
-        ...currentStep,
-        status: "signing",
-      };
-      return {
-        ...prev,
-        state: "AWAITING_WALLET_SIGNATURE",
-        steps: nextSteps,
-      };
-    });
+    // Do not set AWAITING_WALLET_SIGNATURE state globally.
+    // It will be set dynamically inside each execution block.
 
     // DEMO_SIMULATION mode execution trace
     if (executionSession.mode === "DEMO_SIMULATION") {
+      // Transition to AWAITING_WALLET_SIGNATURE
+      setExecutionSession((prev) => {
+        const nextSteps = [...prev.steps];
+        nextSteps[prev.currentStepIndex] = {
+          ...currentStep,
+          status: "signing",
+        };
+        return {
+          ...prev,
+          state: "AWAITING_WALLET_SIGNATURE",
+          steps: nextSteps,
+        };
+      });
+
       await new Promise((resolve) => setTimeout(resolve, 1000));
       
       setExecutionSession((prev) => {
@@ -490,27 +493,68 @@ export function SaveProvider({ children }: { children: ReactNode }) {
       }
 
       const provider = (window as any).ethereum;
-      const res = await requestWalletSignatureAndBroadcast(mockPreparedTx, provider);
 
-      if ("error" in res) {
+      const existingHash = currentStep.txHash || executionSession.activeTxHash;
+      let txHash = existingHash;
+
+      if (!txHash) {
+        // Transition to AWAITING_WALLET_SIGNATURE
+        setExecutionSession((prev) => {
+          const nextSteps = [...prev.steps];
+          nextSteps[prev.currentStepIndex] = {
+            ...currentStep,
+            status: "signing",
+          };
+          return {
+            ...prev,
+            state: "AWAITING_WALLET_SIGNATURE",
+            steps: nextSteps,
+          };
+        });
+
+        const res = await requestWalletSignatureAndBroadcast(mockPreparedTx, provider);
+
+        if ("error" in res) {
+          setExecutionSession((prev) => {
+            const nextSteps = [...prev.steps];
+            nextSteps[prev.currentStepIndex] = {
+              ...currentStep,
+              status: "failed",
+              error: res.details,
+            };
+            return {
+              ...prev,
+              state: res.error === "USER_REJECTED" ? "USER_REJECTED" : "FAILED_SAFE",
+              steps: nextSteps,
+              error: res.details,
+            };
+          });
+          return;
+        }
+
+        txHash = res.txHash;
+      }
+
+      // Gate: Must be a valid 32-byte hex hash
+      const isValidHash = typeof txHash === "string" && /^0x[a-fA-F0-9]{64}$/.test(txHash);
+      if (!isValidHash) {
         setExecutionSession((prev) => {
           const nextSteps = [...prev.steps];
           nextSteps[prev.currentStepIndex] = {
             ...currentStep,
             status: "failed",
-            error: res.details,
+            error: "Invalid transaction hash format received",
           };
           return {
             ...prev,
-            state: res.error === "USER_REJECTED" ? "USER_REJECTED" : "FAILED_SAFE",
+            state: "FAILED_SAFE",
             steps: nextSteps,
-            error: res.details,
+            error: "Invalid transaction hash format received",
           };
         });
         return;
       }
 
-      const txHash = res.txHash;
       setExecutionSession((prev) => {
         const nextSteps = [...prev.steps];
         nextSteps[prev.currentStepIndex] = {
@@ -526,32 +570,52 @@ export function SaveProvider({ children }: { children: ReactNode }) {
         };
       });
 
-      // Poll transaction receipt
+      // Poll transaction receipt with fallback client and hard timeout of 90 seconds
       try {
+        console.log("RECEIPT_POLL_STARTED", txHash);
+        const startTime = Date.now();
+        const timeoutMs = 90 * 1000;
         let receipt: any = null;
-        for (let attempt = 0; attempt < 30; attempt++) {
-          await new Promise((resolve) => setTimeout(resolve, 2000));
+
+        while (Date.now() - startTime < timeoutMs) {
+          console.log("RECEIPT_POLL_ATTEMPT", txHash);
           try {
-            const rawReceipt = await provider.request({
-              method: "eth_getTransactionReceipt",
-              params: [txHash],
-            });
+            const rawReceipt = await publicClient.getTransactionReceipt({ hash: txHash as `0x${string}` });
+            console.log("RECEIPT_RPC_RESPONSE", rawReceipt);
             if (rawReceipt) {
               receipt = rawReceipt;
               break;
             }
-          } catch (pollErr) {
-            console.warn("Poll receipt attempt error:", pollErr);
+          } catch (pollErr: any) {
+            console.warn("RECEIPT_RPC_ERROR", pollErr.message || pollErr);
           }
+          await new Promise((resolve) => setTimeout(resolve, 3000));
         }
 
         if (!receipt) {
-          throw new Error("Transaction receipt lookup timed out. Check block explorer.");
+          console.log("RECEIPT_TIMEOUT", txHash);
+          setExecutionSession((prev) => {
+            const nextSteps = [...prev.steps];
+            nextSteps[prev.currentStepIndex] = {
+              ...currentStep,
+              status: "failed",
+              error: `Confirmation is taking longer than expected. Transaction hash: ${txHash}`,
+            };
+            return {
+              ...prev,
+              state: "CONFIRMATION_TIMEOUT",
+              activeTxHash: txHash,
+              steps: nextSteps,
+              error: `Confirmation is taking longer than expected.`,
+            };
+          });
+          return;
         }
 
-        const isSuccess = receipt.status === "0x1" || receipt.status === 1 || receipt.status === true;
+        const isSuccess = receipt.status === "success" || receipt.status === "0x1" || receipt.status === 1 || receipt.status === true;
 
         if (!isSuccess) {
+          console.log("RECEIPT_REVERTED", txHash);
           setExecutionSession((prev) => {
             const nextSteps = [...prev.steps];
             nextSteps[prev.currentStepIndex] = {
@@ -568,6 +632,7 @@ export function SaveProvider({ children }: { children: ReactNode }) {
           return;
         }
 
+        console.log("RECEIPT_CONFIRMED", txHash);
         // Confirmed! Refresh portfolio
         await scanWalletPortfolio();
 
@@ -580,8 +645,8 @@ export function SaveProvider({ children }: { children: ReactNode }) {
           const nextConfirmed = [...prev.confirmedTransactions];
           nextConfirmed.push({
             transactionHash: txHash,
-            blockNumber: parseInt(receipt.blockNumber, 16) || 0,
-            gasUsed: parseInt(receipt.gasUsed, 16).toString() || "0",
+            blockNumber: Number(receipt.blockNumber) || 0,
+            gasUsed: receipt.gasUsed.toString() || "0",
             status: "success",
             chainId: 1952,
             timestamp: Date.now(),

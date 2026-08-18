@@ -163,6 +163,15 @@ This is an append-only log documenting architectural decisions, security resolut
 - **Files Affected**: `src/lib/save-context.tsx`, `src/routes/connect.tsx`, `src/components/save/intent-box.tsx`, `src/lib/save-data.ts`
 - **Status**: **RESOLVED**
 
+### DRIFT-019: Live Transaction Confirmation Could Remain Pending Indefinitely
+- **Date**: 2026-08-18
+- **Discovery**: Real transactions on X Layer Testnet became stuck in the pending confirmation stage indefinitely, never transitioning to success or timeout.
+- **Impact**: The UI would show "Confirming..." forever, leaving the user with no visual path to recover or view the real transaction hash.
+- **Root Cause**: Polling for the transaction receipt was performed using the browser-injected wallet provider's `eth_getTransactionReceipt` method. Many injected browser wallet providers (MetaMask, OKX Wallet) rate-limit, reject, or freeze indefinitely on browser-direct transaction query requests. If the promise hung, the polling loop never progressed.
+- **Resolution**: Refactored the receipt polling loop to use the client-safe public RPC client (`publicClient`) configured with fallback endpoints instead of the wallet-injected provider. Additionally, added a strict transaction hash format gate, a hard 90-second timeout that transitions the session to `CONFIRMATION_TIMEOUT` without automatically rebroadcasting, and duplicate-click protection that resumes polling if a transaction hash already exists.
+- **Files Affected**: `src/lib/save-context.tsx`, `src/routes/simulate.tsx`, `src/lib/execution.ts`, `src/lib/simulation.ts`, `tests/execution.test.ts`
+- **Status**: **RESOLVED**
+
 ---
 
 ## 📝 Drift Entry Template
