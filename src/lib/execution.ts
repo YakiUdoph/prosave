@@ -114,6 +114,38 @@ export async function requestWalletSignatureAndBroadcast(
   provider: any
 ): Promise<{ txHash: string } | { error: "USER_REJECTED" | "BROADCAST_ERROR"; details: string }> {
   try {
+    console.log("AUTHORIZE_CLICKED");
+    if (!provider) {
+      console.log("PROVIDER_ERROR", "Wallet provider unavailable");
+      return { error: "BROADCAST_ERROR", details: "Wallet provider unavailable" };
+    }
+    console.log("PROVIDER_FOUND");
+
+    // Query active account
+    const accounts = await provider.request({ method: "eth_accounts" });
+    const activeAccount = accounts && accounts[0];
+    if (!activeAccount || activeAccount.toLowerCase() !== tx.from.toLowerCase()) {
+      console.log("PROVIDER_ERROR", "Connected account mismatch");
+      return {
+        error: "BROADCAST_ERROR",
+        details: `Connected account mismatch. Displayed: ${tx.from}, Wallet: ${activeAccount || "none"}`
+      };
+    }
+    console.log("ACCOUNT_VERIFIED");
+
+    // Query active chain ID
+    const chainIdHex = await provider.request({ method: "eth_chainId" });
+    const decimalChainId = typeof chainIdHex === "string" ? parseInt(chainIdHex, 16) : chainIdHex;
+    if (decimalChainId !== 1952) {
+      console.log("PROVIDER_ERROR", "Wrong network");
+      return {
+        error: "BROADCAST_ERROR",
+        details: `Wrong network. Detected: ${chainIdHex} (decimal: ${decimalChainId}). Expected: 0x7a0 (1952).`
+      };
+    }
+    console.log("CHAIN_VERIFIED");
+
+    // Prepare transaction parameters
     const params = [
       {
         from: tx.from,
@@ -122,21 +154,27 @@ export async function requestWalletSignatureAndBroadcast(
         value: tx.value !== "0" ? "0x" + BigInt(tx.value).toString(16) : undefined,
       },
     ];
+    console.log("TRANSACTION_PREPARED", params[0]);
 
+    console.log("SIGNATURE_REQUESTED");
     const txHash = await provider.request({
       method: "eth_sendTransaction",
       params,
     });
 
     if (!txHash || typeof txHash !== "string") {
+      console.log("PROVIDER_ERROR", "Empty transaction hash received");
       return { error: "BROADCAST_ERROR", details: "Provider returned empty transaction hash" };
     }
 
+    console.log("TX_HASH_RECEIVED", txHash);
     return { txHash };
   } catch (err: any) {
-    if (err.code === USER_REJECTED_CODE || err.message?.includes("User rejected")) {
+    if (err.code === USER_REJECTED_CODE || err.message?.includes("User rejected") || err.message?.includes("rejected")) {
+      console.log("USER_REJECTED");
       return { error: "USER_REJECTED", details: "Transaction signing rejected by user" };
     }
+    console.log("PROVIDER_ERROR", err.message || "Failed to broadcast transaction");
     return { error: "BROADCAST_ERROR", details: err.message || "Failed to broadcast transaction" };
   }
 }

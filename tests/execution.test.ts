@@ -92,6 +92,12 @@ function runTests() {
   console.log("\nTest D: User rejection returns USER_REJECTED status");
   const mockRejectionProvider = {
     request: async ({ method }: { method: string }) => {
+      if (method === "eth_accounts") {
+        return [connectedAddress];
+      }
+      if (method === "eth_chainId") {
+        return "0x7a0";
+      }
       if (method === "eth_sendTransaction") {
         const err: any = new Error("User rejected transaction");
         err.code = 4001;
@@ -246,6 +252,34 @@ function runTests() {
     passed = false;
     console.log(`❌ Failed (Expected unverified block, got: ${JSON.stringify(checkL)})`);
   }
+
+  // M. TESTNET_LIVE authorization event reaches the provider request layer
+  console.log("\nTest M: TESTNET_LIVE authorization event reaches the provider request layer");
+  let sendTransactionReached = false;
+  const mockSuccessProvider = {
+    request: async ({ method }: { method: string }) => {
+      if (method === "eth_accounts") {
+        return [connectedAddress];
+      }
+      if (method === "eth_chainId") {
+        return "0x7a0";
+      }
+      if (method === "eth_sendTransaction") {
+        sendTransactionReached = true;
+        return "0xRealTxHash12345";
+      }
+      return null;
+    },
+  };
+
+  requestWalletSignatureAndBroadcast(mockPreparedTx, mockSuccessProvider).then((res) => {
+    if (sendTransactionReached && "txHash" in res && res.txHash === "0xRealTxHash12345") {
+      console.log("✅ Passed (TESTNET_LIVE authorization successfully reached provider request layer)");
+    } else {
+      passed = false;
+      console.log(`❌ Failed (Expected sendTransaction to be reached, got: ${JSON.stringify(res)})`);
+    }
+  });
 
   setTimeout(() => {
     console.log("\n==================================================");

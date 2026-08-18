@@ -147,6 +147,14 @@ This is an append-only log documenting architectural decisions, security resolut
 - **Files Affected**: `src/lib/save-context.tsx`, `src/lib/execution.ts`
 - **Status**: **RESOLVED**
 
+### DRIFT-017: TESTNET_LIVE Authorization Button Did Not Reach Wallet Provider
+- **Date**: 2026-08-18
+- **Discovery / Cause**: Wrapping a `<MagneticButton>` (which itself renders a `<button>`) inside another `<button>` caused HTML button-in-button nesting, which browsers handled inconsistently, leading to swallowed click events and blocking the `executeNextStep` call.
+- **Impact**: The "Authorize Rescue Plan" button did not trigger any action, failing to prompt the MetaMask/OKX Wallet or progress the signing flow.
+- **Resolution**: Removed the outer `<button>` nesting and attached all handlers and attributes directly to the `MagneticButton` component. Added dynamic account and network chain checks (0x7a0/1952) immediately before calling `eth_sendTransaction` to ensure safety and visibility of any errors.
+- **Files Affected**: `src/routes/simulate.tsx`, `src/lib/execution.ts`, `tests/execution.test.ts`
+- **Status**: **RESOLVED**
+
 ---
 
 ## 📝 Drift Entry Template

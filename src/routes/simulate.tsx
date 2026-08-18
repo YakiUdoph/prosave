@@ -352,21 +352,22 @@ function Simulate() {
           )}
 
           {executionState === "SIMULATION_READY" ? (
-            <button
+            <MagneticButton
               onClick={executeNextStep}
-              className="w-full"
+              className="w-full disabled:opacity-50 disabled:cursor-not-allowed"
+              size="lg"
               disabled={showLoader || executionSession.state === "FAILED_SAFE"}
             >
-              <MagneticButton className="w-full" size="lg" disabled={showLoader || executionSession.state === "FAILED_SAFE"}>
-                {buttonLabel} <ArrowRight className="size-4" />
-              </MagneticButton>
-            </button>
+              {buttonLabel} <ArrowRight className="size-4" />
+            </MagneticButton>
           ) : (
-            <button className="w-full opacity-50 cursor-not-allowed" disabled>
-              <MagneticButton className="w-full" size="lg" disabled>
-                {buttonLabel} <ArrowRight className="size-4" />
-              </MagneticButton>
-            </button>
+            <MagneticButton
+              className="w-full opacity-50 cursor-not-allowed"
+              size="lg"
+              disabled
+            >
+              {buttonLabel} <ArrowRight className="size-4" />
+            </MagneticButton>
           )}
         </div>
 
