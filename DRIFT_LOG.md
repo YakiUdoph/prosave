@@ -309,6 +309,15 @@ This is an append-only log documenting architectural decisions, security resolut
 - **Files Affected**: `src/lib/execution.ts`, `src/lib/save-context.tsx`, `tests/harden-simulation-provenance.test.ts`
 - **Status**: **RESOLVED**
 
+### DRIFT-035: Recommended Plan Could Conflict With SAVE Score
+- **Date**: 2026-08-19
+- **Discovery**: Plan recommendation semantics and score ranking were not fully aligned, allowing a lower-scoring plan to be labelled "SAVE Recommended."
+- **Impact**: Judges/users could see a 67-point plan recommended over a 74-point alternative without a coherent explanation.
+- **Root Cause**: Hardcoded static plan names and the omission of avoidable protected asset liquidation penalties in the score calculations.
+- **Resolution**: Recommendation is now derived dynamically from feasibility, user policy constraints, and policy-adjusted SAVE Score. Recommendation state is separated from plan naming (re-labeled plans with neutral names). Added an avoidable protected sale penalty surcharge (25 points) when selling protected assets is mathematically avoidable.
+- **Files Affected**: `src/lib/rescue-solver.ts`, `tests/rescue-solver.test.ts`
+- **Status**: **RESOLVED**
+
 ---
 
 ## 📝 Drift Entry Template

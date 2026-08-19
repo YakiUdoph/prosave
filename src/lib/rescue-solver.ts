@@ -92,7 +92,8 @@ export function calculatePlanScore(
   requiredTarget: number,
   actions: LiquidateAction[],
   portfolio: ScannedAsset[],
-  intent: SaveIntent
+  intent: SaveIntent,
+  hasFeasiblePlanWithoutProtectedSale?: boolean
 ) {
   // 1. Base Damage (15 point shortfall penalty if goal is not achieved)
   let damageScore = 25;
@@ -115,6 +116,11 @@ export function calculatePlanScore(
       // Proportional penalty for LAST_RESORT sale (scaled up to 50 points)
       const fractionSold = totalProtectedVal > 0 ? soldProtectedVal / totalProtectedVal : 0;
       protectedViolationPenalty = fractionSold * 50;
+
+      // Additional avoidable protected sale penalty (surcharge for unnecessary liquidation)
+      if (hasFeasiblePlanWithoutProtectedSale) {
+        protectedViolationPenalty += 25;
+      }
     }
   }
 
@@ -569,28 +575,48 @@ export function solveRescue(
 
   const candidatePlans: CandidatePlan[] = [];
 
-  // 1. Build Plan B (SAVE Recommended)
+  // 1. Pre-run solvers to evaluate avoidable protected sale eligibility
   const planBSellSequence = [...highRiskAssets, ...mediumRiskAssets];
   const allowBProtected = intent.protectedAssetPolicy === "LAST_RESORT";
   const runB = runRescueSolver(planBSellSequence, protectedAssets, requiredTarget, allowBProtected);
 
+  const planASellSequence = [...protectedAssets, ...mediumRiskAssets, ...highRiskAssets];
+  const runA = runRescueSolver(planASellSequence, [], requiredTarget, false);
+
+  const runC = runRescueSolver(highRiskAssets, [], requiredTarget, false);
+
+  const runBTargetMet = runB.gasReserveStatus !== "INSUFFICIENT_GAS_RESERVE" && (runB.remainingShortfall <= 0.005);
+  const runBHasProtectedSale = runB.actions.some((act) => intent.protectedAssets.includes(act.symbol));
+
+  const runATargetMet = runA.gasReserveStatus !== "INSUFFICIENT_GAS_RESERVE" && (runA.remainingShortfall <= 0.005);
+  const runAHasProtectedSale = runA.actions.some((act) => intent.protectedAssets.includes(act.symbol));
+
+  const runCTargetMet = runC.gasReserveStatus !== "INSUFFICIENT_GAS_RESERVE" && (runC.remainingShortfall <= 0.005);
+  const runCHasProtectedSale = runC.actions.some((act) => intent.protectedAssets.includes(act.symbol));
+
+  const hasFeasiblePlanWithoutProtectedSale = 
+    (runBTargetMet && !runBHasProtectedSale) ||
+    (runATargetMet && !runAHasProtectedSale) ||
+    (runCTargetMet && !runCHasProtectedSale);
+
+  // 2. Build Plan B — Balanced Rescue
   if (runB.gasReserveStatus === "INSUFFICIENT_GAS_RESERVE") {
     result.rejected.push({
-      name: "Plan B: SAVE Recommended",
+      name: "Plan B — Balanced Rescue",
       reason: "INSUFFICIENT_GAS_RESERVE",
       description: `Required gas ${runB.requiredGasOKB.toFixed(4)} OKB exceeds wallet balance.`,
     });
   } else {
     const planBTargetMet = runB.remainingShortfall <= 0.005;
     const planBSecured = requiredTarget - runB.remainingShortfall;
-    const scoresB = calculatePlanScore(planBTargetMet, planBSecured, requiredTarget, runB.actions, portfolio, intent);
+    const scoresB = calculatePlanScore(planBTargetMet, planBSecured, requiredTarget, runB.actions, portfolio, intent, hasFeasiblePlanWithoutProtectedSale);
 
     const hasStrictB = intent.protectedAssetPolicy === "STRICT" && 
       runB.actions.some((act) => intent.protectedAssets.includes(act.symbol));
 
     if (hasStrictB) {
       result.rejected.push({
-        name: "Plan B: SAVE Recommended",
+        name: "Plan B — Balanced Rescue",
         reason: "PROTECTED_ASSET_VIOLATION",
         description: "Violates strict ETH protection constraint because non-protected funds were insufficient.",
       });
@@ -598,7 +624,7 @@ export function solveRescue(
       candidatePlans.push(
         compilePlanDetails(
           "B",
-          "Plan B: SAVE Recommended",
+          "Plan B — Balanced Rescue",
           "Optimizes capital retrieval while preserving designated protected assets.",
           planBTargetMet,
           planBSecured + existingUSDC,
@@ -620,27 +646,24 @@ export function solveRescue(
     }
   }
 
-  // 2. Build Plan A (Max Liquidity)
-  const planASellSequence = [...protectedAssets, ...mediumRiskAssets, ...highRiskAssets];
-  const runA = runRescueSolver(planASellSequence, [], requiredTarget, false);
-
+  // 3. Build Plan A — Liquidity First
   if (runA.gasReserveStatus === "INSUFFICIENT_GAS_RESERVE") {
     result.rejected.push({
-      name: "Plan A: Max Liquidity",
+      name: "Plan A — Liquidity First",
       reason: "INSUFFICIENT_GAS_RESERVE",
       description: `Required gas ${runA.requiredGasOKB.toFixed(4)} OKB exceeds wallet balance.`,
     });
   } else {
     const planATargetMet = runA.remainingShortfall <= 0.005;
     const planASecured = requiredTarget - runA.remainingShortfall;
-    const scoresA = calculatePlanScore(planATargetMet, planASecured, requiredTarget, runA.actions, portfolio, intent);
+    const scoresA = calculatePlanScore(planATargetMet, planASecured, requiredTarget, runA.actions, portfolio, intent, hasFeasiblePlanWithoutProtectedSale);
 
     const hasStrictA = intent.protectedAssetPolicy === "STRICT" && 
       runA.actions.some((act) => intent.protectedAssets.includes(act.symbol));
 
     if (hasStrictA) {
       result.rejected.push({
-        name: "Plan A: Max Liquidity",
+        name: "Plan A — Liquidity First",
         reason: "PROTECTED_ASSET_VIOLATION",
         description: "Violates strict ETH protection constraint by liquidating protected reserves.",
       });
@@ -648,7 +671,7 @@ export function solveRescue(
       candidatePlans.push(
         compilePlanDetails(
           "A",
-          "Plan A: Max Liquidity",
+          "Plan A — Liquidity First",
           "Prioritizes deep liquidity routes to secure funds rapidly.",
           planATargetMet,
           planASecured + existingUSDC,
@@ -670,24 +693,22 @@ export function solveRescue(
     }
   }
 
-  // 3. Build Plan C (Max Preservation)
-  const runC = runRescueSolver(highRiskAssets, [], requiredTarget, false);
-
+  // 4. Build Plan C — Preservation First
   if (runC.gasReserveStatus === "INSUFFICIENT_GAS_RESERVE") {
     result.rejected.push({
-      name: "Plan C: Max Preservation",
+      name: "Plan C — Preservation First",
       reason: "INSUFFICIENT_GAS_RESERVE",
       description: `Required gas ${runC.requiredGasOKB.toFixed(4)} OKB exceeds wallet balance.`,
     });
   } else {
     const planCTargetMet = runC.remainingShortfall <= 0.005;
     const planCSecured = requiredTarget - runC.remainingShortfall;
-    const scoresC = calculatePlanScore(planCTargetMet, planCSecured, requiredTarget, runC.actions, portfolio, intent);
+    const scoresC = calculatePlanScore(planCTargetMet, planCSecured, requiredTarget, runC.actions, portfolio, intent, hasFeasiblePlanWithoutProtectedSale);
 
     candidatePlans.push(
       compilePlanDetails(
         "C",
-        "Plan C: Max Preservation",
+        "Plan C — Preservation First",
         "Refuses to liquidate key strategic reserves, limiting trades to high-risk assets.",
         planCTargetMet,
         planCSecured + existingUSDC,

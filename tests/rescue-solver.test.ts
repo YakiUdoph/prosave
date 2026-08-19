@@ -421,6 +421,73 @@ function runTests() {
     console.log("❌ Failed (Score breakdown sum mismatch)");
   }
 
+  // Scenario Q: Avoidable Protected Sale Penalty & Dynamic Recommendation
+  console.log("\nScenario Q: Avoidable Protected Sale Penalty & Dynamic Recommendation");
+  const intentQ: SaveIntent = {
+    rawInput: "Get me $250 USDC. Keep my ETH.",
+    targetAsset: "USDC",
+    targetAmount: 250,
+    protectedAssets: ["ETH"],
+    avoidAssets: [],
+    objective: "MINIMIZE_DAMAGE",
+    urgency: "NORMAL",
+    protectedAssetPolicy: "LAST_RESORT",
+    confidence: 1.0,
+    warnings: [],
+  };
+
+  const resQ = solveRescue(canonicalPortfolio, intentQ);
+  const planA_Q = resQ.plans.find((p) => p.id === "A");
+  const planB_Q = resQ.plans.find((p) => p.id === "B");
+
+  if (planA_Q && planB_Q) {
+    console.log(`   Plan A score: ${planA_Q.saveScore}, Plan B score: ${planB_Q.saveScore}`);
+    console.log(`   Recommended plan ID: ${resQ.recommendedPlanId}`);
+    
+    const namesNeutral = !planA_Q.name.includes("Recommended") && !planB_Q.name.includes("Recommended");
+    
+    if (planB_Q.saveScore > planA_Q.saveScore && resQ.recommendedPlanId === "B" && namesNeutral) {
+      console.log("✅ Passed (Avoidable protected sale penalized, Plan B wins, names neutral)");
+    } else {
+      passed = false;
+      console.log("❌ Failed (Avoidable protected sale not penalized properly or Plan B not recommended)");
+    }
+  } else {
+    passed = false;
+    console.log("❌ Failed (Could not find Plan A or Plan B in results)");
+  }
+  // Scenario R: Genuinely Necessary Protected Sale under LAST_RESORT
+  console.log("\nScenario R: Genuinely Necessary Protected Sale under LAST_RESORT");
+  const intentR: SaveIntent = {
+    rawInput: "Get me $800 USDC. Keep my ETH.",
+    targetAsset: "USDC",
+    targetAmount: 800,
+    protectedAssets: ["ETH"],
+    avoidAssets: [],
+    objective: "MINIMIZE_DAMAGE",
+    urgency: "NORMAL",
+    protectedAssetPolicy: "LAST_RESORT",
+    confidence: 1.0,
+    warnings: [],
+  };
+
+  const resR = solveRescue(canonicalPortfolio, intentR);
+  const planA_R = resR.plans.find((p) => p.id === "A");
+  
+  if (planA_R) {
+    console.log(`   Plan A (Necessary sale) score: ${planA_R.saveScore}`);
+    const noAvoidablePenalty = planA_R.saveScore === 30;
+    if (planA_R.targetMet && noAvoidablePenalty) {
+      console.log("✅ Passed (Necessary protected sale allowed without avoidable-sale penalty)");
+    } else {
+      passed = false;
+      console.log(`❌ Failed (Necessary protected sale has incorrect status or score: targetMet=${planA_R.targetMet}, score=${planA_R.saveScore})`);
+    }
+  } else {
+    passed = false;
+    console.log("❌ Failed (Could not find Plan A in results)");
+  }
+
   console.log("\n==================================================");
   console.log(passed ? "Summary: All Solver Tests Passed" : "Summary: Solver Tests Failed");
   console.log("==================================================");
