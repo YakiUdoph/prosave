@@ -8,21 +8,21 @@ This document contains the official, verified submission copy for the OKX / X La
 
 * **Project Name**: SAVE
 * **Tagline**:
-  * *Option 1 (Preferred)*: Tell SAVE the outcome. It finds the safest portfolio path.
-  * *Option 2*: Intent-driven emergency rescue engine for Web3 portfolios.
+  * *Option 1 (Preferred)*: Tell SAVE the outcome. It finds the best-fit portfolio path.
+  * *Option 2*: Intent-driven rescue engine for Web3 portfolios.
   * *Option 3*: DEX aggregators swap tokens. SAVE optimizes portfolio outcomes.
 * **One-Liner** (22 words): 
   SAVE is an intent-driven portfolio rescue agent that optimizes multi-asset liquidations and risk reduction under strict user-defined asset preservation rules.
-* **Short Description** (64 words):
-  SAVE is an intent-driven Web3 intelligence layer designed to handle emergency portfolio restructuring. When market volatility strikes or wallet security is compromised, users state their goal in plain language. SAVE extracts target amounts, identifies protected holdings, calculates three scored liquidation plans using OKX OnchainOS route quotes, and executes user-signed verification transactions on the X Layer Testnet.
-* **Medium Description** (145 words):
-  SAVE is an intent-driven emergency rescue agent built for Web3 portfolios. Unlike standard DEX aggregators that focus on individual token-pair routes, SAVE reasons at the portfolio level. Users can connect their wallet, paste a public EVM address for read-only analysis, or explore using a multi-chain Demo Portfolio. 
+* **Short Description** (61 words):
+  SAVE is an intent-driven Web3 intelligence layer designed to handle emergency portfolio restructuring. When severe market volatility strikes or users urgently need liquidity, users state their goal in plain language. SAVE extracts target amounts, identifies protected holdings, calculates three scored liquidation plans using OKX route quotes, and demonstrates the transaction pipeline on the X Layer Testnet.
+* **Medium Description** (140 words):
+  SAVE is an intent-driven portfolio rescue agent built for Web3 portfolios. Unlike standard DEX aggregators that focus on individual token-pair routes, SAVE reasons at the portfolio level. Users can connect their wallet, paste a public EVM address for read-only analysis, or explore using a multi-chain Demo Portfolio. 
 
   By translating natural language (e.g., *"Get me $700 USDC. Don't sell my ETH"*), SAVE extracts structured financial constraints, balances risk, and compiles three distinct recovery plan candidates. Each plan is scored based on slippage, asset volatility, and capital preservation ratios. 
 
-  Before any execution, SAVE runs plans through local simulation safety gates. Finally, to prove block-level execution feasibility on X Layer, the user manually authorizes and signs a native OKB verification transaction, with block receipts polled and confirmed in real time. SAVE protects user capital by keeping transaction staging transparent and user-authorized.
-* **Full Description** (352 words):
-  SAVE is an intent-driven portfolio rescue intelligence layer that bridges the gap between high-level user financial goals and complex, multi-transaction execution in Web3. During sudden market crashes, liquidations, or compromised security incidents, users know their target outcome (e.g., securing stablecoins, preserving native gas, exiting high-risk exposures) but face substantial manual friction determining the optimal liquidation sequence. Standard routing interfaces only solve trade parameters for a single swap; they cannot evaluate portfolio-level trade-offs or respect asset-preservation constraints.
+  Before any execution, SAVE runs plans through local simulation safety gates. Finally, to demonstrate block-level execution feasibility on X Layer, the user manually signs a native OKB verification transaction, with block receipts polled and confirmed in real time.
+* **Full Description** (347 words):
+  SAVE is an intent-driven portfolio rescue intelligence layer that bridges the gap between high-level user financial goals and complex, multi-transaction execution in Web3. During sudden market crashes, margin calls, or severe volatility incidents, users know their target outcome (e.g., securing stablecoins, preserving native gas, exiting high-risk exposures) but face substantial manual friction determining the optimal liquidation sequence. Standard routing interfaces only solve trade parameters for a single swap; they cannot evaluate portfolio-level trade-offs or respect asset-preservation constraints.
 
   SAVE turns natural language intent into structured, executable recovery plans. The journey begins with data scan versatility: users can connect MetaMask or OKX Wallet, paste any public EVM address for sandboxed watch-only scanning, or activate the high-fidelity Demo Portfolio containing diverse mock positions.
 
@@ -31,7 +31,7 @@ This document contains the official, verified submission copy for the OKX / X La
   2. **Plan B (Balanced Outcome - Recommended)**: Sells volatile and high-risk tokens first, maintaining a 100% preservation ratio on protected assets.
   3. **Plan C (High-Risk Disposal)**: Avoids touching protected holdings entirely, prioritizing meme coin liquidation and accepting potential target shortfalls.
 
-  To guarantee transaction safety, plans are processed through local simulation gates that verify quote freshness, gas sufficiency, and ERC-20 spender contracts. Spenders are matched against OKX DEX routers to prevent malicious approval exploits. 
+  To verify transaction safety, plans are processed through local simulation gates that verify quote freshness, gas sufficiency, and ERC-20 spender contracts. Spender addresses are verified against official OKX DEX aggregators to protect user accounts.
 
   Execution remains entirely non-custodial and under the user's manual authorization. In live wallet or watch-only modes, transaction signature requests are gated; watch-only mode blocks execution until the owner wallet connects. Once verified, the user signs a verification transaction (native OKB self-transfer) broadcast to the X Layer Testnet. SAVE polls public RPC node headers to confirm final block confirmations, gas consumed, and execution proof.
 
@@ -42,15 +42,15 @@ This document contains the official, verified submission copy for the OKX / X La
 ## SECTION B — THE PROBLEM
 
 ### 1-Sentence Version:
-During market volatility or wallet compromises, crypto users struggle to manually calculate the safest sequence of token sales, slippage limits, and spender contract approvals required to restructure their portfolios.
+During sudden market volatility or when users urgently need liquidity, crypto users struggle to manually calculate the sequence of token sales, slippage limits, and spender contract approvals required to restructure their portfolios.
 
 ### 75-Word Version:
 When market conditions collapse, users know their target outcome—such as raising stablecoins while keeping their ETH—but are forced to make complex, manual decisions about which tokens to swap, in what sequence, and through which pools. Traditional DEX aggregators operate only at the single transaction level. They cannot reason about portfolio-level constraints, risk-concentration parameters, or gas reserve preservation, leading to costly liquidation errors and slow emergency responses.
 
 ### 150-Word Version:
-During sudden market crashes or security incidents, Web3 users face high cognitive overhead. They know the financial outcome they need—for example, raising $700 USDC to cover a margin call or dumping meme coins—but executing this manually requires calculating liquidity depth across multiple tokens, verifying approved spenders, setting slippage boundaries, and reserving native gas. 
+During sudden market crashes or severe volatility, Web3 users face high cognitive overhead. They know the financial outcome they need—for example, raising $700 USDC to cover a margin call or dumping meme coins—but executing this manually requires calculating liquidity depth across multiple tokens, verifying approved spenders, setting slippage boundaries, and reserving native gas. 
 
-A single mistake can result in excessive slippage, failed transactions, or compromised approvals. The core issue is that existing DeFi tools optimize individual swap routes without evaluating portfolio-level trade-offs or respecting user-defined constraints. Users do not need another swap router; they need an emergency rescue intelligence layer that translates high-level intent into optimized multi-step liquidation strategies while keeping native gas reserves intact and preventing the accidental sale of long-term strategic holdings.
+A single mistake can result in excessive slippage, failed transactions, or compromised approvals. The core issue is that existing DeFi tools optimize individual swap routes without evaluating portfolio-level trade-offs or respecting user-defined constraints. Users do not need another swap router; they need a portfolio decision agent that translates high-level intent into optimized multi-step liquidation strategies while keeping native gas reserves intact and preventing the accidental sale of long-term strategic holdings.
 
 ---
 
@@ -99,9 +99,9 @@ Extracts financial outcomes & constraints via AI console
 ## SECTION E — AI COMPONENT
 
 * **AI Summary** (74 words):
-  SAVE acts as an intelligent portfolio decision agent. It interprets natural-language intent through a deterministic classification parser, mapping user queries to target assets, goals, and protected tokens. The agent evaluates the scanned portfolio state to customize suggestions, perform target feasibility checks, and score rescue candidates. The current build uses deterministic structured intent and scoring logic for reliability, establishing the architecture to incorporate richer LLM planning models in the future.
+  SAVE acts as an intent-driven portfolio decision agent. It interprets natural-language intent through a deterministic classification parser, mapping user queries to target assets, goals, and protected tokens. The agent evaluates the scanned portfolio state to customize suggestions, perform target feasibility checks, and score rescue candidates. The current build uses deterministic structured intent and scoring logic for reliability, establishing the architecture to incorporate richer LLM planning models in the future.
 * **AI Technical Explanation** (148 words):
-  In the current hackathon build, SAVE operates as a structured decision agent. It utilizes a deterministic intent parser (`src/lib/intent-parser.ts`) to extract financial constraints from plain text inputs, identifying target tokens, target amounts, protected assets, and urgency policies. This approach eliminates LLM hallucination risks in high-stakes financial operations.
+  In the current hackathon build, SAVE operates as an intent-driven portfolio decision agent. It utilizes a deterministic intent parser (`src/lib/intent-parser.ts`) to extract financial constraints from plain text inputs, identifying target tokens, target amounts, protected assets, and urgency policies. This approach eliminates LLM hallucination risks in high-stakes financial operations.
 
   The agent's decision logic is portfolio-aware: it dynamically adjusts the UI by generating asset-specific suggestions, evaluating target feasibility, and warning of gas shortages based on live RPC queries. 
 
@@ -112,7 +112,7 @@ Extracts financial outcomes & constraints via AI console
 ## SECTION F — OKX INTEGRATION
 
 * **1-Sentence Version**:
-  SAVE integrates OKX OnchainOS Web3 APIs to query multi-chain balances and retrieve route quotes and transaction payloads, securing execution with server-side HMAC-SHA256 signing.
+  SAVE integrates OKX Web3 APIs to query multi-chain balances and retrieve route quotes and transaction payloads, securing execution with server-side HMAC-SHA256 signing.
 * **100-Word Sponsor Version**:
   SAVE uses **OKX OnchainOS and OKX Web3 APIs** as its core intelligence backend. outgoing balance scans query OKX balance endpoints to locate and value assets. When solving recovery targets, SAVE calls the OKX DEX router to retrieve liquidity routes, price quotes, and required ERC-20 approval spender addresses. Prepared swap and approval payloads are returned via secure server functions (`src/lib/okx.server.ts`) signed with HMAC-SHA256 headers, preventing credential exposure. Additionally, SAVE natively implements EIP-6963 provider announcements, prioritizing OKX Wallet discovery during the user connection handshake.
 * **Technical Bullet List**:
@@ -151,7 +151,7 @@ To maintain absolute transparency, the following table details the status of eve
 | **Connected-wallet portfolio scan** | **LIVE** | Connect via OKX Wallet/MetaMask/WalletConnect to read live positions. |
 | **Demo portfolio** | **DEMO** | Synthetic positions (ETH, PEPE, TKX) used to demo multi-asset solver strategies. |
 | **Natural-language intent console** | **LIVE** | Parses goals, protected assets, and policies from raw text inputs. |
-| **Rescue solver** | **LIVE** | Calculates and scores Plan A, B, and C based on asset risk and slippage. |
+| **Rescue solver** | **LIVE** | Calculates and ranks Plan A, B, and C based on asset risk and slippage. |
 | **Strategy simulation** | **SIMULATED** | Validates quotes, gas limits, and spender contracts against forked state. |
 | **OKX route intelligence** | **LIVE** | Calls OKX DEX Web3 API for trade routing, quotes, and approval parameters. |
 | **Full multi-asset rescue swap** | **NOT BROADCAST** | Multi-token liquidate swaps are simulated; actual swaps are not broadcast. |
@@ -173,14 +173,14 @@ To maintain absolute transparency, the following table details the status of eve
 
 ## SECTION J — MARKET / USER VALUE
 
-* **Target User** (85 words):
-  SAVE is built for active DeFi participants, retail traders holding volatile multi-asset portfolios, and DAO/treasury risk operators managing assets across EVM layers. These users need to act immediately during black swan liquidations or when wallet security is compromised. 
+* **Target User** (80 words):
+  SAVE is built for active DeFi participants, retail traders holding volatile multi-asset portfolios, and DAO/treasury risk operators managing assets across EVM layers. These users need to act immediately during black swan liquidations or when they urgently need liquidity. 
 
   Rather than manually navigating multiple swap interfaces, checking slippage thresholds, and managing gas configurations, SAVE offers a unified dashboard. It is also designed for risk analysts who want to run mock recovery scenarios using public wallet addresses in watch-only mode.
 * **Why Now** (92 words):
   Web3 is moving from raw transactions to intent-driven architectures. As assets fragment across Layer 2 chains, manual portfolio management during volatility has become slow, complex, and prone to errors. 
 
-  Additionally, users demand non-custodial, keyless analysis tools before connecting their wallets. By integrating OKX OnchainOS and X Layer, SAVE aligns with this shift: it provides a secure intelligence layer that allows users to analyze risk, verify safety, and simulate recovery outcomes before granting wallet permissions, maximizing safety during high-stress recovery situations.
+  Additionally, users demand non-custodial, keyless analysis tools before connecting their wallets. By integrating OKX OnchainOS and X Layer, SAVE aligns with this shift: it provides a secure intelligence layer that allows users to analyze risk, verify safety, and simulate recovery outcomes before granting wallet permissions, maximizing safety during high-stress recovery and liquidation situations.
 
 ---
 
@@ -218,10 +218,10 @@ SAVE has a sustainable, non-hype business model built around three revenue and p
 
 ## SECTION M — WHY SAVE SCORES WELL (JUDGING CRITERIA)
 
-* **AI Application**: SAVE implements a reliable decision agent. It extracts structured constraints from raw queries and adapts suggestions based on portfolio balances, preventing AI hallucination risks.
+* **AI Application**: SAVE implements a reliable intent-driven decision agent. It extracts structured constraints from raw queries and adapts suggestions based on portfolio balances, preventing AI hallucination risks.
 * **Innovation**: Most DeFi platforms operate at the transaction level. SAVE is a pioneer in intent-driven, portfolio-level restructuring, prioritizing asset protection over individual swap optimization.
 * **Product Completeness**: SAVE features a production-ready frontend built on TanStack Start, a secure backend function boundary for OKX APIs, and a 34-test regression suite.
-* **User Value**: Minimizes transaction friction during high-stress market liquidations or wallet compromises, giving users a clear pathway to preserve their assets.
+* **User Value**: Minimizes transaction friction during high-stress market liquidations, giving users a clear pathway to restructure their assets.
 * **X Layer Integration**: Prompts network switching, gates signatures based on native OKB gas reserves, and verifies block confirmations on the X Layer Testnet in real time.
 * **Growth Potential**: Offers a clear path toward mainnet execution, transaction fee monetization, and wallet SDK licensing.
 * **Ecosystem Contribution**: Encourages X Layer adoption by proving transaction broadcast and block polling pipelines work.
@@ -242,13 +242,13 @@ SAVE has a sustainable, non-hype business model built around three revenue and p
 ## SECTION O — GOOGLE FORM COPY
 
 * **Project Name**: SAVE
-* **Tagline**: Tell SAVE the outcome. It finds the safest portfolio path.
+* **Tagline**: Tell SAVE the outcome. It finds the best-fit portfolio path.
 * **Project Description**:
-  SAVE is an intent-driven portfolio rescue agent designed to handle emergency asset liquidations. Users state their financial goal in plain language (e.g., *"Get me $700 USDC. Keep all my ETH"*), and SAVE translates this into structured constraints, generates three scored strategy candidates using OKX OnchainOS route quotes, and executes user-signed verification transactions on the X Layer Testnet.
+  SAVE is an intent-driven portfolio rescue agent built for moments when crypto users urgently need to reduce risk or raise liquidity. Users state an outcome in plain language (e.g., *"Get me $700 USDC. Keep all my ETH"*), and SAVE translates this into structured constraints, generates three scored strategy candidates using OKX route quotes, and demonstrates the transaction pipeline on the X Layer Testnet.
 * **Problem**:
-  During market crashes or wallet compromises, users know their target outcome (e.g., raising stablecoins or reducing risk) but struggle to manually calculate the optimal swap sequence, slippage parameters, and approved spender contracts, leading to costly liquidation errors.
+  During market crashes or severe volatility, users know their target outcome (e.g., raising stablecoins or reducing risk) but struggle to manually calculate the swap sequence, slippage parameters, and approved spender contracts, leading to costly liquidation errors.
 * **Solution**:
-  SAVE provides an intent-driven portfolio optimizer. It allows keyless watch-only scans, parses natural language into structured constraints, scores strategy candidates based on capital preservation ratios, and broadcasts native OKB verification transactions to verify execution safety.
+  SAVE provides an intent-driven portfolio optimizer. It allows keyless watch-only scans, parses natural language into structured constraints, scores strategy candidates based on capital preservation ratios, and demonstrates execution safety checks.
 * **AI Usage**:
   Uses a structured intent-parser to extract target assets, goals, and protected tokens from plain text. The decision agent evaluates active holdings to generate suggestions and check target feasibility.
 * **OKX Integration**:
@@ -272,10 +272,10 @@ SAVE has a sustainable, non-hype business model built around three revenue and p
 ## SECTION P — DEVPOST / DORAHACKS LONG DESCRIPTION
 
 ### Problem
-During sudden market volatility or wallet compromises, crypto users know the high-level financial outcome they need—such as raising stablecoins, reducing risk exposure, or preserving strategic holdings. However, executing this manually requires them to inspect balances across multiple chains, calculate pool liquidity to avoid slippage, manage native gas, and verify approved spender contracts. Standard trade aggregators only solve routing for individual swaps; they cannot reason about overall portfolio risk or respect asset-preservation constraints.
+During sudden market volatility or severe asset declines, crypto users know the high-level financial outcome they need—such as raising stablecoins, reducing risk exposure, or preserving strategic holdings. However, executing this manually requires them to inspect balances across multiple chains, calculate pool liquidity to avoid slippage, manage native gas, and verify approved spender contracts. Standard trade aggregators only solve routing for individual swaps; they cannot reason about overall portfolio risk or respect asset-preservation constraints.
 
 ### What SAVE Does
-SAVE is an intent-driven emergency rescue agent for Web3 portfolios. It acts as an intelligence layer above DEX liquidity sources. Instead of trading token by token, the user defines a target outcome in plain language. SAVE handles route scoring, gas reserves, spender allowance verification, and consensus execution.
+SAVE is an intent-driven portfolio rescue agent for Web3 portfolios. It acts as an intelligence layer above DEX liquidity sources. Instead of trading token by token, the user defines a target outcome in plain language. SAVE handles route scoring, gas reserves, spender allowance verification, and consensus execution.
 
 ### How It Works
 1. **Discovery**: Paste any public EVM address for a watch-only scan, connect via browser wallet, or load the multi-chain Demo Portfolio.
@@ -303,29 +303,25 @@ SAVE moves DeFi interfaces from trade-by-trade entry forms to portfolio-level in
 
 ## SECTION Q — 150-WORD FINAL PITCH
 
-SAVE is an intent-driven portfolio rescue agent designed to handle emergency Web3 liquidations. When market volatility crashes asset prices or wallet security is compromised, users know their target outcome—such as securing stablecoins—but struggle to manually determine which tokens to swap, in what sequence, and through which pools. 
+SAVE is an intent-driven portfolio rescue agent built for moments when crypto users urgently need to reduce risk or raise liquidity. Users can connect a wallet or paste a public address in watch-only mode. They state an outcome such as: "Raise $700 USDC, sell risky assets first, and preserve my ETH." SAVE converts that goal into structured constraints, analyzes the portfolio, generates multiple rescue strategies, scores their trade-offs, and evaluates feasibility. OKX Web3 infrastructure supplies portfolio/routing/transaction intelligence used by the planning pipeline. Before any wallet-authorized action, SAVE performs simulation and safety checks. The current MVP keeps rescue swaps simulated while demonstrating its real authorization and verification pipeline through a user-signed native OKB transaction on X Layer Testnet.
 
-SAVE translates plain language intent (e.g. *"Get me $700 USDC. Keep all my ETH"*) into structured constraints, evaluates active token balances via OKX Web3 APIs, and generates three scored liquidation strategies. 
-
-Before execution, SAVE runs plans through simulation safety checks (quote freshness, gas budgets, spender safety). Finally, execution remains user-authorized: users connect their wallet (MetaMask/OKX Wallet) and sign a native OKB verification transaction on the X Layer Testnet, with block confirmations tracked in real time. 
-
-DEX aggregators optimize swap parameters for single pairs; SAVE optimizes outcomes for the entire portfolio.
+DEX aggregators optimize swaps. SAVE optimizes portfolio outcomes.
 
 ---
 
 ## SECTION R — 50-WORD FINAL PITCH
 
-SAVE is an intent-driven portfolio rescue agent. Users state their liquidation goal in plain language, and SAVE parses it into structured constraints, calculates three scored strategies using OKX OnchainOS quotes, verifies approvals via local simulation, and settles user-signed verification transactions on the X Layer Testnet in real time.
+SAVE is an intent-driven portfolio rescue agent. Users state their goal in plain language, and SAVE parses it into structured constraints, calculates scored strategies using OKX Web3 quotes, runs plans through simulation and safety checks, and demonstrates the authorization pipeline through a user-signed verification transaction on X Layer Testnet.
 
 ---
 
 ## SECTION S — 280-CHARACTER PITCH (X / TWITTER)
 
-DEX aggregators swap tokens. SAVE optimizes portfolio outcomes. 
+DEX aggregators optimize swaps. SAVE optimizes portfolio outcomes.
 
-State your rescue goal in plain English, compare 3 scored liquidation plans calculated via @OKX Web3 quotes, simulate safety checks, and authorize live verification transactions on @XLayerL2 Testnet. 
+State your goal, compare scored rescue strategies powered by OKX route intelligence, simulate safety checks, and verify the user-authorized transaction pipeline on X Layer Testnet.
 
-👉 prosave.vercel.app
+prosave.vercel.app
 
 ---
 
@@ -336,3 +332,4 @@ We have audited all descriptions, proofs, and scripts to ensure technical accura
 2. **Live Swaps**: Explicitly documented that multi-asset rescue swaps are simulated locally, while the X Layer transaction is a live OKB self-transfer verification proof.
 3. **Holdings Provenance**: Clarified that mock assets are isolated to the Demo Portfolio, while live wallet and watch-only scans retrieve strictly live RPC/OKX holdings.
 4. **Network Deployment**: Clarified that the live transaction settles on X Layer Testnet (Chain ID 1952), keeping future mainnet deployment claims distinct.
+5. **Security Framing**: Removed any claims of compromised or hacked wallet emergency recovery, framing SAVE as a portfolio restructuring tool during asset volatility or urgent liquidity needs.

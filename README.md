@@ -4,7 +4,7 @@ An intent-driven AI portfolio rescue engine.
 
 [Live Production Demo](https://prosave.vercel.app)
 
-SAVE is a Web3 intelligence product that helps users protect and restructure their assets during times of market volatility or personal security breaches. Instead of forcing users to guess which routes, slippage, and swap configurations are safest, SAVE takes a natural language intent (e.g., *"Get me $700 USDC. Don't sell my ETH unless necessary"*), analyzes their entire portfolio across multiple chains, optimizes the execution sequence, and guides them through safe, simulated on-chain actions.
+SAVE is a Web3 intelligence product that helps users protect and restructure their assets during times of market volatility or urgent liquidity needs. Instead of forcing users to guess which routes, slippage, and swap configurations are best-fit, SAVE takes a natural language intent (e.g., *"Get me $700 USDC. Don't sell my ETH unless necessary"*), analyzes their entire portfolio across multiple chains, optimizes the execution sequence, and guides them through safe, simulated on-chain actions.
 
 ---
 
