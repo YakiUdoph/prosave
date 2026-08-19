@@ -167,7 +167,7 @@ export function SaveProvider({ children }: { children: ReactNode }) {
     setQuoteTimestamp(Date.now());
     setExecutionState("IDLE");
     setSimulationResult(null);
-  }, [portfolio, parsedIntent]);
+  }, [portfolio, parsedIntent, selectedPlan]);
 
   useEffect(() => {
     const root = document.documentElement;

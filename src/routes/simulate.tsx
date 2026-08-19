@@ -129,17 +129,25 @@ function Simulate() {
   const isQuoteStale = quoteAgeSec >= 60;
 
   // Derive execution trace steps
-  const traceSteps = [
-    "Wallet connection verified",
-    `Connected chain ID ${chainId || "1952"} validated`,
-    "Rescue plan feasibility checked",
-    "Protected asset constraints evaluated",
-    "ERC-20 allowances determined",
-    "Execution gas reserve calculated",
-  ];
+  const traceSteps = executionSession.mode === "DEMO_SIMULATION"
+    ? [
+        "Portfolio evaluated",
+        "Route optimized",
+        "Target asset check completed",
+        "Protected asset rules checked",
+        "Gas requirement calculated",
+      ]
+    : [
+        "Wallet connection verified",
+        `Connected chain ID ${chainId || "1952"} validated`,
+        "Rescue plan feasibility checked",
+        "Protected asset constraints evaluated",
+        "ERC-20 allowances determined",
+        "Execution gas reserve calculated",
+      ];
 
-  // Add active execution step if running
-  if (executionSession.steps.length > 0) {
+  // Add active execution step if running in TESTNET_LIVE mode
+  if (executionSession.mode === "TESTNET_LIVE" && executionSession.steps.length > 0) {
     const activeStep = executionSession.steps[executionSession.currentStepIndex];
     if (activeStep) {
       traceSteps.push(
@@ -426,7 +434,7 @@ function Simulate() {
             </div>
           ) : (
             <div className="space-y-6">
-              {connected && executionSession.mode !== "TESTNET_LIVE" && (
+              {connected && executionSession.mode !== "TESTNET_LIVE" && portfolioMode !== "DEMO_PORTFOLIO" && (
                 <Panel className="border-warning/30 bg-warning/10 p-6 flex gap-4 items-start rounded-lg">
                   <AlertTriangle className="size-5 text-warning shrink-0 mt-0.5" />
                   <div>
@@ -463,22 +471,28 @@ function Simulate() {
                     <CheckCircle className="size-5 text-safe shrink-0 mt-0.5" />
                   )}
                   <div>
-                    <h4 className="font-semibold text-safe">{statusText}</h4>
+                    <h4 className="font-semibold text-safe">
+                      {executionSession.mode === "DEMO_SIMULATION" ? "DEMO RESCUE SIMULATION COMPLETE" : statusText}
+                    </h4>
                     <p className="mt-1 text-sm leading-relaxed text-foreground">
                       {executionSession.mode === "TESTNET_LIVE"
                         ? "Wallet execution mode active. Transactions will be sent to X Layer Testnet."
-                        : "Demo simulation mode active. Safety checks satisfied without broadcast."}
+                        : "Safety checks passed. This rescue plan was simulated only. No wallet signature or transaction broadcast is required."}
                     </p>
-                    <p className="mt-1.5 text-xxs label-mono text-muted-foreground/80 font-normal">
-                      * Staged execution strategy — user authorization required at each stage.
-                    </p>
-                    {executionSession.steps.length > 0 && (
-                      <div className="mt-3 flex gap-4 text-xs text-muted-foreground">
-                        <span>
-                          Step {executionSession.currentStepIndex + 1} of {executionSession.steps.length}
-                        </span>
-                        <span>Mode: {executionSession.mode}</span>
-                      </div>
+                    {executionSession.mode === "TESTNET_LIVE" && (
+                      <>
+                        <p className="mt-1.5 text-xxs label-mono text-muted-foreground/80 font-normal">
+                          * Staged execution strategy — user authorization required at each stage.
+                        </p>
+                        {executionSession.steps.length > 0 && (
+                          <div className="mt-3 flex gap-4 text-xs text-muted-foreground">
+                            <span>
+                              Step {executionSession.currentStepIndex + 1} of {executionSession.steps.length}
+                            </span>
+                            <span>Mode: {executionSession.mode}</span>
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
                 </Panel>
@@ -493,14 +507,24 @@ function Simulate() {
                   Refresh quote <ArrowRight className="size-4" />
                 </MagneticButton>
               ) : executionState === "SIMULATION_READY" ? (
-                <MagneticButton
-                  onClick={executeNextStep}
-                  className="w-full disabled:opacity-50 disabled:cursor-not-allowed"
-                  size="lg"
-                  disabled={showLoader || executionSession.state === "FAILED_SAFE"}
-                >
-                  {buttonLabel} <ArrowRight className="size-4" />
-                </MagneticButton>
+                executionSession.mode === "DEMO_SIMULATION" ? (
+                  <MagneticButton
+                    onClick={() => navigate({ to: "/protected" })}
+                    className="w-full"
+                    size="lg"
+                  >
+                    View Simulated Result <ArrowRight className="size-4" />
+                  </MagneticButton>
+                ) : (
+                  <MagneticButton
+                    onClick={executeNextStep}
+                    className="w-full disabled:opacity-50 disabled:cursor-not-allowed"
+                    size="lg"
+                    disabled={showLoader || executionSession.state === "FAILED_SAFE"}
+                  >
+                    {buttonLabel} <ArrowRight className="size-4" />
+                  </MagneticButton>
+                )
               ) : (
                 <MagneticButton
                   className="w-full opacity-50 cursor-not-allowed"
@@ -516,7 +540,7 @@ function Simulate() {
 
         <div className="space-y-6">
           <Panel className="p-8">
-            <Eyebrow>Execution timeline</Eyebrow>
+            <Eyebrow>{executionSession.mode === "DEMO_SIMULATION" ? "Simulation steps" : "Execution timeline"}</Eyebrow>
             <div className="mt-6">
               <SimulationTimeline steps={traceSteps} autoRun={executionState === "SIMULATING" || executionState === "SIMULATION_READY"} />
             </div>

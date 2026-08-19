@@ -318,6 +318,22 @@ This is an append-only log documenting architectural decisions, security resolut
 - **Files Affected**: `src/lib/rescue-solver.ts`, `tests/rescue-solver.test.ts`
 - **Status**: **RESOLVED**
 
+### DRIFT-036: Demo Simulation Exposed Live Authorization CTA
+- **Date**: 2026-08-19
+- **Discovery**: The Simulation page reused the same execution CTA container for both DEMO_SIMULATION and TESTNET_LIVE states.
+- **Impact**: Demo sessions displayed "Ready to authorize" and an "Authorize Rescue Plan" button even though no live transaction should be signed or broadcast, creating misleading execution semantics.
+- **Resolution**: Demo simulation completion now transitions directly to a simulated result CTA without invoking the wallet execution bridge. Live authorization controls are rendered only for TESTNET_LIVE.
+- **Files Affected**: `src/routes/simulate.tsx`
+- **Status**: **RESOLVED**
+
+### DRIFT-037: Result Route Could Be Opened Without Completed Result State
+- **Date**: 2026-08-19
+- **Discovery**: The Result navbar route did not require a completed simulation or verified live receipt.
+- **Impact**: Users could manually navigate to /protected and see incomplete or ambiguous result UI.
+- **Resolution**: The Result route now renders a clean NO RESULT AVAILABLE empty state unless a completed demo simulation or valid live verification result exists.
+- **Files Affected**: `src/routes/protected.tsx`
+- **Status**: **RESOLVED**
+
 ---
 
 ## 📝 Drift Entry Template

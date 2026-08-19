@@ -25,43 +25,11 @@ export const Route = createFileRoute("/protected")({
 });
 
 function Success() {
-  const { selectedPlan, rescueResult, executionSession, portfolioMode, walletAddress } = useSave();
+  const { selectedPlan, rescueResult, executionSession, portfolioMode, walletAddress, simulationResult } = useSave();
 
   const activePlan = rescueResult.plans.find((p) => p.id === selectedPlan);
 
-  if (!activePlan) {
-    return (
-      <PageShell
-        eyebrow="Step 07 · Verification"
-        title="No active plan"
-        intro="Please configure and simulate your rescue plan first."
-      >
-        <div className="flex flex-col items-center justify-center p-12 text-center">
-          <Link to="/plan">
-            <MagneticButton size="lg">Return to plans</MagneticButton>
-          </Link>
-        </div>
-      </PageShell>
-    );
-  }
-
-  // Format sold assets
-  const soldAssetsList = activePlan.actions
-    .filter((a) => a.sellAmount > 0)
-    .map((a) => `${a.sellAmount.toFixed(2)} ${a.symbol}`)
-    .join(" · ");
-
-  // Mock loss avoided (e.g. $84.00 default if exiting high-risk TKX)
-  const hasTKX = activePlan.actions.some((a) => a.symbol === "TKX" && a.sellAmount > 0);
-  const lossAvoided = hasTKX ? 84.00 : 0.00;
-
-  // Execution trace timeline steps
-  const traceSteps = [
-    "Portfolio analyzed",
-    "Route optimized",
-    "Transaction simulated",
-    "Wallet authorization complete",
-  ];
+  const isLive = portfolioMode === "LIVE_WALLET";
 
   // Retrieve confirmed transaction details if live execution completed
   const confirmedTx = executionSession?.confirmedTransactions?.[0];
@@ -78,6 +46,60 @@ function Success() {
     confirmedTx.gasUsed !== "" &&
     confirmedTx.gasUsed !== "0"
   );
+
+  const demoSimulationCompleted = !!(
+    simulationResult &&
+    executionSession &&
+    executionSession.mode === "DEMO_SIMULATION" &&
+    simulationResult.success === true
+  );
+
+  const hasAnyResult = hasRealLiveReceipt || demoSimulationCompleted;
+
+  if (!activePlan || !hasAnyResult) {
+    return (
+      <PageShell
+        eyebrow="Step 07 · Verification"
+        title="NO RESULT AVAILABLE"
+        intro="Run a rescue simulation first to generate a result."
+      >
+        <div className="flex flex-col items-center justify-center p-12 text-center min-h-[300px]">
+          <ShieldAlert className="size-12 text-muted-foreground/45 mb-4" />
+          <p className="text-muted-foreground max-w-sm leading-relaxed mb-8">
+            No rescue simulation has been successfully completed for this session yet. Run a simulation to view expected outcome or live transaction proof.
+          </p>
+          <Link to="/simulate">
+            <MagneticButton size="lg">Return to Simulation</MagneticButton>
+          </Link>
+        </div>
+      </PageShell>
+    );
+  }
+
+  // Format sold assets
+  const soldAssetsList = activePlan.actions
+    .filter((a) => a.sellAmount > 0)
+    .map((a) => `${a.sellAmount.toFixed(2)} ${a.symbol}`)
+    .join(" · ");
+
+  // Mock loss avoided (e.g. $84.00 default if exiting high-risk TKX)
+  const hasTKX = activePlan.actions.some((a) => a.symbol === "TKX" && a.sellAmount > 0);
+  const lossAvoided = hasTKX ? 84.00 : 0.00;
+
+  // Execution/Simulation timeline steps
+  const traceSteps = hasRealLiveReceipt
+    ? [
+        "Portfolio analyzed",
+        "Route optimized",
+        "Transaction simulated",
+        "Wallet authorization complete",
+        "Transaction confirmed",
+      ]
+    : [
+        "Portfolio analyzed",
+        "Route optimized",
+        "Transaction simulated",
+      ];
 
   const pageTitle = hasRealLiveReceipt ? "LIVE X LAYER TESTNET VERIFICATION" : "SIMULATED RESCUE OUTCOME";
   const pageIntro = hasRealLiveReceipt
@@ -144,7 +166,7 @@ function Success() {
             <p className="mt-4 text-xl font-semibold tracking-tight text-foreground">
               <AnimatedNumber value={activePlan.securedAmount} prefix="$" decimals={2} />
             </p>
-            <Eyebrow className="mt-2">SIMULATED USDC OUTPUT</Eyebrow>
+            <Eyebrow className="mt-2">SIMULATED TARGET OUTPUT</Eyebrow>
           </Panel>
  
           <Panel className="p-5 relative overflow-hidden">
@@ -265,9 +287,9 @@ function Success() {
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <Panel className="p-6">
-          <Eyebrow>Execution trace</Eyebrow>
+          <Eyebrow>{hasRealLiveReceipt ? "Execution trace" : "Simulation steps"}</Eyebrow>
           <div className="mt-6">
-            <SimulationTimeline steps={[...traceSteps, "Transaction confirmed"]} autoRun={false} />
+            <SimulationTimeline steps={traceSteps} autoRun={false} />
           </div>
         </Panel>
 
