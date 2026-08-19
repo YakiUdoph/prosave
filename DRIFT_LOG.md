@@ -264,6 +264,33 @@ This is an append-only log documenting architectural decisions, security resolut
 - **Files Affected**: `src/lib/save-context.tsx`, `src/routes/connect.tsx`, `src/routes/scan.tsx`, `src/components/save/nav.tsx`, `src/routes/intent.tsx`, `src/components/save/intent-box.tsx`, `src/routes/simulate.tsx`, `tests/read-only-intent.test.ts`, `docs/SPONSOR_INTEGRATION_PROOF.md`, `docs/JUDGE_DEMO_SCRIPT.md`, `DRIFT_LOG.md`
 - **Status**: **RESOLVED**
 
+### DRIFT-030: Strict Verification Receipt Provenance Gating
+- **Date**: 2026-08-19
+- **Discovery**: The results view allowed mock/placeholder transaction hashes (like `0xDemoTxHashFor...`) to render in the live receipt UI headers, creating a mismatch between simulated operations and live testnet verification proof.
+- **Impact**: Falsely presented simulated actions under a live receipt structure during demo simulation runs.
+- **Root Cause**: The success screen checked only for the presence of any transaction object rather than verifying the transaction provenance, Chain ID, and hash format.
+- **Resolution**: Implemented `hasRealLiveReceipt` verification predicate that requires `TESTNET_LIVE` execution mode and a valid EIP-1193 32-byte hex hash. When absent, it renders a simulated summary and a clear `"NO LIVE X LAYER VERIFICATION PERFORMED"` banner, suppressing mock receipt metadata.
+- **Files Affected**: `src/routes/protected.tsx`
+- **Status**: **RESOLVED**
+
+### DRIFT-031: Simulation State Semantics & Quote Staleness Checks
+- **Date**: 2026-08-19
+- **Discovery**: Quote parameters could expire in the background without notifying the user, allowing stale quotes to be signed or showing a generic "passed" state when safety checks required a requote.
+- **Impact**: User signed expired swap trajectories, increasing the probability of front-running or slippage reversion.
+- **Root Cause**: Lack of dynamic timer ticks and state mapping for quote age.
+- **Resolution**: Integrated a dynamic interval timer ticking every second, checking if the quote age has exceeded 60 seconds. Refactored simulation UI states into four semantic states: `RUNNING`, `PASSED`, `REQUOTE_REQUIRED`, and `FAILED`. Triggering `REQUOTE_REQUIRED` displays a warning banner and replaces the authorization CTA with a `"Refresh quote"` button.
+- **Files Affected**: `src/routes/simulate.tsx`, `src/lib/save-context.tsx`
+- **Status**: **RESOLVED**
+
+### DRIFT-032: Strategy Candidate Grammar & High-Diversity Demo Query
+- **Date**: 2026-08-19
+- **Discovery**: Pluralization errors existed in candidate strategy counts (e.g. "Only 1 distinct rescue strategies..."). Furthermore, the default $700 target in the demo holdings did not produce enough decision space to demonstrate the solver's candidate selection diversity.
+- **Impact**: Grammar errors degraded UX, and judges only saw 1 or 2 plans because the others consolidated during de-duplication checks.
+- **Root Cause**: Hardcoded plural text and insufficient target bounds.
+- **Resolution**: Fixed spelling/grammar logic inside `rescue-solver.ts`. Updated the first Demo Portfolio suggestion to target `$1,100 USDC` with `LAST_RESORT` protection policies. Set PEPE's test balance to 0 in the unit tests, allowing the solver to natively output 3 diverse candidate plans (A, B, and C) across different risk trade-offs.
+- **Files Affected**: `src/lib/rescue-solver.ts`, `src/routes/intent.tsx`, `tests/harden-simulation-provenance.test.ts`
+- **Status**: **RESOLVED**
+
 ---
 
 ## 📝 Drift Entry Template

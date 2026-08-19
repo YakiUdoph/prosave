@@ -711,7 +711,11 @@ export function solveRescue(
 
   // Simple portfolio fallback labeling:
   if (result.plans.length < 3) {
-    result.explanation = `Only ${result.plans.length} distinct rescue strategies are available for this portfolio structure and target constraints. Duplicate strategies were consolidated.`;
+    if (result.plans.length === 1) {
+      result.explanation = `Only 1 distinct rescue strategy is available for this portfolio structure and target constraints. Duplicate strategies were consolidated.`;
+    } else {
+      result.explanation = `Only ${result.plans.length} distinct rescue strategies are available for this portfolio structure and target constraints. Duplicate strategies were consolidated.`;
+    }
   }
 
   // Set recommended winner from available candidates

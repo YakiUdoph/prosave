@@ -64,16 +64,28 @@ function Success() {
   ];
 
   // Retrieve confirmed transaction details if live execution completed
-  const isLive = executionSession.mode === "TESTNET_LIVE";
-  const confirmedTx = executionSession.confirmedTransactions[0];
+  const confirmedTx = executionSession?.confirmedTransactions?.[0];
+  const hasRealLiveReceipt = !!(
+    executionSession &&
+    executionSession.mode === "TESTNET_LIVE" &&
+    confirmedTx &&
+    confirmedTx.transactionHash &&
+    /^0x[a-fA-F0-9]{64}$/.test(confirmedTx.transactionHash) &&
+    confirmedTx.status === "success" &&
+    typeof confirmedTx.blockNumber === "number" &&
+    confirmedTx.blockNumber > 0 &&
+    confirmedTx.gasUsed &&
+    confirmedTx.gasUsed !== "" &&
+    confirmedTx.gasUsed !== "0"
+  );
 
-  const pageTitle = isLive ? "LIVE X LAYER TESTNET VERIFICATION" : "SIMULATED RESCUE OUTCOME";
-  const pageIntro = isLive
+  const pageTitle = hasRealLiveReceipt ? "LIVE X LAYER TESTNET VERIFICATION" : "SIMULATED RESCUE OUTCOME";
+  const pageIntro = hasRealLiveReceipt
     ? "Your rescue transaction has successfully settled on X Layer Testnet."
     : "Your rescue parameters were evaluated. No transaction was broadcast to the network.";
   
-  const statusPillLabel = isLive ? "LIVE EXECUTION PROOF" : "SIMULATED RESCUE OUTCOME";
-  const statusPillTone = isLive ? "safe" : "primary";
+  const statusPillLabel = hasRealLiveReceipt ? "LIVE EXECUTION PROOF" : "SIMULATED RESCUE OUTCOME";
+  const statusPillTone = hasRealLiveReceipt ? "safe" : "primary";
 
   return (
     <PageShell
@@ -117,87 +129,95 @@ function Success() {
           </Panel>
           
           <Panel className="p-5 relative overflow-hidden">
-            <div className={`absolute top-4 right-4 text-[10px] label-mono rounded px-1.5 py-0.5 border ${isLive ? "border-safe/20 bg-safe/10 text-safe" : "border-muted/20 bg-muted/10 text-muted-foreground"}`}>
-              {isLive ? "TESTNET_LIVE" : "NONE"}
+            <div className={`absolute top-4 right-4 text-[10px] label-mono rounded px-1.5 py-0.5 border ${hasRealLiveReceipt ? "border-safe/20 bg-safe/10 text-safe" : "border-muted/20 bg-muted/10 text-muted-foreground"}`}>
+              {hasRealLiveReceipt ? "TESTNET_LIVE" : "NONE"}
             </div>
-            <CheckCircle className={`size-4 ${isLive ? "text-safe" : "text-muted-foreground"}`} />
-            <p className={`mt-4 text-xl font-semibold tracking-tight ${isLive ? "text-safe" : "text-muted-foreground"}`}>
-              {isLive ? "TESTNET_LIVE" : "NONE"}
+            <CheckCircle className={`size-4 ${hasRealLiveReceipt ? "text-safe" : "text-muted-foreground"}`} />
+            <p className={`mt-4 text-xl font-semibold tracking-tight ${hasRealLiveReceipt ? "text-safe" : "text-muted-foreground"}`}>
+              {hasRealLiveReceipt ? "TESTNET_LIVE" : "NONE"}
             </p>
             <Eyebrow className="mt-2">X LAYER VERIFICATION</Eyebrow>
           </Panel>
-
+ 
           <Panel className="p-5 relative overflow-hidden">
             <ShieldAlert className="size-4 text-primary" />
             <p className="mt-4 text-xl font-semibold tracking-tight text-foreground">
               <AnimatedNumber value={activePlan.securedAmount} prefix="$" decimals={2} />
             </p>
-            <Eyebrow className="mt-2">Simulated USDC Output</Eyebrow>
+            <Eyebrow className="mt-2">SIMULATED USDC OUTPUT</Eyebrow>
           </Panel>
-
+ 
           <Panel className="p-5 relative overflow-hidden">
             <ShieldAlert className="size-4 text-safe" />
             <p className="mt-4 text-xl font-semibold tracking-tight text-foreground">
               <AnimatedNumber value={activePlan.protectedPreservedPercent} suffix="%" decimals={0} />
             </p>
-            <Eyebrow className="mt-2">Simulated ETH Preserved</Eyebrow>
+            <Eyebrow className="mt-2">SIMULATED ETH PRESERVED</Eyebrow>
           </Panel>
         </div>
       </div>
-
+ 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         {/* Panel 1: Live On-Chain Verification Receipt */}
         <Panel className="p-0">
-          <div className="flex items-center gap-2 border-b border-border px-6 py-4 bg-safe/5">
-            <Key className="size-3.5 text-safe" />
-            <Eyebrow>Live On-Chain Verification Receipt</Eyebrow>
-          </div>
-          {confirmedTx ? (
-            <dl className="divide-y divide-border">
-              <div className="flex items-center justify-between gap-6 px-6 py-3.5">
-                <dt className="label-mono">Verification Action</dt>
-                <dd className="num text-sm text-foreground">0.0001 OKB Self-Transfer (Gas Test)</dd>
+          {hasRealLiveReceipt ? (
+            <>
+              <div className="flex items-center gap-2 border-b border-border px-6 py-4 bg-safe/5">
+                <Key className="size-3.5 text-safe" />
+                <Eyebrow>Live On-Chain Verification Receipt</Eyebrow>
               </div>
-              <div className="flex items-center justify-between gap-6 px-6 py-3.5">
-                <dt className="label-mono">Network</dt>
-                <dd className="num text-sm text-foreground">X Layer Testnet</dd>
-              </div>
-              <div className="flex items-center justify-between gap-6 px-6 py-3.5">
-                <dt className="label-mono">Chain ID</dt>
-                <dd className="num text-sm text-foreground">1952</dd>
-              </div>
-              <div className="flex items-center justify-between gap-6 px-6 py-3.5">
-                <dt className="label-mono">Connected Wallet</dt>
-                <dd className="num text-sm text-foreground font-mono select-all bg-secondary/50 px-2 py-0.5 rounded">{walletAddress}</dd>
-              </div>
-              <div className="flex items-center justify-between gap-6 px-6 py-3.5">
-                <dt className="label-mono">Native Asset</dt>
-                <dd className="num text-sm text-foreground">OKB</dd>
-              </div>
-              <div className="flex items-center justify-between gap-6 px-6 py-3.5">
-                <dt className="label-mono">Status</dt>
-                <dd className="num text-sm font-semibold text-safe">Confirmed (Success)</dd>
-              </div>
-              <div className="flex items-center justify-between gap-6 px-6 py-3.5">
-                <dt className="label-mono">Gas Used</dt>
-                <dd className="num text-sm text-foreground">{confirmedTx.gasUsed} gas</dd>
-              </div>
-              <div className="flex items-center justify-between gap-6 px-6 py-3.5">
-                <dt className="label-mono">Block Number</dt>
-                <dd className="num text-sm text-foreground">{confirmedTx.blockNumber}</dd>
-              </div>
-              <div className="flex flex-col gap-1 px-6 py-3.5">
-                <dt className="label-mono">Transaction Hash</dt>
-                <dd className="num text-xs break-all text-foreground mt-1 select-all">{confirmedTx.transactionHash}</dd>
-              </div>
-            </dl>
+              <dl className="divide-y divide-border">
+                <div className="flex items-center justify-between gap-6 px-6 py-3.5">
+                  <dt className="label-mono">Verification Action</dt>
+                  <dd className="num text-sm text-foreground">0.0001 OKB Self-Transfer (Gas Test)</dd>
+                </div>
+                <div className="flex items-center justify-between gap-6 px-6 py-3.5">
+                  <dt className="label-mono">Network</dt>
+                  <dd className="num text-sm text-foreground">X Layer Testnet</dd>
+                </div>
+                <div className="flex items-center justify-between gap-6 px-6 py-3.5">
+                  <dt className="label-mono">Chain ID</dt>
+                  <dd className="num text-sm text-foreground">1952</dd>
+                </div>
+                <div className="flex items-center justify-between gap-6 px-6 py-3.5">
+                  <dt className="label-mono">Connected Wallet</dt>
+                  <dd className="num text-sm text-foreground font-mono select-all bg-secondary/50 px-2 py-0.5 rounded">{walletAddress}</dd>
+                </div>
+                <div className="flex items-center justify-between gap-6 px-6 py-3.5">
+                  <dt className="label-mono">Native Asset</dt>
+                  <dd className="num text-sm text-foreground">OKB</dd>
+                </div>
+                <div className="flex items-center justify-between gap-6 px-6 py-3.5">
+                  <dt className="label-mono">Status</dt>
+                  <dd className="num text-sm font-semibold text-safe">Confirmed (Success)</dd>
+                </div>
+                <div className="flex items-center justify-between gap-6 px-6 py-3.5">
+                  <dt className="label-mono">Gas Used</dt>
+                  <dd className="num text-sm text-foreground">{confirmedTx.gasUsed} gas</dd>
+                </div>
+                <div className="flex items-center justify-between gap-6 px-6 py-3.5">
+                  <dt className="label-mono">Block Number</dt>
+                  <dd className="num text-sm text-foreground">{confirmedTx.blockNumber}</dd>
+                </div>
+                <div className="flex flex-col gap-1 px-6 py-3.5">
+                  <dt className="label-mono">Transaction Hash</dt>
+                  <dd className="num text-xs break-all text-foreground mt-1 select-all">{confirmedTx.transactionHash}</dd>
+                </div>
+              </dl>
+            </>
           ) : (
-            <div className="flex flex-col items-center justify-center p-8 text-center min-h-[300px]">
-              <ShieldAlert className="size-8 text-muted-foreground/40 mb-3" />
-              <p className="text-sm font-medium text-muted-foreground max-w-xs leading-relaxed">
-                No live verification transaction was executed in this session.
-              </p>
-            </div>
+            <>
+              <div className="flex items-center gap-2 border-b border-border px-6 py-4 bg-secondary/5">
+                <ShieldAlert className="size-3.5 text-muted-foreground" />
+                <Eyebrow>No Live X Layer Verification Performed</Eyebrow>
+              </div>
+              <div className="flex flex-col items-center justify-center p-8 text-center min-h-[300px]">
+                <ShieldAlert className="size-8 text-muted-foreground/45 mb-3" />
+                <p className="text-sm font-medium text-muted-foreground max-w-xs leading-relaxed">
+                  This session contains a simulated rescue outcome only. No verification transaction was broadcast on X Layer Testnet.
+                </p>
+              </div>
+            </>
           )}
         </Panel>
 

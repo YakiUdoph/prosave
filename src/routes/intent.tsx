@@ -46,7 +46,7 @@ function Intent() {
 
   const suggestions = portfolioMode === "DEMO_PORTFOLIO"
     ? [
-        "Get me $700 USDC while keeping all my ETH.",
+        "Raise $1,100 USDC. Sell risky assets first, protect my ETH, and keep enough OKB for gas.",
         "Raise $1,000 in stablecoins. Sell risky assets first and preserve ETH.",
         "Reduce my high-risk exposure by 60% without touching my ETH.",
         "Build a $500 emergency USDC reserve using the least portfolio-damaging exits."

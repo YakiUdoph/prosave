@@ -416,6 +416,9 @@ export function SaveProvider({ children }: { children: ReactNode }) {
   const runSimulation = useCallback(async (mode: "DEMO_SIMULATION" | "LIVE_SIMULATION") => {
     setExecutionState("SIMULATING");
     
+    const newTimestamp = Date.now();
+    setQuoteTimestamp(newTimestamp);
+    
     const activePlan = rescueResult.plans.find((p) => p.id === selectedPlan);
     const activeMode = portfolioMode === "DEMO_PORTFOLIO" ? "DEMO_SIMULATION" : mode;
 
@@ -440,7 +443,7 @@ export function SaveProvider({ children }: { children: ReactNode }) {
       portfolio,
       walletAddress,
       chainId,
-      quoteTimestamp,
+      newTimestamp,
       activeMode
     );
 
@@ -453,7 +456,7 @@ export function SaveProvider({ children }: { children: ReactNode }) {
       setExecutionState("SIMULATION_FAILED");
     }
     setSimulationResult(simRes);
-  }, [rescueResult, selectedPlan, parsedIntent, portfolio, walletAddress, chainId, quoteTimestamp, portfolioMode]);
+  }, [rescueResult, selectedPlan, parsedIntent, portfolio, walletAddress, chainId, portfolioMode]);
 
   const resetSimulation = useCallback(() => {
     setExecutionState("IDLE");

@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { ArrowRight, CircuitBoard, AlertTriangle, HelpCircle, CheckCircle, Loader2 } from "lucide-react";
 import { PageShell } from "@/components/save/page-shell";
@@ -53,6 +53,15 @@ function Simulate() {
   } = useSave();
 
   const navigate = useNavigate();
+
+  // Tick timer every second for accurate quote age rendering
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setNow(Date.now());
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   const activePlan = rescueResult.plans.find((p) => p.id === selectedPlan);
 
@@ -116,7 +125,7 @@ function Simulate() {
   }
 
   // Calculate quote age
-  const quoteAgeSec = Math.round((Date.now() - quoteTimestamp) / 1000);
+  const quoteAgeSec = Math.round((now - quoteTimestamp) / 1000);
   const isQuoteStale = quoteAgeSec >= 60;
 
   // Derive execution trace steps
@@ -175,10 +184,32 @@ function Simulate() {
     errorMsg = executionSession.error || "On-chain transaction reverted.";
   }
 
+  let pageTitle = "Simulation complete";
+  let statusBadgeLabel = "All safety checks passed";
+  let statusBadgeTone: "safe" | "critical" | "warn" | "primary" = "safe";
+
+  if (executionState === "SIMULATING") {
+    pageTitle = "Simulation running";
+    statusBadgeLabel = "Simulating X Layer...";
+    statusBadgeTone = "primary";
+  } else if (isQuoteStale) {
+    pageTitle = "Simulation requires a fresh quote";
+    statusBadgeLabel = "RE-QUOTE REQUIRED";
+    statusBadgeTone = "warn";
+  } else if (executionState === "SIMULATION_FAILED") {
+    pageTitle = "Simulation blocked";
+    statusBadgeLabel = "SAFETY CHECKS FAILED";
+    statusBadgeTone = "critical";
+  } else if (executionState === "SIMULATION_READY") {
+    pageTitle = "Simulation passed";
+    statusBadgeLabel = "SAFETY CHECKS PASSED";
+    statusBadgeTone = "safe";
+  }
+
   return (
     <PageShell
       eyebrow="Step 06 · Simulation"
-      title={executionState === "SIMULATING" ? "Running simulation..." : "Simulation complete"}
+      title={pageTitle}
       intro="Executed against a forked state of X Layer. What you see is what settles."
       aside={
         <div className="flex gap-2">
@@ -186,18 +217,17 @@ function Simulate() {
             <StatusPill tone="safe">
               LIVE WALLET DATA
             </StatusPill>
+          ) : portfolioMode === "WATCH_ONLY" ? (
+            <StatusPill tone="primary">
+              WATCH-ONLY PORTFOLIO
+            </StatusPill>
           ) : (
             <StatusPill tone="warn">
               DEMO PORTFOLIO — SAMPLE DATA
             </StatusPill>
           )}
-          <StatusPill tone={executionState === "SIMULATION_READY" ? "safe" : executionState === "SIMULATION_FAILED" ? "critical" : "primary"}>
-            <CircuitBoard className="size-3" />{" "}
-            {executionState === "SIMULATING"
-              ? "Simulating X Layer..."
-              : executionState === "SIMULATION_READY"
-                ? "All safety checks passed"
-                : "Safety checks failed"}
+          <StatusPill tone={statusBadgeTone}>
+            <CircuitBoard className="size-3" /> {statusBadgeLabel}
           </StatusPill>
         </div>
       }
@@ -274,8 +304,20 @@ function Simulate() {
           </Panel>
 
           {/* Validation Gates & Execution Readiness Banner */}
-          {executionState === "SIMULATION_FAILED" && (
-            <Panel className="border-critical/30 bg-critical/10 p-6 flex gap-4 items-start rounded-lg">
+          {isQuoteStale && (
+            <Panel className="border-warning/30 bg-warning/10 p-6 flex gap-4 items-start rounded-lg animate-rise">
+              <AlertTriangle className="size-5 text-warning shrink-0 mt-0.5" />
+              <div>
+                <h4 className="font-semibold text-warning">Re-quote required</h4>
+                <p className="mt-1 text-sm leading-relaxed text-foreground">
+                  The route quote expired before authorization. Refresh the quote to continue.
+                </p>
+              </div>
+            </Panel>
+          )}
+
+          {executionState === "SIMULATION_FAILED" && !isQuoteStale && (
+            <Panel className="border-critical/30 bg-critical/10 p-6 flex gap-4 items-start rounded-lg animate-rise">
               <AlertTriangle className="size-5 text-critical shrink-0 mt-0.5" />
               <div>
                 <h4 className="font-semibold text-critical">Simulation failed closed</h4>
@@ -413,7 +455,7 @@ function Simulate() {
                 </Panel>
               )}
 
-              {executionState === "SIMULATION_READY" && (
+              {executionState === "SIMULATION_READY" && !isQuoteStale && (
                 <Panel className="border-safe/30 bg-safe/10 p-6 flex gap-4 items-start rounded-lg">
                   {showLoader ? (
                     <Loader2 className="size-5 text-primary animate-spin shrink-0 mt-0.5" />
@@ -442,7 +484,15 @@ function Simulate() {
                 </Panel>
               )}
 
-              {executionState === "SIMULATION_READY" ? (
+              {isQuoteStale ? (
+                <MagneticButton
+                  onClick={() => runSimulation(portfolioMode === "LIVE_WALLET" ? "LIVE_SIMULATION" : "DEMO_SIMULATION")}
+                  className="w-full animate-pulse"
+                  size="lg"
+                >
+                  Refresh quote <ArrowRight className="size-4" />
+                </MagneticButton>
+              ) : executionState === "SIMULATION_READY" ? (
                 <MagneticButton
                   onClick={executeNextStep}
                   className="w-full disabled:opacity-50 disabled:cursor-not-allowed"
