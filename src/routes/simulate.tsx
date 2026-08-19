@@ -292,7 +292,7 @@ function Simulate() {
                   {simulationResult.requiredApprovals.map((app) => (
                     <li key={app.token} className="py-2.5 flex items-center justify-between gap-4">
                       <div>
-                        <p className="text-sm font-semibold">{app.token} ERC-20 approval</p>
+                        <p className="text-sm font-semibold">{app.token} ERC-20 approval required</p>
                         <p className="text-xs text-muted-foreground">Spender: {app.spender || "UNKNOWN_SPENDER"}</p>
                       </div>
                       <StatusPill tone={app.verificationStatus === "UNKNOWN" ? "critical" : "warning"}>
