@@ -319,8 +319,8 @@ describe("Simulation & Verification Provenance Hardening Suite", () => {
     expect(result.explanation).toContain("Only 1 distinct rescue strategy");
   });
 
-  // Test 12: Recommended demo intent produces the maximum genuine diversity possible for current demo holdings
-  test("12. Recommended demo intent produces the maximum genuine diversity possible for current demo holdings", () => {
+  // Test 12: Solver capability: Given a portfolio with balanced asset values and no dominant meme holdings, the solver can produce three distinct strategies
+  test("12. Solver capability: Given a portfolio with balanced asset values and no dominant meme holdings, the solver can produce three distinct strategies", () => {
     const intent = parseSaveIntent("Get me $1,100 USDC. Sell risky assets first. Don't sell my ETH unless necessary.");
     const result = solveRescue(mockPortfolio, intent, "DEMO_PORTFOLIO");
 
@@ -335,5 +335,21 @@ describe("Simulation & Verification Provenance Hardening Suite", () => {
     expect(planIds).toContain("A");
     expect(planIds).toContain("B");
     expect(planIds).toContain("C");
+  });
+
+  // Test 13: Production Demo Portfolio check: Under actual Demo Portfolio holdings, the target of $1,100 USDC with strict ETH protection returns 1 plan due to PEPE valuation dominance
+  test("13. Production Demo Portfolio check: Under actual Demo Portfolio holdings, the target of $1,100 USDC with strict ETH protection returns 1 plan due to PEPE valuation dominance", () => {
+    const productionPortfolio = mockPortfolio.map(asset => {
+      if (asset.symbol === "PEPE") {
+        return { ...asset, balance: "5000000", value: 0.45 };
+      }
+      return asset;
+    });
+
+    const intent = parseSaveIntent("Raise $1,100 USDC. Sell risky assets first, protect my ETH, and keep enough OKB for gas.");
+    const result = solveRescue(productionPortfolio, intent, "DEMO_PORTFOLIO");
+    
+    expect(result.plans.length).toBe(1);
+    expect(result.plans[0].id).toBe("B");
   });
 });
