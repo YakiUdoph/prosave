@@ -1,7 +1,39 @@
-import { describe, expect, test, mock } from "bun:test";
+import { describe, expect, test, mock, beforeAll, afterAll } from "bun:test";
 import { scanPortfolio } from "../src/lib/xlayer";
 import { solveRescue } from "../src/lib/rescue-solver";
 import { simulatePlan } from "../src/lib/simulation";
+
+let originalFetch: any;
+
+beforeAll(() => {
+  originalFetch = global.fetch;
+  global.fetch = async (url: any) => {
+    if (typeof url === "string" && (url.includes("xlayer") || url.includes("terigon"))) {
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          jsonrpc: "2.0",
+          id: 1,
+          result: "0x5af3107a4000", // 0.0001 OKB
+        }),
+      } as any;
+    }
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({
+        code: "0",
+        msg: "",
+        data: []
+      }),
+    } as any;
+  };
+});
+
+afterAll(() => {
+  global.fetch = originalFetch;
+});
 
 // Mock server function call to prevent actual network fetch in tests
 mock.module("../src/lib/okx.server", () => {

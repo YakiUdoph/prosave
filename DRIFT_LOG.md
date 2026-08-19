@@ -246,9 +246,19 @@ This is an append-only log documenting architectural decisions, security resolut
 - **Files Affected**: `src/lib/xlayer.ts`, `src/lib/save-context.tsx`, `src/lib/rescue-solver.ts`, `src/components/save/nav.tsx`, `src/components/save/portfolio-asset-card.tsx`, `src/routes/scan.tsx`, `src/routes/command.tsx`, `src/routes/intent.tsx`, `src/routes/plan.tsx`, `src/routes/simulate.tsx`, `src/routes/protected.tsx`
 - **Status**: **RESOLVED**
 
+### DRIFT-028: Sponsor Integration Audit, Visual Segregation, and Layout Stacking
+- **Date**: 2026-08-19
+- **Discovery / Cause**: Reviewing judge visibility for hackathon presentation identified that simulated rescue parameters and live testnet-proof receipts were partially combined on the results screen. Additionally, the desktop layout of the simulation page caused the telemetry panel to misalign.
+- **Impact**: Could cause presentation confusion where simulated liquidation assets are assumed to be live-executed. Telemetry panel was misaligned on desktop grid.
+- **Root Cause**: UI layout had partial telemetry and did not cleanly conditionally render empty states when no real transaction existed.
+- **Resolution**: Updated `src/routes/protected.tsx` stats panels to label outcomes as `RESCUE OUTCOME: SIMULATED` and `X LAYER VERIFICATION: TESTNET_LIVE`. Added conditional rendering to the live receipt card to show the receipt details ONLY when a live transaction signature is confirmed, otherwise showing: `"No live verification transaction was executed in this session."`. Wrapped the simulation page's right side panels in a stack container in `src/routes/simulate.tsx`. Expanded `tests/sponsor-integration.test.ts` to test masquerade prevention, EIP-1193 signature calls, data provenance, and client secret references. Updated line references in `docs/SPONSOR_INTEGRATION_PROOF.md`.
+- **Files Affected**: `src/routes/protected.tsx`, `src/routes/simulate.tsx`, `tests/sponsor-integration.test.ts`, `docs/SPONSOR_INTEGRATION_PROOF.md`, `DRIFT_LOG.md`
+- **Status**: **RESOLVED**
+
 ---
 
 ## 📝 Drift Entry Template
+
 Use this template to log future issues, limitations, or workarounds:
 
 ```markdown

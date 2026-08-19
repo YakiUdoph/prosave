@@ -396,19 +396,43 @@ function Simulate() {
           )}
         </div>
 
-        <Panel className="p-8">
-          <Eyebrow>Execution timeline</Eyebrow>
-          <div className="mt-6">
-            <SimulationTimeline steps={traceSteps} autoRun={executionState === "SIMULATING" || executionState === "SIMULATION_READY"} />
-          </div>
-          <p className="mt-4 border-t border-border pt-4 text-xs leading-relaxed text-muted-foreground flex gap-1.5 items-start">
-            <HelpCircle className="size-3.5 shrink-0 mt-0.5 text-muted-foreground/60" />
-            <span>
-              Simulation is re-run immediately before signature. If conditions drift beyond your risk
-              preference, SAVE aborts instead of executing.
-            </span>
-          </p>
-        </Panel>
+        <div className="space-y-6">
+          <Panel className="p-8">
+            <Eyebrow>Execution timeline</Eyebrow>
+            <div className="mt-6">
+              <SimulationTimeline steps={traceSteps} autoRun={executionState === "SIMULATING" || executionState === "SIMULATION_READY"} />
+            </div>
+            <p className="mt-4 border-t border-border pt-4 text-xs leading-relaxed text-muted-foreground flex gap-1.5 items-start">
+              <HelpCircle className="size-3.5 shrink-0 mt-0.5 text-muted-foreground/60" />
+              <span>
+                Simulation is re-run immediately before signature. If conditions drift beyond your risk
+                preference, SAVE aborts instead of executing.
+              </span>
+            </p>
+          </Panel>
+
+          <Panel className="p-6 bg-secondary/10 border-border/40">
+            <Eyebrow>Infrastructure Telemetry</Eyebrow>
+            <div className="mt-4 space-y-2.5 text-xs label-mono">
+              <div className="flex justify-between border-b border-border/40 pb-2">
+                <span className="text-muted-foreground">Portfolio / Routing Intelligence</span>
+                <span className="font-semibold text-foreground text-right">OKX OnchainOS</span>
+              </div>
+              <div className="flex justify-between border-b border-border/40 pb-2">
+                <span className="text-muted-foreground">Execution Network</span>
+                <span className="font-semibold text-foreground text-right">X Layer Testnet (Chain 1952)</span>
+              </div>
+              <div className="flex justify-between border-b border-border/40 pb-2">
+                <span className="text-muted-foreground">Authorization</span>
+                <span className="font-semibold text-foreground text-right">Connected Wallet · User Signed</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Execution Mode</span>
+                <span className="font-semibold text-foreground text-right text-warning">SIMULATED RESCUE + TESTNET_LIVE PROOF</span>
+              </div>
+            </div>
+          </Panel>
+        </div>
       </div>
     </PageShell>
   );

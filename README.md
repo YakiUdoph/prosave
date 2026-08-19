@@ -105,25 +105,20 @@ SAVE separates portfolio reasoning from execution infrastructure. The rescue sol
 
 ---
 
-## OKX OnchainOS Integration
+## Built with OKX + X Layer
 
-SAVE natively integrates with OKX Web3 APIs to query live market states and prepare transactions:
-* **Token Discovery**: Normalizes multi-chain tokens across Ethereum, Arbitrum, Base, Polygon, and X Layer.
-* **DEX Routing & Quotes**: Retrieves executable quotes and swap parameters.
-* **Transaction Preparation**: Requests raw transaction data (swaps, approvals) via authenticated server-side endpoints using HMAC-SHA256 signature verification to protect client keys.
+SAVE natively combines OKX OnchainOS route/liquidity intelligence with X Layer Testnet verification to offer a secure, intent-driven recovery experience.
 
-> **Execution Division**: OKX OnchainOS provides raw liquidity and routing intelligence. SAVE acts as the brain that decides *which* combinations of trades satisfy the overall portfolio constraints.
+### OKX OnchainOS / Web3 API
+OKX Web3 DEX Aggregator APIs supply real-time pricing, token normalizations, DEX quotes, and pre-formatted raw transactions (approvals and swaps), keeping client keys isolated via server-side HMAC-SHA256 signed requests.
 
----
+### X Layer Testnet
+X Layer Testnet (Chain ID 1952) serves as the verified execution and polling sandbox. It reads native OKB gas parameters and validates user-authorized proofs on-chain.
 
-## X Layer Integration
+### Non-Custodial Execution Checkpoint
+All prepared actions require explicit manual wallet signatures via MetaMask or OKX Wallet. SAVE never holds private keys, seed phrases, or performs background auto-broadcasts.
 
-SAVE is optimized for **X Layer (Chain ID 1952)**:
-* **Native gas**: Reads native OKB balances via X Layer RPC to ensure users hold sufficient gas before launching a rescue plan.
-* **Wallet network verification**: Checks and prompts the user to switch networks if they are connected to an unsupported chain.
-* **Live on-chain execution proof**: Users can trigger a live transaction (a micro-transfer of native OKB) to prove the sign-and-broadcast pipeline, block confirmations, and gas usage under real conditions.
-
-*Note: The live proof transaction is kept strictly separate from the simulated $700 rescue plan to prevent users from executing unverified trades during testing.*
+[View Sponsor Integration Proof](docs/SPONSOR_INTEGRATION_PROOF.md)
 
 ---
 
