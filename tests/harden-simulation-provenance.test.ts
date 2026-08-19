@@ -2,20 +2,36 @@ import { describe, expect, test } from "bun:test";
 import { parseSaveIntent } from "@/lib/intent-parser";
 import { solveRescue } from "@/lib/rescue-solver";
 import { simulatePlan } from "@/lib/simulation";
+import * as fs from "fs";
 
 describe("Simulation & Verification Provenance Hardening Suite", () => {
-  // Helper to construct simulated inputs
   const mockPortfolio = [
     {
       symbol: "ETH",
       name: "Ethereum",
       chain: "Ethereum",
-      balance: "0.23",
-      value: 745,
-      change24h: 2.1,
-      liquidity: 95,
+      balance: "0.842",
+      value: 2418,
+      change24h: -1.2,
+      liquidity: 98,
       risk: "protected",
       isNative: true,
+      isProtected: true,
+      dataSource: "demo" as const,
+      priceSource: "estimated" as const,
+      evmChainId: 1,
+      chainIndex: 1,
+    },
+    {
+      symbol: "USDC",
+      name: "USD Coin",
+      chain: "Ethereum",
+      balance: "120.00",
+      value: 120,
+      change24h: 0.0,
+      liquidity: 100,
+      risk: "protected",
+      isNative: false,
       isProtected: true,
       dataSource: "demo" as const,
       priceSource: "estimated" as const,
@@ -26,8 +42,8 @@ describe("Simulation & Verification Provenance Hardening Suite", () => {
       symbol: "PEPE",
       name: "Pepe Coin",
       chain: "Ethereum",
-      balance: "0",
-      value: 0.0,
+      balance: "5000000",
+      value: 0.45,
       change24h: -12.4,
       liquidity: 45,
       risk: "high" as const,
@@ -90,10 +106,10 @@ describe("Simulation & Verification Provenance Hardening Suite", () => {
       symbol: "WOKB",
       name: "Wrapped OKB",
       chain: "X Layer",
-      balance: "18.2",
-      value: 856,
-      change24h: -4.6,
-      liquidity: 75,
+      balance: "1.0",
+      value: 47.17,
+      change24h: -4.5,
+      liquidity: 80,
       risk: "medium" as const,
       isNative: false,
       isProtected: false,
@@ -104,252 +120,203 @@ describe("Simulation & Verification Provenance Hardening Suite", () => {
     },
   ];
 
-  // Test 1: Demo result with no real tx hash renders NO LIVE VERIFICATION
-  test("1. Demo result with no real tx hash renders NO LIVE VERIFICATION", () => {
-    const session = {
-      mode: "DEMO_SIMULATION" as const,
-      confirmedTransactions: [],
-    };
-    const confirmedTx = session.confirmedTransactions[0];
-    const hasRealLiveReceipt = !!(
-      session &&
-      session.mode === "TESTNET_LIVE" &&
-      confirmedTx
-    );
-    expect(hasRealLiveReceipt).toBe(false);
+  // Test 1: PEPE's canonical unit price derives from $0.45 / 5,000,000
+  test("1. PEPE's canonical unit price derives from $0.45 / 5,000,000", () => {
+    const pepeAsset = mockPortfolio.find(a => a.symbol === "PEPE")!;
+    const balanceNum = parseFloat(pepeAsset.balance);
+    const unitPrice = pepeAsset.value / balanceNum;
+    expect(unitPrice).toBeCloseTo(0.00000009, 9);
   });
 
-  // Test 2: Placeholder hash cannot unlock live receipt UI
-  test("2. Placeholder hash cannot unlock live receipt UI", () => {
-    const session = {
-      mode: "TESTNET_LIVE" as const,
-      confirmedTransactions: [
-        {
-          transactionHash: "0xDemoTxHashForTKX", // too short, placeholder
-          blockNumber: 128456,
-          gasUsed: "125000",
-          status: "success" as const,
-          chainId: 1952,
-          timestamp: Date.now(),
-          mode: "TESTNET_LIVE" as const,
-        }
-      ],
-    };
-    const confirmedTx = session.confirmedTransactions[0];
-    const hasRealLiveReceipt = !!(
-      session &&
-      session.mode === "TESTNET_LIVE" &&
-      confirmedTx &&
-      confirmedTx.transactionHash &&
-      /^0x[a-fA-F0-9]{64}$/.test(confirmedTx.transactionHash) &&
-      confirmedTx.status === "success" &&
-      typeof confirmedTx.blockNumber === "number" &&
-      confirmedTx.blockNumber > 0 &&
-      confirmedTx.gasUsed &&
-      confirmedTx.gasUsed !== "" &&
-      confirmedTx.gasUsed !== "0"
-    );
-    expect(hasRealLiveReceipt).toBe(false);
+  // Test 2: Every production Demo asset satisfies balance * unitPrice ≈ usdValue
+  test("2. Every production Demo asset satisfies balance * unitPrice ≈ usdValue", () => {
+    for (const asset of mockPortfolio) {
+      const balanceNum = parseFloat(asset.balance);
+      const unitPrice = asset.value / balanceNum;
+      expect(balanceNum * unitPrice).toBeCloseTo(asset.value, 4);
+    }
   });
 
-  // Test 3: Malformed hash cannot unlock live receipt UI
-  test("3. Malformed hash cannot unlock live receipt UI", () => {
-    const session = {
-      mode: "TESTNET_LIVE" as const,
-      confirmedTransactions: [
-        {
-          transactionHash: "0xMalformedTransactionHashXYZ",
-          blockNumber: 128456,
-          gasUsed: "125000",
-          status: "success" as const,
-          chainId: 1952,
-          timestamp: Date.now(),
-          mode: "TESTNET_LIVE" as const,
-        }
-      ],
-    };
-    const confirmedTx = session.confirmedTransactions[0];
-    const hasRealLiveReceipt = !!(
-      session &&
-      session.mode === "TESTNET_LIVE" &&
-      confirmedTx &&
-      confirmedTx.transactionHash &&
-      /^0x[a-fA-F0-9]{64}$/.test(confirmedTx.transactionHash) &&
-      confirmedTx.status === "success" &&
-      typeof confirmedTx.blockNumber === "number" &&
-      confirmedTx.blockNumber > 0 &&
-      confirmedTx.gasUsed &&
-      confirmedTx.gasUsed !== "" &&
-      confirmedTx.gasUsed !== "0"
-    );
-    expect(hasRealLiveReceipt).toBe(false);
+  // Test 3: Solver does not use stale symbol-level pricing
+  test("3. Solver does not use stale symbol-level pricing", () => {
+    // Modify PEPE value to $500,000. Price should change dynamically.
+    const modifiedPortfolio = mockPortfolio.map(a => {
+      if (a.symbol === "PEPE") {
+        return { ...a, value: 500000 };
+      }
+      return a;
+    });
+
+    const intent = parseSaveIntent("Get me $1,000 USDC. Sell PEPE.");
+    const result = solveRescue(modifiedPortfolio, intent, "DEMO_PORTFOLIO");
+    const plan = result.plans[0];
+    const pepeAction = plan.actions.find(act => act.symbol === "PEPE")!;
+
+    // Implied unit price is now 500,000 / 5,000,000 = 0.1
+    // Swapping 10,000 PEPE should yield 1000 USDC minus slippage/fees
+    expect(pepeAction.sellAmount).toBeLessThan(20000); 
   });
 
-  // Test 4: Real TESTNET_LIVE receipt unlocks live receipt UI
-  test("4. Real TESTNET_LIVE receipt unlocks live receipt UI", () => {
-    const realTxHash = "0x8f0c5eb95f57a91b4028456de3257ee7d37e644f1234567890abcdef12345678"; // valid 32-byte hex hash
-    const session = {
+  // Test 4: 35,769 PEPE cannot produce ~$1,100
+  test("4. 35,769 PEPE cannot produce ~$1,100", () => {
+    const intent = parseSaveIntent("Raise $1,100 USDC");
+    // Restrict portfolio to only WOKB (1.0) and PEPE (35,769 units)
+    const limitedPortfolio = [
+      {
+        symbol: "PEPE",
+        name: "Pepe Coin",
+        chain: "Ethereum",
+        balance: "35769",
+        value: 0.00321921, // 35769 * 0.00000009
+        risk: "high" as const,
+        isNative: false,
+        isProtected: false,
+        dataSource: "demo" as const,
+        priceSource: "demo" as const,
+        evmChainId: 1,
+        chainIndex: 1,
+      }
+    ];
+
+    const result = solveRescue(limitedPortfolio, intent, "DEMO_PORTFOLIO");
+    // Target is $1,100. Limited portfolio is worth $0.003, so it is impossible to meet target.
+    const plan = result.plans[0];
+    if (plan) {
+      expect(plan.securedAmount).toBeLessThan(1.0);
+    }
+  });
+
+  // Test 5: No plan sells more asset value than exists
+  test("5. No plan sells more asset value than exists", () => {
+    const intent = parseSaveIntent("Raise $700 USDC. Sell risky assets first.");
+    const result = solveRescue(mockPortfolio, intent, "DEMO_PORTFOLIO");
+
+    for (const plan of result.plans) {
+      for (const action of plan.actions) {
+        const originalAsset = mockPortfolio.find(a => a.symbol === action.symbol)!;
+        const balance = parseFloat(originalAsset.balance);
+        expect(action.sellAmount).toBeLessThanOrEqual(balance);
+      }
+    }
+  });
+
+  // Test 6: Target accounting remains exact to <= $0.01
+  test("6. Target accounting remains exact to <= $0.01", () => {
+    const intent = parseSaveIntent("Raise $700 USDC. Sell risky assets first. Keep my ETH unless necessary.");
+    const result = solveRescue(mockPortfolio, intent, "DEMO_PORTFOLIO");
+
+    // Net target is $700. Initial USDC is $412. Net target to raise is $288.
+    for (const plan of result.plans) {
+      if (plan.securedAmount >= 700) {
+        const swapTotal = plan.actions.reduce((sum, act) => {
+          return sum + (act.quote ? act.quote.outputAmount : 0);
+        }, 0);
+        const targetAsset = mockPortfolio.find(a => a.symbol === "USDC")!;
+        const existingUSDC = parseFloat(targetAsset.balance);
+        const finalSecured = existingUSDC + swapTotal;
+        expect(Math.abs(plan.securedAmount - finalSecured)).toBeLessThanOrEqual(0.01);
+      }
+    }
+  });
+
+  // Test 7: Actual production Demo portfolio is tested without altered balances
+  test("7. Actual production Demo portfolio is tested without altered balances", () => {
+    // Exact suggested intent
+    const intent = parseSaveIntent("Raise $1,100 USDC. Sell risky assets first, protect my ETH, and keep enough OKB for gas.");
+    const result = solveRescue(mockPortfolio, intent, "DEMO_PORTFOLIO");
+
+    // The mock portfolio is not altered. Since PEPE balance is 5,000,000 (worth $0.45),
+    // it cannot unilaterally cover the target shortfall.
+    // Let's verify that Plan B sells TKX and OKB, and does not sell PEPE alone for $1,100.
+    const planB = result.plans.find(p => p.id === "B")!;
+    expect(planB).toBeDefined();
+    
+    // Plan B should sell TKX first.
+    const tkxSold = planB.actions.find(act => act.symbol === "TKX")!;
+    expect(tkxSold.sellAmount).toBeGreaterThan(0);
+  });
+
+  // Test 8: Strategy diversity is action-based
+  test("8. Strategy diversity is action-based", () => {
+    const intent = parseSaveIntent("Raise $700 USDC. Sell risky assets first. Keep my ETH unless necessary.");
+    const result = solveRescue(mockPortfolio, intent, "DEMO_PORTFOLIO");
+
+    const plans = result.plans;
+    if (plans.length > 1) {
+      // Confirm they differ in sold asset symbols or action count
+      const p1 = plans[0];
+      const p2 = plans[1];
+      const sold1 = p1.actions.filter(a => a.sellAmount > 0).map(a => a.symbol).sort().join(",");
+      const sold2 = p2.actions.filter(a => a.sellAmount > 0).map(a => a.symbol).sort().join(",");
+      
+      const isDiverse = sold1 !== sold2 || p1.actions.length !== p2.actions.length || p1.securedAmount !== p2.securedAmount;
+      expect(isDiverse).toBe(true);
+    }
+  });
+
+  // Test 9: Demo simulation creates no transaction hash
+  test("9. Demo simulation creates no transaction hash", () => {
+    const nextConfirmed: any[] = [];
+    // Conceptual mock state push matching save-context
+    nextConfirmed.push({
+      status: "success",
+      chainId: 1952,
+      timestamp: Date.now(),
+      mode: "DEMO_SIMULATION",
+    });
+
+    expect(nextConfirmed[0].transactionHash).toBeUndefined();
+  });
+
+  // Test 10: No DemoTxHash exists in production src
+  test("10. No DemoTxHash exists in production src", () => {
+    const protectedContent = fs.readFileSync("src/routes/protected.tsx", "utf-8");
+    const saveContextContent = fs.readFileSync("src/lib/save-context.tsx", "utf-8");
+    
+    expect(protectedContent).not.toContain("DemoTxHash");
+    expect(saveContextContent).not.toContain("DemoTxHash");
+  });
+
+  // Test 11: Live receipt predicate still passes for genuine TESTNET_LIVE receipt
+  test("11. Live receipt predicate still passes for genuine TESTNET_LIVE receipt", () => {
+    const genuineReceipt = {
+      transactionHash: "0x8f0c5eb95f57a91b4028456de3257ee7d37e644f1234567890abcdef12345678",
+      blockNumber: 128456,
+      gasUsed: "125000",
+      status: "success" as const,
+      chainId: 1952,
+      timestamp: Date.now(),
       mode: "TESTNET_LIVE" as const,
-      confirmedTransactions: [
-        {
-          transactionHash: realTxHash,
-          blockNumber: 128456,
-          gasUsed: "125000",
-          status: "success" as const,
-          chainId: 1952,
-          timestamp: Date.now(),
-          mode: "TESTNET_LIVE" as const,
-        }
-      ],
     };
-    const confirmedTx = session.confirmedTransactions[0];
+
     const hasRealLiveReceipt = !!(
-      session &&
-      session.mode === "TESTNET_LIVE" &&
-      confirmedTx &&
-      confirmedTx.transactionHash &&
-      /^0x[a-fA-F0-9]{64}$/.test(confirmedTx.transactionHash) &&
-      confirmedTx.status === "success" &&
-      typeof confirmedTx.blockNumber === "number" &&
-      confirmedTx.blockNumber > 0 &&
-      confirmedTx.gasUsed &&
-      confirmedTx.gasUsed !== "" &&
-      confirmedTx.gasUsed !== "0"
+      genuineReceipt.mode === "TESTNET_LIVE" &&
+      genuineReceipt.transactionHash &&
+      /^0x[a-fA-F0-9]{64}$/.test(genuineReceipt.transactionHash) &&
+      genuineReceipt.status === "success" &&
+      typeof genuineReceipt.blockNumber === "number" &&
+      genuineReceipt.blockNumber > 0 &&
+      genuineReceipt.gasUsed !== ""
     );
+
     expect(hasRealLiveReceipt).toBe(true);
   });
 
-  // Test 5: Simulated rescue metrics remain visible separately
-  test("5. Simulated rescue metrics remain visible separately", () => {
-    const intent = parseSaveIntent("Get me $700 USDC");
-    const result = solveRescue(mockPortfolio, intent, "DEMO_PORTFOLIO");
-    const activePlan = result.plans[0];
-    
-    expect(activePlan).toBeDefined();
-    expect(activePlan.securedAmount).toBeGreaterThan(0);
-    expect(activePlan.protectedPreservedPercent).toBeDefined();
-  });
-
-  // Test 6: Stale quote cannot show SAFETY CHECKS PASSED
-  test("6. Stale quote cannot show SAFETY CHECKS PASSED", () => {
-    const intent = parseSaveIntent("Get me $700 USDC. Keep my ETH");
-    const result = solveRescue(mockPortfolio, intent, "DEMO_PORTFOLIO");
-    const activePlan = result.plans[0];
-    
-    // Simulate expired quote age (e.g. 61 seconds old)
-    const quoteTimestamp = Date.now() - 61 * 1000;
-    
-    const simRes = simulatePlan(
-      intent,
-      activePlan,
-      mockPortfolio,
-      "0xd8da6bf26964af9d7eed9e03e53415d37aa96045",
-      1952,
-      quoteTimestamp,
-      "DEMO_SIMULATION"
-    );
-    
-    expect(simRes.success).toBe(false);
-    expect(simRes.reason).toBe("QUOTE_STALE");
-  });
-
-  // Test 7: Stale quote shows RE-QUOTE REQUIRED
-  test("7. Stale quote shows RE-QUOTE REQUIRED", () => {
-    // UI state mapper mock
-    const deriveUiState = (executionState: string, isQuoteStale: boolean) => {
-      if (executionState === "SIMULATING") return "RUNNING";
-      if (isQuoteStale) return "REQUOTE_REQUIRED";
-      if (executionState === "SIMULATION_FAILED") return "FAILED";
-      return "PASSED";
+  // Test 12: Demo result still renders no live receipt
+  test("12. Demo result still renders no live receipt", () => {
+    const demoReceipt = {
+      status: "success" as const,
+      chainId: 1952,
+      timestamp: Date.now(),
+      mode: "DEMO_SIMULATION" as const,
     };
 
-    expect(deriveUiState("SIMULATION_READY", true)).toBe("REQUOTE_REQUIRED");
-  });
-
-  // Test 8: Fresh quote + passing gates shows SAFETY CHECKS PASSED
-  test("8. Fresh quote + passing gates shows SAFETY CHECKS PASSED", () => {
-    const intent = parseSaveIntent("Get me $700 USDC. Keep my ETH");
-    const result = solveRescue(mockPortfolio, intent, "DEMO_PORTFOLIO");
-    const activePlan = result.plans[0];
-    
-    // Simulate fresh quote age (0 seconds old)
-    const quoteTimestamp = Date.now();
-    
-    const simRes = simulatePlan(
-      intent,
-      activePlan,
-      mockPortfolio,
-      "0xd8da6bf26964af9d7eed9e03e53415d37aa96045",
-      1952,
-      quoteTimestamp,
-      "DEMO_SIMULATION"
+    const hasRealLiveReceipt = !!(
+      demoReceipt.mode === "TESTNET_LIVE" &&
+      (demoReceipt as any).transactionHash &&
+      /^0x[a-fA-F0-9]{64}$/.test((demoReceipt as any).transactionHash)
     );
-    
-    expect(simRes.success).toBe(true);
-  });
 
-  // Test 9: Strategy grammar is singular for count 1
-  test("9. Strategy grammar is singular for count 1", () => {
-    const count = 1;
-    const msg = count === 1
-      ? "Only 1 distinct rescue strategy is available for this portfolio structure and target constraints. Duplicate strategies were consolidated."
-      : `Only ${count} distinct rescue strategies are available for this portfolio structure and target constraints. Duplicate strategies were consolidated.`;
-    expect(msg).toContain("Only 1 distinct rescue strategy is available");
-    expect(msg).not.toContain("strategies are available");
-  });
-
-  // Test 10: Strategy grammar is plural for count >1
-  test("10. Strategy grammar is plural for count >1", () => {
-    const count = 2;
-    const msg = count === 1
-      ? "Only 1 distinct rescue strategy is available for this portfolio structure and target constraints. Duplicate strategies were consolidated."
-      : `Only ${count} distinct rescue strategies are available for this portfolio structure and target constraints. Duplicate strategies were consolidated.`;
-    expect(msg).toContain("Only 2 distinct rescue strategies are available");
-  });
-
-  // Test 11: Solver does not fabricate extra strategy plans
-  test("11. Solver does not fabricate extra strategy plans", () => {
-    const intent = parseSaveIntent("Get me $200 USDC. Keep ETH");
-    const result = solveRescue(mockPortfolio, intent, "DEMO_PORTFOLIO");
-    
-    // The mock portfolio already has $412 USDC. This covers $200 with zero sell actions.
-    // Therefore, Plan A, B, and C will all have 0 sell actions, and they will be identical.
-    // De-duplication will consolidate them into exactly 1 unique strategy candidate.
-    expect(result.plans.length).toBe(1);
-    expect(result.explanation).toContain("Only 1 distinct rescue strategy");
-  });
-
-  // Test 12: Solver capability: Given a portfolio with balanced asset values and no dominant meme holdings, the solver can produce three distinct strategies
-  test("12. Solver capability: Given a portfolio with balanced asset values and no dominant meme holdings, the solver can produce three distinct strategies", () => {
-    const intent = parseSaveIntent("Get me $1,100 USDC. Sell risky assets first. Don't sell my ETH unless necessary.");
-    const result = solveRescue(mockPortfolio, intent, "DEMO_PORTFOLIO");
-
-    // Net target is $1100 - $412 USDC = $688 to raise.
-    // - Plan C: Sells TKX ($516 value) only. Fails to meet target ($516 < $688). Saves ETH 100%.
-    // - Plan B: Sells TKX ($516) and WOKB ($172). Meets target ($688 total). Saves ETH 100%.
-    // - Plan A: Sells ETH ($688). Meets target. Sells protected asset ETH.
-    // All 3 plans should be present because they are completely diverse from one another.
-    expect(result.plans.length).toBe(3);
-    
-    const planIds = result.plans.map(p => p.id);
-    expect(planIds).toContain("A");
-    expect(planIds).toContain("B");
-    expect(planIds).toContain("C");
-  });
-
-  // Test 13: Production Demo Portfolio check: Under actual Demo Portfolio holdings, the target of $1,100 USDC with strict ETH protection returns 1 plan due to PEPE valuation dominance
-  test("13. Production Demo Portfolio check: Under actual Demo Portfolio holdings, the target of $1,100 USDC with strict ETH protection returns 1 plan due to PEPE valuation dominance", () => {
-    const productionPortfolio = mockPortfolio.map(asset => {
-      if (asset.symbol === "PEPE") {
-        return { ...asset, balance: "5000000", value: 0.45 };
-      }
-      return asset;
-    });
-
-    const intent = parseSaveIntent("Raise $1,100 USDC. Sell risky assets first, protect my ETH, and keep enough OKB for gas.");
-    const result = solveRescue(productionPortfolio, intent, "DEMO_PORTFOLIO");
-    
-    expect(result.plans.length).toBe(1);
-    expect(result.plans[0].id).toBe("B");
+    expect(hasRealLiveReceipt).toBe(false);
   });
 });

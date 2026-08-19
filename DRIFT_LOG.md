@@ -291,6 +291,24 @@ This is an append-only log documenting architectural decisions, security resolut
 - **Files Affected**: `src/lib/rescue-solver.ts`, `src/routes/intent.tsx`, `tests/harden-simulation-provenance.test.ts`
 - **Status**: **RESOLVED**
 
+### DRIFT-033: Demo Portfolio Valuation Diverged From Solver Pricing
+- **Date**: 2026-08-19
+- **Discovery**: Portfolio assets carried aggregate USD values while the rescue solver independently used a symbol-level unit-price map. For example, PEPE with balance 5,000,000 and value $0.45 was valued at $140,000 inside the solver due to a hardcoded $0.028 unit price.
+- **Impact**: Caused false target feasibility, incorrect simulated outputs, collapsed strategy diversity, and distorted plan scores.
+- **Root Cause**: Stale hardcoded unit price maps inside the solver that did not match scanned asset valuations.
+- **Resolution**: Redefined the solver pricing module to derive canonical unit prices dynamically from each scanned asset's balance and usdValue: `canonicalUnitPrice = asset.usdValue / asset.balance`.
+- **Files Affected**: `src/lib/rescue-solver.ts`, `tests/harden-simulation-provenance.test.ts`
+- **Status**: **RESOLVED**
+
+### DRIFT-034: Demo Simulation Stored Fabricated Transaction Hash
+- **Date**: 2026-08-19
+- **Discovery**: Demo execution steps populated a placeholder transactionHash string despite no transaction being broadcast.
+- **Impact**: Stored fake transaction metadata in client state.
+- **Root Cause**: Hardcoded string assignment during the mock transaction confirmation step.
+- **Resolution**: Removed all fake transaction hash, block number, and gas values from demo simulation confirmations, making them optional in the TS definition.
+- **Files Affected**: `src/lib/execution.ts`, `src/lib/save-context.tsx`, `tests/harden-simulation-provenance.test.ts`
+- **Status**: **RESOLVED**
+
 ---
 
 ## 📝 Drift Entry Template

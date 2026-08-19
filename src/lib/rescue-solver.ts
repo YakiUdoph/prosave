@@ -255,7 +255,13 @@ export function solveRescue(
   }
 
   const nativeGasSymbol = "OKB";
-  const nativeGasPrice = 47.17;
+  const okbAssetForGas = portfolio.find((a) => a.symbol === nativeGasSymbol && a.chainIndex === 196)
+    || portfolio.find((a) => a.symbol === nativeGasSymbol);
+  const okbBalanceForGas = okbAssetForGas ? parseFloat(okbAssetForGas.balance) : 0;
+  const nativeGasPrice = (okbAssetForGas && okbBalanceForGas > 0)
+    ? (okbAssetForGas.value / okbBalanceForGas)
+    : 47.17;
+
   const targetSymbol = intent.targetAsset || "USDC";
   const targetAsset = portfolio.find((a) => a.symbol === targetSymbol);
   const existingUSDC = targetAsset ? parseFloat(targetAsset.balance) : 0;
@@ -265,10 +271,20 @@ export function solveRescue(
   const initialHighRiskVal = portfolio.filter((a) => a.risk === "high").reduce((sum, a) => sum + a.value, 0);
   const initialProtectedVal = portfolio.filter((a) => intent.protectedAssets.includes(a.symbol)).reduce((sum, a) => sum + a.value, 0);
 
-  const getMockQuote = (symbol: string, inputAmount: number): RouteQuote => {
-    const isEth = symbol === "ETH";
-    const isOkb = symbol === "OKB";
-    const price = isEth ? 2871.73 : isOkb ? 47.17 : 0.028;
+  const getMockQuote = (asset: ScannedAsset, inputAmount: number): RouteQuote => {
+    const balanceNum = parseFloat(asset.balance);
+    let price = 0;
+    if (balanceNum > 0 && typeof asset.value === "number" && isFinite(asset.value)) {
+      price = asset.value / balanceNum;
+    } else {
+      const isEth = asset.symbol === "ETH";
+      const isOkb = asset.symbol === "OKB";
+      price = isEth ? 2871.73 : isOkb ? 47.17 : 0.028;
+    }
+    price = Math.max(0, price);
+
+    const isEth = asset.symbol === "ETH";
+    const isOkb = asset.symbol === "OKB";
     const slippagePercent = isEth ? 0.10 : isOkb ? 0.15 : 1.20;
     const priceImpactPercent = isEth ? 0.05 : isOkb ? 0.08 : 0.95;
 
@@ -276,7 +292,7 @@ export function solveRescue(
     const outputAmount = inputAmount * price * netOutputRatio;
 
     return {
-      fromSymbol: symbol,
+      fromSymbol: asset.symbol,
       toSymbol: targetSymbol,
       inputAmount,
       outputAmount,
@@ -310,7 +326,7 @@ export function solveRescue(
       if (tempRemaining <= 0.005) break;
       const balance = parseFloat(asset.balance);
       if (balance <= 0) continue;
-      const quote = getMockQuote(asset.symbol, balance);
+      const quote = getMockQuote(asset, balance);
       estimatedGasUsd += quote.gasCostUsd;
       if (asset.symbol !== nativeGasSymbol) {
         estimatedApprovalCount++;
@@ -323,7 +339,7 @@ export function solveRescue(
         if (tempRemaining <= 0.005) break;
         const balance = parseFloat(asset.balance);
         if (balance <= 0) continue;
-        const quote = getMockQuote(asset.symbol, balance);
+        const quote = getMockQuote(asset, balance);
         estimatedGasUsd += quote.gasCostUsd;
         if (asset.symbol !== nativeGasSymbol) {
           estimatedApprovalCount++;
@@ -369,7 +385,7 @@ export function solveRescue(
 
       if (balance <= 0) continue;
 
-      const quote = getMockQuote(asset.symbol, balance);
+      const quote = getMockQuote(asset, balance);
       const maxOutput = quote.outputAmount;
 
       if (maxOutput <= remaining) {
@@ -387,7 +403,7 @@ export function solveRescue(
       } else {
         const fraction = remaining / maxOutput;
         const sellAmount = balance * fraction;
-        const partialQuote = getMockQuote(asset.symbol, sellAmount);
+        const partialQuote = getMockQuote(asset, sellAmount);
 
         actions.push({
           symbol: asset.symbol,
@@ -412,7 +428,7 @@ export function solveRescue(
 
         if (assetUsdValue <= 0 || balance <= 0) continue;
 
-        const quote = getMockQuote(asset.symbol, balance);
+        const quote = getMockQuote(asset, balance);
         const maxOutput = quote.outputAmount;
 
         if (maxOutput <= remaining) {
@@ -430,7 +446,7 @@ export function solveRescue(
         } else {
           const fraction = remaining / maxOutput;
           const sellAmount = balance * fraction;
-          const partialQuote = getMockQuote(asset.symbol, sellAmount);
+          const partialQuote = getMockQuote(asset, sellAmount);
 
           actions.push({
             symbol: asset.symbol,

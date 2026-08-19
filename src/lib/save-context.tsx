@@ -587,9 +587,6 @@ export function SaveProvider({ children }: { children: ReactNode }) {
         const nextConfirmed = [...prev.confirmedTransactions];
         if (currentStep.type === "swap") {
           nextConfirmed.push({
-            transactionHash: "0xDemoTxHashFor" + currentStep.symbol,
-            blockNumber: 128456,
-            gasUsed: "125000",
             status: "success",
             chainId: 1952,
             timestamp: Date.now(),

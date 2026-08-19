@@ -34,9 +34,9 @@ export type ExecutionState =
   | "FAILED_SAFE";
 
 export type ConfirmedTransaction = {
-  transactionHash: string;
-  blockNumber: number;
-  gasUsed: string;
+  transactionHash?: string;
+  blockNumber?: number;
+  gasUsed?: string;
   status: "success" | "reverted";
   chainId: number;
   timestamp: number;
