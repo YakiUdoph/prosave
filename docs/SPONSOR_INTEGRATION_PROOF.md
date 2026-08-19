@@ -51,21 +51,24 @@ SAVE enforces active constraints verification on **X Layer Testnet (Chain ID 195
 ---
 
 ## Execution Reality
-
+ 
 To guarantee audit integrity, SAVE separates execution statuses clearly:
-
+ 
 1. **`LIVE_WALLET` (Data Mode)**: Displays real balances, contracts, and prices from the connected address.
-2. **`DEMO_PORTFOLIO` (Data Mode)**: A synthetic portfolio representing multiple risky holdings (e.g. PEPE, TKX) used to demonstrate complex solver decisions.
-3. **`TESTNET_LIVE` (Execution Mode)**: Prompts a real transaction on X Layer Testnet (native OKB self-transfer) verifying wallet signing and block receipt confirmation.
-4. **`DEMO_SIMULATION` (Execution Mode)**: Runs the solver against the selected plan to verify outputs locally. **Demo execution locks block MetaMask/OKX prompts, preventing mock transactions from being sent to real chains.**
-
+2. **`WATCH_ONLY` (Data Mode)**: Analyzes a pasted public EVM address in read-only mode, avoiding any key exposure or wallet connection request.
+3. **`DEMO_PORTFOLIO` (Data Mode)**: A synthetic portfolio representing multiple risky holdings (e.g. PEPE, TKX) used to demonstrate complex solver decisions.
+4. **`TESTNET_LIVE` (Execution Mode)**: Prompts a real transaction on X Layer Testnet (native OKB self-transfer) verifying wallet signing and block receipt confirmation.
+5. **`DEMO_SIMULATION` (Execution Mode)**: Runs the solver against the selected plan to verify outputs locally. **Demo execution locks block MetaMask/OKX prompts, preventing mock transactions from being sent to real chains.**
+ 
 ---
-
+ 
 ## Security Model
-
+ 
 * **Non-Custodial**: SAVE never generates, stores, or accesses private keys. All transactions are composed on the server and signed manually by the user's connected wallet.
 * **Server-Side HMAC-SHA256 Signing**: OKX API credentials (`OKX_API_KEY`, `OKX_SECRET_KEY`) are stored in Vercel environment variables. Outgoing HTTP requests are signed with timestamped HMAC headers, isolating credentials from the client-side bundle.
 * **Account Revalidation**: Re-verifies connected addresses immediately before requesting signatures to prevent address mismatch exploits.
+* **Watch-Only Execution Lock**: In `WATCH_ONLY` mode, execution is locked behind a "WALLET AUTHORIZATION REQUIRED" CTA.
+* **Mismatched Address Guard**: If a connected wallet's address does not match the watched address under active analysis, signature requests are blocked with a warning.
 
 ---
 

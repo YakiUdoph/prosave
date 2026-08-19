@@ -38,11 +38,29 @@ function Connect() {
     walletDetected,
     detectedWallets,
     isOkxWalletInstalled,
+    scanWatchOnlyAddress,
   } = useSave();
 
   const [active, setActive] = useState<string | null>(null);
   const [status, setStatus] = useState<"idle" | "connecting" | "connected" | "rejected">("idle");
   const [showDiscovered, setShowDiscovered] = useState(false);
+  const [addressInput, setAddressInput] = useState("");
+
+  const handleScanAddress = () => {
+    const trimmed = addressInput.trim();
+    if (!trimmed) {
+      toast.error("Please enter a wallet address.");
+      return;
+    }
+    const evmRegex = /^0x[a-fA-F0-9]{40}$/;
+    if (!evmRegex.test(trimmed)) {
+      toast.error("Invalid EVM address. Please check the address format.");
+      return;
+    }
+    scanWatchOnlyAddress(trimmed.toLowerCase());
+    toast.success("Watch-Only Address loaded successfully!");
+    navigate({ to: "/scan" });
+  };
 
   const hasWCProjectId = !!import.meta.env.VITE_WALLETCONNECT_PROJECT_ID;
 
@@ -178,6 +196,31 @@ function Connect() {
                 </div>
               ))}
             </div>
+          </Panel>
+
+          <Panel className="mt-6 p-6">
+            <Eyebrow>Prefer not to connect?</Eyebrow>
+            <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
+              Paste a public wallet address to analyze its holdings in read-only mode. No signature or wallet permission required.
+            </p>
+            <div className="mt-4 flex gap-2">
+              <input
+                type="text"
+                placeholder="0x..."
+                value={addressInput}
+                onChange={(e) => setAddressInput(e.target.value)}
+                className="flex-1 bg-secondary/35 border border-border/80 focus:border-primary/50 text-xs px-3 py-2 rounded-lg label-mono focus:outline-none"
+              />
+              <button
+                onClick={handleScanAddress}
+                className="bg-primary/10 border border-primary/30 text-primary text-xs px-4 py-2 rounded-lg font-semibold hover:bg-primary/20 transition cursor-pointer"
+              >
+                Scan address
+              </button>
+            </div>
+            <p className="text-[10px] text-muted-foreground/60 mt-3 label-mono">
+              * Public-address scans are read-only. Connecting a wallet is not required for portfolio analysis.
+            </p>
           </Panel>
         </div>
 

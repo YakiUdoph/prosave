@@ -9,14 +9,18 @@ export function AIIntentBox({
   onChange,
   onSubmit,
   className,
+  suggestions,
 }: {
   value: string;
   onChange: (v: string) => void;
   onSubmit: () => void;
   className?: string;
+  suggestions?: string[];
 }) {
   const [focused, setFocused] = useState(false);
   const ref = useRef<HTMLTextAreaElement>(null);
+
+  const activeSuggestions = suggestions || INTENT_SUGGESTIONS;
 
   return (
     <div className={cn("space-y-5", className)}>
@@ -51,7 +55,7 @@ export function AIIntentBox({
       </div>
 
       <div className="flex flex-wrap gap-2">
-        {INTENT_SUGGESTIONS.map((s) => (
+        {activeSuggestions.map((s) => (
           <button
             key={s}
             type="button"

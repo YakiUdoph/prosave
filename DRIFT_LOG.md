@@ -255,6 +255,15 @@ This is an append-only log documenting architectural decisions, security resolut
 - **Files Affected**: `src/routes/protected.tsx`, `src/routes/simulate.tsx`, `tests/sponsor-integration.test.ts`, `docs/SPONSOR_INTEGRATION_PROOF.md`, `DRIFT_LOG.md`
 - **Status**: **RESOLVED**
 
+### DRIFT-029: Read-Only Public EVM Scan, Dynamic Suggestions, and Execution Guardrails
+- **Date**: 2026-08-19
+- **Discovery**: Wallet connection felt mandatory before any analysis could be performed, and empty wallets had no pathway to explore dynamic AI intent queries or simulate recoveries without manual switches.
+- **Impact**: Increased wallet-connection friction for first-time visitors and judges.
+- **Root Cause**: The connect screen did not support public address pasting, and the simulation screen had no mismatch address protection.
+- **Resolution**: Implemented Option 2 (EVM Address paste input) on `/connect` supporting public watch-only scans. Introduced `"WATCH_ONLY"` portfolio state structures to isolate live, watch-only, and demo holdings. Enabled public scan telemetry and a non-blocking `LIMITED PORTFOLIO DETECTED` panel on `/scan`. Made the AI intent console portfolio-aware with dynamic suggestions (demo, sparse, and live) and immediate `TARGET FEASIBLE` banners. Injected the `WALLET AUTHORIZATION REQUIRED` CTA and connected address mismatch protection to block unauthorized signature requests in `WATCH_ONLY` mode. Wrote a 10-test regression suite to verify all read-only scans and safety gates.
+- **Files Affected**: `src/lib/save-context.tsx`, `src/routes/connect.tsx`, `src/routes/scan.tsx`, `src/components/save/nav.tsx`, `src/routes/intent.tsx`, `src/components/save/intent-box.tsx`, `src/routes/simulate.tsx`, `tests/read-only-intent.test.ts`, `docs/SPONSOR_INTEGRATION_PROOF.md`, `docs/JUDGE_DEMO_SCRIPT.md`, `DRIFT_LOG.md`
+- **Status**: **RESOLVED**
+
 ---
 
 ## 📝 Drift Entry Template

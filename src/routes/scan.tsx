@@ -27,7 +27,7 @@ export const Route = createFileRoute("/scan")({
 });
 
 function Scan() {
-  const { portfolio, rpcStatus, totalPortfolioValue, portfolioMode, setPortfolioMode } = useSave();
+  const { portfolio, rpcStatus, totalPortfolioValue, portfolioMode, setPortfolioMode, scannedAddress } = useSave();
   const [step, setStep] = useState(0);
 
   useEffect(() => {
@@ -38,17 +38,26 @@ function Scan() {
 
   const complete = step >= SCAN_STEPS.length;
   const progress = Math.round((step / SCAN_STEPS.length) * 100);
+  const isSparse = portfolio.length < 2 || totalPortfolioValue < 15;
 
   return (
     <PageShell
       eyebrow="Step 02 · Analysis"
       title={complete ? "Portfolio analyzed" : "Analyzing your portfolio…"}
-      intro="Every position is checked for depth, slippage and viable exit paths before a single action is proposed."
+      intro={
+        portfolioMode === "WATCH_ONLY" && scannedAddress
+          ? `Public address analysis for ${scannedAddress.slice(0, 6)}...${scannedAddress.slice(-4)} · No wallet connected · No signing permissions granted`
+          : "Every position is checked for depth, slippage and viable exit paths before a single action is proposed."
+      }
       aside={
         <div className="flex gap-2">
           {portfolioMode === "LIVE_WALLET" ? (
             <StatusPill tone="safe">
               LIVE WALLET DATA
+            </StatusPill>
+          ) : portfolioMode === "WATCH_ONLY" ? (
+            <StatusPill tone="primary">
+              WATCH-ONLY PORTFOLIO
             </StatusPill>
           ) : (
             <StatusPill tone="warn">
@@ -143,26 +152,29 @@ function Scan() {
               <div key={`${asset.symbol}-${asset.chain}`} className="glass h-[236px] animate-pulse opacity-40" />
             ),
           )}
-          {complete && portfolioMode === "LIVE_WALLET" && portfolio.length <= 1 && (
-            <Panel className="col-span-full border-dashed border-border/60 bg-muted/20 p-6 flex flex-col items-center text-center justify-center min-h-[236px]">
-              <div className="size-12 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center mb-3">
-                <Radar className="size-6 text-primary animate-pulse" />
+          {complete && portfolioMode !== "DEMO_PORTFOLIO" && isSparse && (
+            <Panel className="col-span-full border border-dashed border-warn/40 bg-warn/5 p-6 flex flex-col items-center text-center justify-center min-h-[236px]">
+              <div className="size-12 rounded-full bg-warn/10 border border-warn/20 flex items-center justify-center mb-3">
+                <Radar className="size-6 text-warn animate-pulse" />
               </div>
-              <h3 className="text-base font-semibold text-foreground">Wallet connected successfully</h3>
-              <p className="text-sm text-muted-foreground mt-1 max-w-md leading-relaxed">
-                {portfolio[0] ? `${portfolio[0].balance} ${portfolio[0].symbol} detected on ${portfolio[0].chain}.` : "No assets detected on X Layer Testnet."} No additional portfolio assets were discovered.
+              <h3 className="text-base font-semibold text-foreground uppercase tracking-wider text-xs label-mono">Limited Portfolio Detected</h3>
+              <p className="text-sm text-muted-foreground mt-2 max-w-md leading-relaxed">
+                This address contains too few actionable assets to demonstrate SAVE's full rescue engine.
+              </p>
+              <p className="text-xxs text-muted-foreground/60 mt-1 max-w-sm">
+                Demo Portfolio uses clearly labeled sample assets and never changes or mixes with your live portfolio.
               </p>
               <div className="flex flex-wrap gap-3 mt-5">
                 <Link to="/command">
-                  <button className="px-4 py-2 text-xs font-semibold rounded-md border border-border bg-foreground text-background hover:bg-muted transition">
-                    Continue with Live Wallet
+                  <button className="px-4 py-2 text-xs font-semibold rounded-md border border-border bg-foreground text-background hover:bg-muted transition cursor-pointer">
+                    Continue with this portfolio
                   </button>
                 </Link>
                 <button
                   onClick={() => setPortfolioMode("DEMO_PORTFOLIO")}
-                  className="px-4 py-2 text-xs font-semibold rounded-md border border-primary/30 bg-primary/10 text-primary hover:bg-primary/20 transition"
+                  className="px-4 py-2 text-xs font-semibold rounded-md border border-primary/30 bg-primary/10 text-primary hover:bg-primary/20 transition cursor-pointer"
                 >
-                  Explore SAVE Demo Portfolio
+                  Explore with Demo Portfolio
                 </button>
               </div>
             </Panel>

@@ -33,14 +33,14 @@ This document serves as the official, step-by-step presentation script for hacka
 
 ---
 
-### Segment 3: Connect & Live Wallet Honesty
+### Segment 3: Public Address Scan & Watch-Only Security
 * **Timestamp**: `0:30 – 0:50`
 * **Screen**: **Connect Wallet** (`/connect` -> `/scan`)
-* **Action / Click**: Click **[OKX Wallet]** (or browser wallet). Approve connection. Watch scan screen load.
-* **What User Sees**: Scanning animation resolving to the live wallet assets screen. Since our testnet wallet contains only native gas, it honestly shows `OKB` on X Layer Testnet with `0` other mock holdings.
+* **Action / Click**: Instead of connecting, paste a public EVM address in the "Prefer not to connect?" input panel and click **[Scan address]**. Watch scan screen load.
+* **What User Sees**: Scanning animation resolving to the watch-only wallet assets screen. A header banner explicitly says "WATCH-ONLY PORTFOLIO" showing public address scan with no signing permission granted.
 * **Narration**: 
-  > *"SAVE maintains absolute data honesty. My connected testnet wallet is intentionally sparse, and SAVE displays exactly what is on-chain: 0.12 native OKB gas and no fabricated balances. But to demonstrate how the rescue solver handles complex, volatile portfolios, I will toggle SAVE into Demo Portfolio mode."*
-* **Judge Takeaway**: SAVE is non-custodial, integrates EIP-6963 provider announcements (preferring OKX Wallet), and separates live chain reads from sample data.
+  > *"SAVE values user autonomy and security. A user can analyze a public wallet address in read-only mode without connecting a wallet, signing messages, or sharing keys. If a scanned wallet is sparse, SAVE detects this and warns us. But to demonstrate how the rescue solver handles complex portfolios, we can cycle directly to the Demo Portfolio."*
+* **Judge Takeaway**: Wallet connection is only required when signing on-chain validation transactions, while public scans remain fully sandboxed and read-only.
 
 ---
 
@@ -72,8 +72,8 @@ This document serves as the official, step-by-step presentation script for hacka
 * **Action / Click**: Click **[Simulate plan B]**. Let the timeline checks complete. Scroll to show the **Infrastructure Telemetry** panel.
 * **What User Sees**: Safety check timeline executing: wallet chain validation, quote age freshness check, and allowance verification. Spender addresses marked as `VERIFIED_OKX` via server-side signatures.
 * **Narration**: 
-  > *"Before signing, SAVE runs the plan through local safety gates. We check gas reserve sufficiency, quote freshness, and allowance spenders. Beneath SAVE's reasoning layer, the OKX OnchainOS Web3 API supplies real-time routing, quotes, and transaction parameters, keeping API secrets secure on our server via HMAC-SHA256 headers."*
-* **Judge Takeaway**: SAVE utilizes OKX OnchainOS infrastructure for routing intelligence while wrapping it in localized safety guardrails.
+  > *"Before signing, SAVE runs the plan through local safety gates. We check gas reserve sufficiency, quote freshness, and allowance spenders. In watch-only mode, execution is locked. If we connect a wallet, SAVE verifies that the connected address matches our scanned portfolio; if they differ, it blocks execution with a mismatch warning."*
+* **Judge Takeaway**: SAVE utilizes OKX OnchainOS infrastructure for routing intelligence while wrapping it in localized safety guardrails and multi-mode signature gates.
 
 ---
 

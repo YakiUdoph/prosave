@@ -13,7 +13,7 @@ import {
   recalculateRemainingTarget,
 } from "./execution";
 
-export type PortfolioMode = "LIVE_WALLET" | "DEMO_PORTFOLIO";
+export type PortfolioMode = "LIVE_WALLET" | "WATCH_ONLY" | "DEMO_PORTFOLIO";
 
 export interface EIP6963ProviderDetail {
   info: {
@@ -37,6 +37,8 @@ type SaveState = {
   selectedPlan: "A" | "B" | "C";
   setSelectedPlan: (v: "A" | "B" | "C") => void;
   walletAddress: string | null;
+  scannedAddress: string | null;
+  scanWatchOnlyAddress: (address: string) => void;
   chainId: number | null;
   walletDetected: boolean;
   connectWallet: (customProvider?: any) => Promise<void>;
@@ -94,23 +96,33 @@ export function SaveProvider({ children }: { children: ReactNode }) {
 
   // Portfolio states
   const [portfolioMode, setPortfolioModeState] = useState<PortfolioMode>("DEMO_PORTFOLIO");
+  const [scannedAddress, setScannedAddress] = useState<string | null>(null);
   const [livePortfolio, setLivePortfolio] = useState<ScannedAsset[]>([]);
+  const [watchOnlyPortfolio, setWatchOnlyPortfolio] = useState<ScannedAsset[]>([]);
   const [demoPortfolio, setDemoPortfolio] = useState<ScannedAsset[]>([]);
   const [liveTotalValue, setLiveTotalValue] = useState<number>(0);
+  const [watchOnlyTotalValue, setWatchOnlyTotalValue] = useState<number>(0);
   const [demoTotalValue, setDemoTotalValue] = useState<number>(0);
   const [liveRpcStatus, setLiveRpcStatus] = useState<"online" | "offline">("offline");
+  const [watchOnlyRpcStatus, setWatchOnlyRpcStatus] = useState<"online" | "offline">("offline");
 
   const portfolio = useMemo(() => {
-    return portfolioMode === "LIVE_WALLET" ? livePortfolio : demoPortfolio;
-  }, [portfolioMode, livePortfolio, demoPortfolio]);
+    if (portfolioMode === "LIVE_WALLET") return livePortfolio;
+    if (portfolioMode === "WATCH_ONLY") return watchOnlyPortfolio;
+    return demoPortfolio;
+  }, [portfolioMode, livePortfolio, watchOnlyPortfolio, demoPortfolio]);
 
   const totalPortfolioValue = useMemo(() => {
-    return portfolioMode === "LIVE_WALLET" ? liveTotalValue : demoTotalValue;
-  }, [portfolioMode, liveTotalValue, demoTotalValue]);
+    if (portfolioMode === "LIVE_WALLET") return liveTotalValue;
+    if (portfolioMode === "WATCH_ONLY") return watchOnlyTotalValue;
+    return demoTotalValue;
+  }, [portfolioMode, liveTotalValue, watchOnlyTotalValue, demoTotalValue]);
 
   const rpcStatus = useMemo(() => {
-    return portfolioMode === "LIVE_WALLET" ? liveRpcStatus : "online";
-  }, [portfolioMode, liveRpcStatus]);
+    if (portfolioMode === "LIVE_WALLET") return liveRpcStatus;
+    if (portfolioMode === "WATCH_ONLY") return watchOnlyRpcStatus;
+    return "online";
+  }, [portfolioMode, liveRpcStatus, watchOnlyRpcStatus]);
 
   // Step 7 Simulation States
   const [executionState, setExecutionState] = useState<ExecutionState>("IDLE");
@@ -140,6 +152,11 @@ export function SaveProvider({ children }: { children: ReactNode }) {
     setPortfolioModeState(mode);
   }, []);
 
+  const scanWatchOnlyAddress = useCallback((address: string) => {
+    setScannedAddress(address);
+    setPortfolioModeState("WATCH_ONLY");
+  }, []);
+
   const setIntent = useCallback((v: string) => {
     setIntentState(v);
     setParsedIntent(parseSaveIntent(v));
@@ -160,6 +177,7 @@ export function SaveProvider({ children }: { children: ReactNode }) {
 
   const disconnectWallet = useCallback(() => {
     setWalletAddress(null);
+    setScannedAddress(null);
     setChainId(null);
     setConnected(false);
     setExecutionState("IDLE");
@@ -170,16 +188,27 @@ export function SaveProvider({ children }: { children: ReactNode }) {
   const scanWalletPortfolio = useCallback(async () => {
     setIsScanning(true);
     try {
-      const result = await scanPortfolio(walletAddress);
-      setLivePortfolio(result.assets);
-      setLiveRpcStatus(result.rpcStatus);
-      setLiveTotalValue(result.totalValue);
+      const addressToScan = portfolioMode === "WATCH_ONLY" ? scannedAddress : walletAddress;
+      if (!addressToScan) {
+        setIsScanning(false);
+        return;
+      }
+      const result = await scanPortfolio(addressToScan);
+      if (portfolioMode === "WATCH_ONLY") {
+        setWatchOnlyPortfolio(result.assets);
+        setWatchOnlyRpcStatus(result.rpcStatus);
+        setWatchOnlyTotalValue(result.totalValue);
+      } else {
+        setLivePortfolio(result.assets);
+        setLiveRpcStatus(result.rpcStatus);
+        setLiveTotalValue(result.totalValue);
+      }
     } catch (err: any) {
       console.error("X Layer portfolio scan failed:", err);
     } finally {
       setIsScanning(false);
     }
-  }, [walletAddress]);
+  }, [walletAddress, scannedAddress, portfolioMode]);
 
   // Handle EIP-6963 provider announcements and check OKX wallet installation
   useEffect(() => {
@@ -219,10 +248,14 @@ export function SaveProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  // Automatically scan portfolio when wallet address changes
+  // Automatically scan portfolio when wallet address or scanned address changes
   useEffect(() => {
-    scanWalletPortfolio();
-  }, [walletAddress, scanWalletPortfolio]);
+    if (portfolioMode === "LIVE_WALLET" && walletAddress) {
+      scanWalletPortfolio();
+    } else if (portfolioMode === "WATCH_ONLY" && scannedAddress) {
+      scanWalletPortfolio();
+    }
+  }, [walletAddress, scannedAddress, portfolioMode, scanWalletPortfolio]);
 
   const connectWallet = useCallback(async (customProvider?: any) => {
     setError(null);
@@ -827,6 +860,8 @@ export function SaveProvider({ children }: { children: ReactNode }) {
       selectedPlan,
       setSelectedPlan,
       walletAddress,
+      scannedAddress,
+      scanWatchOnlyAddress,
       chainId,
       walletDetected,
       connectWallet,
@@ -873,6 +908,8 @@ export function SaveProvider({ children }: { children: ReactNode }) {
       selectedPlan,
       setSelectedPlan,
       walletAddress,
+      scannedAddress,
+      scanWatchOnlyAddress,
       chainId,
       walletDetected,
       connectWallet,

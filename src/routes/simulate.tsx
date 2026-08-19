@@ -33,25 +33,39 @@ export const Route = createFileRoute("/simulate")({
 
 function Simulate() {
   const {
+    connected,
+    walletAddress,
+    scannedAddress,
+    connectWallet,
+    chainId,
+    portfolio,
+    portfolioMode,
+    setPortfolioMode,
     selectedPlan,
     rescueResult,
     executionState,
     simulationResult,
-    quoteTimestamp,
     runSimulation,
-    chainId,
+    quoteTimestamp,
     executionSession,
     startExecution,
     executeNextStep,
-    connected,
-    portfolio,
-    walletAddress,
-    portfolioMode,
   } = useSave();
 
   const navigate = useNavigate();
 
   const activePlan = rescueResult.plans.find((p) => p.id === selectedPlan);
+
+  // Auto switch from WATCH_ONLY to LIVE_WALLET when the owner wallet is connected
+  useEffect(() => {
+    if (portfolioMode === "WATCH_ONLY" && connected && scannedAddress && walletAddress && walletAddress.toLowerCase() === scannedAddress.toLowerCase()) {
+      setPortfolioMode("LIVE_WALLET");
+      // Reset the execution steps to update modes
+      const okbAsset = portfolio.find((a) => a.symbol === "OKB");
+      const okbBalance = okbAsset ? parseFloat(okbAsset.balance) : 0;
+      startExecution(okbBalance > 0.001 ? "TESTNET_LIVE" : "DEMO_SIMULATION");
+    }
+  }, [portfolioMode, connected, scannedAddress, walletAddress, setPortfolioMode, portfolio, startExecution]);
 
   // Trigger simulation auto-run on component mount if IDLE
   useEffect(() => {
@@ -318,81 +332,135 @@ function Simulate() {
             </Panel>
           )}
 
-          {connected && executionSession.mode !== "TESTNET_LIVE" && (
-            <Panel className="border-warning/30 bg-warning/10 p-6 flex gap-4 items-start rounded-lg">
-              <AlertTriangle className="size-5 text-warning shrink-0 mt-0.5" />
-              <div>
-                <h4 className="font-semibold text-warning">TESTNET_LIVE Mode Inactive</h4>
-                <p className="mt-1 text-sm leading-relaxed text-foreground">
-                  {portfolioMode === "DEMO_PORTFOLIO"
-                    ? "Demo simulation mode is locked. Switch to Live Wallet mode in the navbar to execute live transactions."
-                    : "To execute on-chain transactions, please satisfy the following:"}
-                </p>
-                {portfolioMode !== "DEMO_PORTFOLIO" && (
-                  <ul className="mt-2 space-y-1 text-xs list-disc list-inside text-muted-foreground">
-                    {chainId !== 1952 && (
-                      <li>Switch network in MetaMask/OKX Wallet to <strong>X Layer Testnet (Chain ID 1952)</strong>.</li>
-                    )}
-                    {(() => {
-                      const okbAsset = portfolio.find((a) => a.symbol === "OKB");
-                      const okbBalance = okbAsset ? parseFloat(okbAsset.balance) : 0;
-                      if (okbBalance <= 0.001) {
-                        return <li>Deposit native Testnet OKB to cover gas (balance: {okbBalance.toFixed(4)} OKB, minimum: 0.001 OKB).</li>;
-                      }
-                      return null;
-                    })()}
-                  </ul>
-                )}
-              </div>
-            </Panel>
-          )}
-
-          {executionState === "SIMULATION_READY" && (
-            <Panel className="border-safe/30 bg-safe/10 p-6 flex gap-4 items-start rounded-lg">
-              {showLoader ? (
-                <Loader2 className="size-5 text-primary animate-spin shrink-0 mt-0.5" />
+          {portfolioMode === "WATCH_ONLY" ? (
+            <div className="space-y-6">
+              {!connected ? (
+                <>
+                  <Panel className="border-warning/30 bg-warning/10 p-6 flex gap-4 items-start rounded-lg animate-rise">
+                    <AlertTriangle className="size-5 text-warning shrink-0 mt-0.5" />
+                    <div>
+                      <h4 className="font-semibold text-warning">WALLET AUTHORIZATION REQUIRED</h4>
+                      <p className="mt-1 text-sm leading-relaxed text-foreground">
+                        You're analyzing this portfolio in read-only mode. Connect the wallet controlling this address to authorize on-chain actions.
+                      </p>
+                      <p className="mt-2 text-xxs label-mono text-muted-foreground">
+                        * SAVE never requests seed phrases or private keys. Public-address scans are read-only.
+                      </p>
+                    </div>
+                  </Panel>
+                  <MagneticButton
+                    onClick={connectWallet}
+                    className="w-full"
+                    size="lg"
+                  >
+                    Connect wallet to continue <ArrowRight className="size-4" />
+                  </MagneticButton>
+                </>
               ) : (
-                <CheckCircle className="size-5 text-safe shrink-0 mt-0.5" />
+                <>
+                  {scannedAddress && walletAddress && walletAddress.toLowerCase() !== scannedAddress.toLowerCase() && (
+                    <Panel className="border-critical/30 bg-critical/10 p-6 flex gap-4 items-start rounded-lg animate-rise">
+                      <AlertTriangle className="size-5 text-critical shrink-0 mt-0.5" />
+                      <div>
+                        <h4 className="font-semibold text-critical">CONNECTED ADDRESS DOES NOT MATCH</h4>
+                        <p className="mt-1 text-sm leading-relaxed text-foreground">
+                          The connected wallet address (<span className="label-mono">{walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}</span>) does not match the watched address (<span className="label-mono">{scannedAddress.slice(0, 6)}...{scannedAddress.slice(-4)}</span>) currently under analysis.
+                        </p>
+                        <p className="mt-2 text-xs text-muted-foreground leading-normal">
+                          Please switch accounts in your wallet extension to match the target address.
+                        </p>
+                      </div>
+                    </Panel>
+                  )}
+                  <MagneticButton
+                    className="w-full opacity-50 cursor-not-allowed"
+                    size="lg"
+                    disabled
+                  >
+                    Address Mismatch — Switch Wallet <ArrowRight className="size-4" />
+                  </MagneticButton>
+                </>
               )}
-              <div>
-                <h4 className="font-semibold text-safe">{statusText}</h4>
-                <p className="mt-1 text-sm leading-relaxed text-foreground">
-                  {executionSession.mode === "TESTNET_LIVE"
-                    ? "Wallet execution mode active. Transactions will be sent to X Layer Testnet."
-                    : "Demo simulation mode active. Safety checks satisfied without broadcast."}
-                </p>
-                <p className="mt-1.5 text-xxs label-mono text-muted-foreground/80 font-normal">
-                  * Staged execution strategy — user authorization required at each stage.
-                </p>
-                {executionSession.steps.length > 0 && (
-                  <div className="mt-3 flex gap-4 text-xs text-muted-foreground">
-                    <span>
-                      Step {executionSession.currentStepIndex + 1} of {executionSession.steps.length}
-                    </span>
-                    <span>Mode: {executionSession.mode}</span>
-                  </div>
-                )}
-              </div>
-            </Panel>
-          )}
-
-          {executionState === "SIMULATION_READY" ? (
-            <MagneticButton
-              onClick={executeNextStep}
-              className="w-full disabled:opacity-50 disabled:cursor-not-allowed"
-              size="lg"
-              disabled={showLoader || executionSession.state === "FAILED_SAFE"}
-            >
-              {buttonLabel} <ArrowRight className="size-4" />
-            </MagneticButton>
+            </div>
           ) : (
-            <MagneticButton
-              className="w-full opacity-50 cursor-not-allowed"
-              size="lg"
-              disabled
-            >
-              {buttonLabel} <ArrowRight className="size-4" />
-            </MagneticButton>
+            <div className="space-y-6">
+              {connected && executionSession.mode !== "TESTNET_LIVE" && (
+                <Panel className="border-warning/30 bg-warning/10 p-6 flex gap-4 items-start rounded-lg">
+                  <AlertTriangle className="size-5 text-warning shrink-0 mt-0.5" />
+                  <div>
+                    <h4 className="font-semibold text-warning">TESTNET_LIVE Mode Inactive</h4>
+                    <p className="mt-1 text-sm leading-relaxed text-foreground">
+                      {portfolioMode === "DEMO_PORTFOLIO"
+                        ? "Demo simulation mode is locked. Switch to Live Wallet mode in the navbar to execute live transactions."
+                        : "To execute on-chain transactions, please satisfy the following:"}
+                    </p>
+                    {portfolioMode !== "DEMO_PORTFOLIO" && (
+                      <ul className="mt-2 space-y-1 text-xs list-disc list-inside text-muted-foreground">
+                        {chainId !== 1952 && (
+                          <li>Switch network in MetaMask/OKX Wallet to <strong>X Layer Testnet (Chain ID 1952)</strong>.</li>
+                        )}
+                        {(() => {
+                          const okbAsset = portfolio.find((a) => a.symbol === "OKB");
+                          const okbBalance = okbAsset ? parseFloat(okbAsset.balance) : 0;
+                          if (okbBalance <= 0.001) {
+                            return <li>Deposit native Testnet OKB to cover gas (balance: {okbBalance.toFixed(4)} OKB, minimum: 0.001 OKB).</li>;
+                          }
+                          return null;
+                        })()}
+                      </ul>
+                    )}
+                  </div>
+                </Panel>
+              )}
+
+              {executionState === "SIMULATION_READY" && (
+                <Panel className="border-safe/30 bg-safe/10 p-6 flex gap-4 items-start rounded-lg">
+                  {showLoader ? (
+                    <Loader2 className="size-5 text-primary animate-spin shrink-0 mt-0.5" />
+                  ) : (
+                    <CheckCircle className="size-5 text-safe shrink-0 mt-0.5" />
+                  )}
+                  <div>
+                    <h4 className="font-semibold text-safe">{statusText}</h4>
+                    <p className="mt-1 text-sm leading-relaxed text-foreground">
+                      {executionSession.mode === "TESTNET_LIVE"
+                        ? "Wallet execution mode active. Transactions will be sent to X Layer Testnet."
+                        : "Demo simulation mode active. Safety checks satisfied without broadcast."}
+                    </p>
+                    <p className="mt-1.5 text-xxs label-mono text-muted-foreground/80 font-normal">
+                      * Staged execution strategy — user authorization required at each stage.
+                    </p>
+                    {executionSession.steps.length > 0 && (
+                      <div className="mt-3 flex gap-4 text-xs text-muted-foreground">
+                        <span>
+                          Step {executionSession.currentStepIndex + 1} of {executionSession.steps.length}
+                        </span>
+                        <span>Mode: {executionSession.mode}</span>
+                      </div>
+                    )}
+                  </div>
+                </Panel>
+              )}
+
+              {executionState === "SIMULATION_READY" ? (
+                <MagneticButton
+                  onClick={executeNextStep}
+                  className="w-full disabled:opacity-50 disabled:cursor-not-allowed"
+                  size="lg"
+                  disabled={showLoader || executionSession.state === "FAILED_SAFE"}
+                >
+                  {buttonLabel} <ArrowRight className="size-4" />
+                </MagneticButton>
+              ) : (
+                <MagneticButton
+                  className="w-full opacity-50 cursor-not-allowed"
+                  size="lg"
+                  disabled
+                >
+                  {buttonLabel} <ArrowRight className="size-4" />
+                </MagneticButton>
+              )}
+            </div>
           )}
         </div>
 
