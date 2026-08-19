@@ -157,6 +157,16 @@ SAVE has successfully demonstrated a complete live verification flow:
 
 ---
 
+## Product Screens
+
+We have compiled a full screenshot walk-through showing SAVE in action. A comprehensive description of all screens is available in the [Screenshot Manifest](file:///c:/Users/PC/Desktop/SAVE-XLayer/docs/screenshots/README.md).
+
+| Hero/Overview | Rescue Strategy Solver | Live X Layer Verification |
+| :---: | :---: | :---: |
+| ![Hero/Overview](docs/screenshots/01-save-hero.png) | ![Rescue Plans](docs/screenshots/05-rescue-plan-comparison.png) | ![X Layer Verification](docs/screenshots/07-xlayer-live-verification.png) |
+
+---
+
 ## Run Locally
 
 ### 1. Clone the repository
