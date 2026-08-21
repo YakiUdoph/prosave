@@ -149,7 +149,7 @@ export function SaveFooter() {
     <footer className="border-t border-border">
       <div className="mx-auto flex max-w-7xl flex-col gap-3 px-6 py-8 sm:flex-row sm:items-center sm:justify-between">
         <p className="label-mono normal-case tracking-normal">
-          SAVE — your AI portfolio protection agent. Demo data. Non-custodial by design.
+          SAVE — your intent-driven portfolio policy engine. Demo data. Non-custodial by design.
         </p>
         <p className="label-mono">Powered by X Layer + OKX OnchainOS</p>
       </div>

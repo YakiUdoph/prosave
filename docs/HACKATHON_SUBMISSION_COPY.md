@@ -2,6 +2,8 @@
 
 This document contains the official, verified submission copy for the OKX / X Layer hackathon. All statements correspond to the actual live build at [prosave.vercel.app](https://prosave.vercel.app).
 
+> **Runtime boundary:** Rescue planning uses deterministic constraint extraction and simulated route parameters. Authenticated OKX routing adapters target X Layer Mainnet (chain 196) and are not used to execute on X Layer Testnet (1952). The optional 0.0001 OKB testnet self-transfer proves wallet authorization and settlement only; it never advances or completes a rescue plan.
+
 ---
 
 ## SECTION A — PROJECT IDENTITY
@@ -14,7 +16,7 @@ This document contains the official, verified submission copy for the OKX / X La
 * **One-Liner** (22 words): 
   SAVE is an intent-driven portfolio rescue agent that optimizes multi-asset liquidations and risk reduction under strict user-defined asset preservation rules.
 * **Short Description** (61 words):
-  SAVE is an intent-driven Web3 intelligence layer designed to handle emergency portfolio restructuring. When severe market volatility strikes or users urgently need liquidity, users state their goal in plain language. SAVE extracts target amounts, identifies protected holdings, calculates three scored liquidation plans using OKX route quotes, and demonstrates the transaction pipeline on the X Layer Testnet.
+  SAVE is an intent-driven Web3 intelligence layer for emergency portfolio restructuring. It deterministically extracts target amounts and protected holdings, then compares three scored liquidation plans using explicitly simulated route parameters.
 * **Medium Description** (140 words):
   SAVE is an intent-driven portfolio rescue agent built for Web3 portfolios. Unlike standard DEX aggregators that focus on individual token-pair routes, SAVE reasons at the portfolio level. Users can connect their wallet, paste a public EVM address for read-only analysis, or explore using a multi-chain Demo Portfolio. 
 
@@ -31,9 +33,9 @@ This document contains the official, verified submission copy for the OKX / X La
   2. **Plan B (Balanced Outcome - Recommended)**: Sells volatile and high-risk tokens first, maintaining a 100% preservation ratio on protected assets.
   3. **Plan C (High-Risk Disposal)**: Avoids touching protected holdings entirely, prioritizing meme coin liquidation and accepting potential target shortfalls.
 
-  To verify transaction safety, plans are processed through local simulation gates that verify quote freshness, gas sufficiency, and ERC-20 spender contracts. Spender addresses are verified against official OKX DEX aggregators to protect user accounts.
+  Plans pass local safety and feasibility checks covering estimate freshness, gas sufficiency, protection policy, and anticipated approval requirements. These checks are not EVM transaction simulation.
 
-  Execution remains entirely non-custodial and under the user's manual authorization. In live wallet or watch-only modes, transaction signature requests are gated; watch-only mode blocks execution until the owner wallet connects. Once verified, the user signs a verification transaction (native OKB self-transfer) broadcast to the X Layer Testnet. SAVE polls public RPC node headers to confirm final block confirmations, gas consumed, and execution proof.
+  Rescue plans remain simulated and require no signature. Separately, X Layer Wallet Verification is non-custodial and optional: a connected wallet may authorize a 0.0001 OKB self-transfer, after which SAVE polls the X Layer Testnet receipt for the actual hash, block, and gas used.
 
   *DEX aggregators optimize swaps. SAVE optimizes portfolio outcomes.*
 
@@ -67,19 +69,19 @@ SAVE solves this by guiding users through a structured, highly visual portfolio 
                     │
                     ▼
              [Intent Parsing]
-Extracts financial outcomes & constraints via AI console
+Deterministically extracts financial outcomes and constraints
                     │
                     ▼
           [Rescue Plan Solver]
   Generates 3 distinct, dynamically scored plans
                     │
                     ▼
-         [Closed-Box Simulation]
-  Verifies quote age, gas limits, and spender approvals
+         [Local Plan Validation]
+  Checks estimate age, gas assumptions, policy, and approval requirements
                     │
                     ▼
-        [Verification & Execution]
-  X Layer block settlement via user-signed OKB proof
+      [Optional Wallet Verification]
+  0.0001 OKB self-transfer receipt on X Layer Testnet
 ```
 
 * **No-Friction Analysis**: Users can analyze public wallet addresses in watch-only mode without sharing private keys or connecting wallet extensions. Wallet connection is requested only when a user initiates a transaction signature request, separating scan analytics from authorization actions.
@@ -92,7 +94,7 @@ Extracts financial outcomes & constraints via AI console
 2. **Intent-Driven Constraints**: Translates raw human queries into structured logic. Rules like *"Don't sell my ETH unless necessary"* are parsed into objective functions that enforce last-resort or strict asset preservation ratios.
 3. **Multi-Strategy Diversity**: The solver generates three materially different strategies (Speed, Balanced, Defensive) and scores them based on slippage, risk reduction, and preservation metrics, rather than presenting a single hardcoded path.
 4. **Watch-Only & Connected Separation**: Offers pure read-only public scans alongside wallet connections. It enforces strict ownership matching—blocking signatures if the connected wallet differs from the analyzed watched address.
-5. **Local Safety Simulation**: Runs plans through safety checks (quote age, gas reserve, spender safety) before prompting the wallet. Spender contracts are verified against official OKX DEX addresses.
+5. **Local Plan Validation**: Runs simulated plans through estimate-age, feasibility, gas-assumption, protection-policy, and anticipated-approval checks without prompting the wallet.
 
 ---
 
@@ -112,13 +114,13 @@ Extracts financial outcomes & constraints via AI console
 ## SECTION F — OKX INTEGRATION
 
 * **1-Sentence Version**:
-  SAVE integrates OKX Web3 APIs to query multi-chain balances and retrieve route quotes and transaction payloads, securing execution with server-side HMAC-SHA256 signing.
+  SAVE integrates OKX Web3 APIs for balances and retains authenticated X Layer Mainnet routing/transaction adapters. Demo plans do not call these mainnet payloads or label local estimates as live OKX quotes.
 * **100-Word Sponsor Version**:
-  SAVE uses **OKX OnchainOS and OKX Web3 APIs** as its core intelligence backend. outgoing balance scans query OKX balance endpoints to locate and value assets. When solving recovery targets, SAVE calls the OKX DEX router to retrieve liquidity routes, price quotes, and required ERC-20 approval spender addresses. Prepared swap and approval payloads are returned via secure server functions (`src/lib/okx.server.ts`) signed with HMAC-SHA256 headers, preventing credential exposure. Additionally, SAVE natively implements EIP-6963 provider announcements, prioritizing OKX Wallet discovery during the user connection handshake.
+  SAVE uses the OKX balance API where available and includes secure HMAC-signed server functions for X Layer Mainnet quotes, approvals, and swap payloads. Because the application stays on X Layer Testnet, those mainnet payloads are infrastructure/reference capability rather than the active rescue runtime. EIP-6963 provider discovery prioritizes OKX Wallet during connection.
 * **Technical Bullet List**:
   * **Balance Retrieval**: Queries OKX balance API to discover native and token positions.
-  * **Route/Quote Calculations**: Calls OKX Web3 DEX API to calculate trade rates and slippage.
-  * **Transaction Payload Assembly**: Retrieves swap and approval transaction payload hashes from OKX.
+  * **Route/Quote Adapter**: Retains authenticated X Layer Mainnet quote functions as reference infrastructure.
+  * **Transaction Payload Adapter**: Retains mainnet swap and approval payload functions that are not used by the testnet rescue runtime.
   * **HMAC Authentication**: Isolates API credentials inside secure server functions, signing outgoing headers on the backend.
   * **EIP-6963 Wallet Connectivity**: Passive discovery of the OKX Wallet extension.
 
@@ -127,16 +129,16 @@ Extracts financial outcomes & constraints via AI console
 ## SECTION G — X LAYER INTEGRATION
 
 * **1-Sentence Version**:
-  SAVE deploys on the X Layer Testnet, using native OKB gas balances, network validations, and public RPC confirmation polling to verify execution safety.
+  SAVE uses X Layer Testnet for optional X Layer Wallet Verification, including native OKB balance checks, network validation, and public receipt polling.
 * **100-Word Sponsor Version**:
-  **X Layer** serves as SAVE’s transaction verification and consensus environment. Upon wallet connection, SAVE checks the active network, prompting a switch to **X Layer Testnet (Chain ID 1952)**. Before executing a plan, SAVE queries X Layer RPC nodes to verify that native **OKB** gas balances exceed the safety threshold (0.001 OKB). 
+  **X Layer Testnet** serves as SAVE’s optional wallet-authorization and settlement-verification environment. Before verification, SAVE checks Chain ID 1952 and confirms that native **OKB** exceeds the required threshold.
 
-  To prove block-level execution feasibility, the user authorizes and signs a native OKB transfer transaction. The transaction hash is broadcast to X Layer, and SAVE polls the public RPC client for block confirmations, gas consumed, and execution proof.
+  The user may authorize a 0.0001 OKB self-transfer. SAVE polls the public RPC client for the transaction hash, block number, gas used, and successful settlement without changing the simulated rescue.
 * **Technical Bullet List**:
   * **Network Enforcement**: Detects active Chain ID and requests network switches to Chain ID `1952` (X Layer Testnet).
-  * **Gas Reserve Gate**: Checks native OKB balances via RPC client, blocking execution if gas is insufficient (`< 0.001 OKB`).
+  * **Verification Balance Gate**: Checks native OKB via RPC and disables optional verification if the balance is insufficient (`<= 0.001 OKB`).
   * **RPC Client Confirmation**: Uses Viem to query public RPC nodes and poll confirmations.
-  * **TESTNET_LIVE Execution Proof**: Signs and broadcasts a native OKB transfer transaction, verifying the EIP-1193 signature pipeline.
+  * **X Layer Wallet Verification**: Signs and broadcasts the disclosed 0.0001 OKB self-transfer through EIP-1193.
   * **Receipt Analysis**: Retrieves final gas used, status, and block number.
 
 ---
@@ -152,11 +154,11 @@ To maintain absolute transparency, the following table details the status of eve
 | **Demo portfolio** | **DEMO** | Synthetic positions (ETH, PEPE, TKX) used to demo multi-asset solver strategies. |
 | **Natural-language intent console** | **LIVE** | Parses goals, protected assets, and policies from raw text inputs. |
 | **Rescue solver** | **LIVE** | Calculates and ranks Plan A, B, and C based on asset risk and slippage. |
-| **Strategy simulation** | **SIMULATED** | Validates quotes, gas limits, and spender contracts against forked state. |
-| **OKX route intelligence** | **LIVE** | Calls OKX DEX Web3 API for trade routing, quotes, and approval parameters. |
+| **Rescue plan validation** | **SIMULATED** | Runs local safety, feasibility, policy, estimate-age, and gas checks. |
+| **OKX route infrastructure** | **MAINNET REFERENCE** | Authenticated chain-196 quote/approval/swap adapters exist but are not used as testnet execution data. |
 | **Full multi-asset rescue swap** | **NOT BROADCAST** | Multi-token liquidate swaps are simulated; actual swaps are not broadcast. |
-| **X Layer verification transaction** | **TESTNET_LIVE** | Broadcasts user-authorized native OKB self-transfer to prove signature pipeline. |
-| **Receipt confirmation** | **TESTNET_LIVE** | Polls X Layer RPC node headers to confirm transaction settlement. |
+| **X Layer Wallet Verification** | **OPTIONAL LIVE TESTNET TRANSACTION** | Broadcasts a user-authorized 0.0001 OKB self-transfer, separate from rescue state. |
+| **Verification receipt confirmation** | **OPTIONAL LIVE TESTNET RECEIPT** | Polls X Layer RPC to confirm wallet-verification settlement. |
 
 ---
 
@@ -167,7 +169,7 @@ To maintain absolute transparency, the following table details the status of eve
 3. **State Intent**: Input your recovery goal (e.g. *"Get me $700 USDC. Keep all my ETH"*).
 4. **Compare Plans**: Inspect three strategy candidates ranked by slippage, risk, and asset protection metrics.
 5. **Simulate Safety**: Run safety checks confirming quote age, native gas sufficiency, and contract spenders.
-6. **Execution Proof**: Sign a native OKB verification transaction on the X Layer Testnet and watch block receipts settle.
+6. **X Layer Wallet Verification (Optional)**: Authorize a 0.0001 OKB self-transfer and inspect its independent receipt.
 
 ---
 
@@ -199,7 +201,7 @@ SAVE has a sustainable, non-hype business model built around three revenue and p
 ### NOW — Hackathon MVP
 * EIP-6963 OKX Wallet discovery and Reown connectivity.
 * Watch-only address scanning and sparse portfolio warnings.
-* Structured AI intent console with target feasibility warnings.
+* Deterministic natural-language intent console with target feasibility warnings.
 * Simulated strategy generation and X Layer Testnet verification proofs.
 
 ### NEXT — Mainnet & Execution
@@ -275,26 +277,26 @@ SAVE has a sustainable, non-hype business model built around three revenue and p
 During sudden market volatility or severe asset declines, crypto users know the high-level financial outcome they need—such as raising stablecoins, reducing risk exposure, or preserving strategic holdings. However, executing this manually requires them to inspect balances across multiple chains, calculate pool liquidity to avoid slippage, manage native gas, and verify approved spender contracts. Standard trade aggregators only solve routing for individual swaps; they cannot reason about overall portfolio risk or respect asset-preservation constraints.
 
 ### What SAVE Does
-SAVE is an intent-driven portfolio rescue agent for Web3 portfolios. It acts as an intelligence layer above DEX liquidity sources. Instead of trading token by token, the user defines a target outcome in plain language. SAVE handles route scoring, gas reserves, spender allowance verification, and consensus execution.
+SAVE is an intent-driven portfolio rescue agent for Web3 portfolios. It acts as a portfolio-policy layer above DEX infrastructure. Instead of trading token by token, the user defines a target outcome in plain language. SAVE deterministically compares simulated rescue strategies, while optional X Layer Wallet Verification remains separate from rescue execution.
 
 ### How It Works
 1. **Discovery**: Paste any public EVM address for a watch-only scan, connect via browser wallet, or load the multi-chain Demo Portfolio.
 2. **Intent Parsing**: State your outcome (e.g., *"Get me $700 USDC. Don't sell my ETH unless necessary"*). The parser extracts structured goals and protected tokens.
 3. **Strategy Solver**: Computes and ranks three strategy profiles (Speed, Balanced, Defensive) based on asset risk metrics and slippage.
-4. **Safety Simulation**: Verifies quote age, gas sufficiency, and spender contracts against official OKX registries.
-5. **X Layer Execution**: The user signs a verification transaction (native OKB transfer) broadcast to the X Layer Testnet. SAVE polls RPC headers to confirm final confirmations in real time.
+4. **Plan Validation**: Checks estimate age, gas assumptions, target feasibility, protected-asset policy, and anticipated approval requirements locally.
+5. **X Layer Wallet Verification**: The user may authorize a separate 0.0001 OKB self-transfer. SAVE polls the X Layer Testnet receipt without changing the simulated rescue.
 
 ### AI Component
 Uses a deterministic parser to map raw text to target symbols, amounts, and protected assets, avoiding LLM hallucinations. The agent dynamically adjusts suggestions and feasibility indicators based on scanned token balances.
 
 ### OKX OnchainOS
-Calls OKX Web3 APIs to query balances and retrieve trade routes and approval payloads. Credentials are sign-verified on the server using HMAC-SHA256 headers, isolating secrets from the client.
+Uses OKX Web3 balance APIs where available and retains HMAC-signed X Layer Mainnet routing and approval adapters as reference infrastructure. Demo route estimates do not use those mainnet payloads.
 
 ### X Layer Consensus
 Runs network checks enforcing Chain ID `1952` (X Layer Testnet), gates signatures based on native OKB gas reserves, and polls block receipts via RPC.
 
 ### What is Live Today
-All wallet discovery (MetaMask and OKX Wallet via EIP-6963), balance scanning, intent parsing, plan scoring, and simulation checks are live. The final stage executes a live verification transaction on X Layer Testnet. The multi-asset swaps are simulated and not broadcast.
+Wallet discovery, available balance scanning, deterministic intent parsing, and plan scoring run in the application. Rescue parameters remain simulated. The optional X Layer Wallet Verification transaction is the only testnet broadcast and does not execute the rescue.
 
 ### Why It Matters
 SAVE moves DeFi interfaces from trade-by-trade entry forms to portfolio-level intent systems. It allows users to safely analyze public addresses without key exposure, minimizing execution mistakes during emergency liquidations.
@@ -311,7 +313,7 @@ DEX aggregators optimize swaps. SAVE optimizes portfolio outcomes.
 
 ## SECTION R — 50-WORD FINAL PITCH
 
-SAVE is an intent-driven portfolio rescue agent. Users state their goal in plain language, and SAVE parses it into structured constraints, calculates scored strategies using OKX Web3 quotes, runs plans through simulation and safety checks, and demonstrates the authorization pipeline through a user-signed verification transaction on X Layer Testnet.
+SAVE is an intent-driven portfolio rescue agent. Users state a goal in plain language; SAVE deterministically parses constraints, calculates scored strategies using simulated route parameters, runs local plan-validation checks, and optionally demonstrates wallet authorization and settlement through a separate X Layer Testnet verification transaction.
 
 ---
 
@@ -329,7 +331,7 @@ prosave.vercel.app
 
 We have audited all descriptions, proofs, and scripts to ensure technical accuracy and honesty:
 1. **Autonomous Trading**: Clarified that SAVE is non-custodial and never performs background auto-broadcasts; every transaction requires manual user wallet signatures.
-2. **Live Swaps**: Explicitly documented that multi-asset rescue swaps are simulated locally, while the X Layer transaction is a live OKB self-transfer verification proof.
+2. **Rescue Broadcast Boundary**: Multi-asset rescue swaps are simulated locally, while X Layer Wallet Verification is a separate 0.0001 OKB self-transfer.
 3. **Holdings Provenance**: Clarified that mock assets are isolated to the Demo Portfolio, while live wallet and watch-only scans retrieve strictly live RPC/OKX holdings.
 4. **Network Deployment**: Clarified that the live transaction settles on X Layer Testnet (Chain ID 1952), keeping future mainnet deployment claims distinct.
 5. **Security Framing**: Removed any claims of compromised or hacked wallet emergency recovery, framing SAVE as a portfolio restructuring tool during asset volatility or urgent liquidity needs.

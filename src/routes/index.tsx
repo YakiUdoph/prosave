@@ -7,16 +7,16 @@ import { RiskMeter } from "@/components/save/risk-meter";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "SAVE — Your AI Portfolio Protection Agent" },
+      { title: "SAVE — Intent-Driven Portfolio Protection" },
       {
         name: "description",
         content:
-          "SAVE uses AI to understand your portfolio goals and find safer on-chain actions when markets move against you.",
+          "SAVE translates natural-language portfolio goals into safer, policy-aware rescue plans.",
       },
-      { property: "og:title", content: "SAVE — Your AI Portfolio Protection Agent" },
+      { property: "og:title", content: "SAVE — Intent-Driven Portfolio Protection" },
       {
         property: "og:description",
-        content: "Markets move in seconds. Your exit shouldn't. AI-optimized portfolio rescue plans.",
+        content: "Markets move in seconds. Your exit shouldn't. Policy-optimized portfolio rescue plans.",
       },
     ],
   }),
@@ -43,7 +43,7 @@ function Landing() {
           <div className="grid items-center gap-14 lg:grid-cols-[1.05fr_1fr]">
             <div>
               <StatusPill tone="primary">
-                <Sparkles className="size-3" /> AI portfolio protection agent
+                <Sparkles className="size-3" /> Natural-language portfolio policy engine
               </StatusPill>
               <h1 className="mt-6 text-4xl leading-[1.05] font-semibold tracking-tight md:text-6xl">
                 Markets move in seconds.
@@ -51,7 +51,7 @@ function Landing() {
                 <span className="text-primary">Your exit shouldn&apos;t.</span>
               </h1>
               <p className="mt-6 max-w-xl text-base leading-relaxed text-muted-foreground md:text-lg">
-                SAVE uses AI to understand your portfolio goals and find safer on-chain actions when
+                SAVE uses deterministic constraint extraction to understand your portfolio goals and find safer actions when
                 you need them most.
               </p>
               <div className="mt-9 flex flex-wrap items-center gap-3">
@@ -91,7 +91,7 @@ function Landing() {
               <div className="glass elevated relative overflow-hidden">
                 <img
                   src={heroImage}
-                  alt="SAVE command center visualising a portfolio under AI analysis"
+                  alt="SAVE command center visualising portfolio policy analysis"
                   width={1600}
                   height={1008}
                   className="h-[320px] w-full object-cover opacity-90 md:h-[420px]"

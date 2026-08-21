@@ -15,7 +15,7 @@ This document serves as the official, step-by-step presentation script for hacka
 * **Timestamp**: `0:00 – 0:15`
 * **Screen**: **Overview** (`/` - Homepage)
 * **Action / Click**: None (passive presentation of the home page).
-* **What User Sees**: A premium dark-mode interface displaying: *"AI Portfolio Rescue Agent. Exit volatile assets on your terms, without manual route compilation."*
+* **What User Sees**: A premium dark-mode interface presenting an intent-driven natural-language portfolio policy engine.
 * **Narration**: 
   > *"Crypto users think in outcomes. DeFi makes them think in transactions. When a black swan event hits, liquidating a complex, multi-chain portfolio to secure a stablecoin target while preserving high-conviction assets requires calculating slippage, allowances, and routing manually. This friction leads to devastating losses."*
 * **Judge Takeaway**: Traditional DEX aggregators operate at the transaction level; they cannot reason about a user's high-level portfolio outcomes or capital preservation constraints during a rescue.
@@ -28,7 +28,7 @@ This document serves as the official, step-by-step presentation script for hacka
 * **Action / Click**: Hover over the logo and elements to demonstrate responsiveness, then click **[Connect Wallet]** (top right or main CTA).
 * **What User Sees**: Handshake page (`/connect`) showing three options: *OKX Wallet*, *WalletConnect*, and *Browser Wallet*.
 * **Narration**: 
-  > *"SAVE introduces the AI Portfolio Rescue Agent. It acts as an intent-driven reasoning layer that sits above liquidity sources. Instead of trading token by token, the user defines a target outcome in plain language. SAVE handles route scoring, gas reserves, spender allowance verification, and consensus execution."*
+  > *"SAVE is an intent-driven decision layer above liquidity routers. Instead of choosing token-by-token swaps, the user defines a portfolio outcome. SAVE deterministically extracts constraints, compares rescue strategies, and scores the least-damaging feasible path."*
 * **Judge Takeaway**: SAVE is an intelligence layer that optimizes portfolio-level outcomes rather than individual swaps.
 
 ---
@@ -50,8 +50,8 @@ This document serves as the official, step-by-step presentation script for hacka
 * **Action / Click**: Click **[Switch to Demo Mode]** on the navbar, click **[Enter Command Center]**, click **[Tell SAVE what you need]** (bottom right CTA). Type in the box: `"Get me $700 USDC. Don't sell my ETH unless necessary."` Click **[Generate Rescue Plan]**.
 * **What User Sees**: The Intent Parser extracting constraints in real time: Target: `700 USDC`, Protected: `ETH`, Objective: `Minimum portfolio damage`, Policy: `Sell ETH only as last resort`.
 * **Narration**: 
-  > *"Our sample portfolio simulates 15 distinct assets across 5 EVM networks, including Ethereum, Base, and X Layer. I tell SAVE in plain language: 'Get me $700 USDC. Don't sell my ETH unless necessary.' The intent parser extracts the constraints, determines which assets are protected, and queries the OKX DEX aggregator."*
-* **Judge Takeaway**: SAVE converts natural language intent into deterministic execution rules and queries live routing data.
+  > *"Our sample portfolio simulates 15 assets across five EVM networks. The deterministic parser extracts the target and protection policy, then the solver compares portfolio-level strategies using explicitly simulated route parameters."*
+* **Judge Takeaway**: SAVE converts natural-language intent into deterministic portfolio rules without presenting demo estimates as live quotes.
 
 ---
 
@@ -59,7 +59,7 @@ This document serves as the official, step-by-step presentation script for hacka
 * **Timestamp**: `1:10 – 1:35`
 * **Screen**: **Optimized Rescue Plan** (`/plan`)
 * **Action / Click**: Click through **Plan A**, **Plan B**, and **Plan C** on the right. Expand **[Compare Rescue Strategies]** table to show parameters.
-* **What User Sees**: Three candidates scored dynamically. Plan B is highlighted with a score of `90` (recommended). Detail shows it liquidates volatile `TKX` first, preserves `ETH` 100%, and uses OKX DEX routes.
+* **What User Sees**: Three candidates scored dynamically. The recommended plan is highlighted. Its detail shows which simulated liquidations preserve protected assets while meeting the target.
 * **Narration**: 
   > *"Instead of offering a single option, the solver generates three distinct plans. Plan A prioritizes speed, liquidating high-liquidity assets. Plan C is defensive. Plan B is our recommended strategy: it scores a 90 by fully preserving our protected ETH, avoiding slippage, and liquidating 100% of our high-risk TKX exposure. A DEX aggregator optimizes one route; SAVE decides which assets should be touched at all."*
 * **Judge Takeaway**: SAVE’s scoring engine evaluates slippage, asset risk profiles, and gas budgets to recommend the plan with the lowest capital damage.
@@ -70,27 +70,27 @@ This document serves as the official, step-by-step presentation script for hacka
 * **Timestamp**: `1:35 – 1:55`
 * **Screen**: **Simulation Status** (`/simulate`)
 * **Action / Click**: Click **[Simulate plan B]**. Let the timeline checks complete. Scroll to show the **Infrastructure Telemetry** panel.
-* **What User Sees**: Safety check timeline executing: wallet chain validation, quote age freshness check, and allowance verification. Spender addresses marked as `VERIFIED_OKX` via server-side signatures.
+* **What User Sees**: Local plan-validation checks covering portfolio feasibility, estimate freshness, protected-asset policy, estimated gas, and approval requirements.
 * **Narration**: 
-  > *"Before signing, SAVE runs the plan through local safety gates. We check gas reserve sufficiency, quote freshness, and allowance spenders. In watch-only mode, execution is locked. If we connect a wallet, SAVE verifies that the connected address matches our scanned portfolio; if they differ, it blocks execution with a mismatch warning."*
-* **Judge Takeaway**: SAVE utilizes OKX OnchainOS infrastructure for routing intelligence while wrapping it in localized safety guardrails and multi-mode signature gates.
+  > *"SAVE validates the simulated plan locally: target feasibility, estimate freshness, protected-asset policy, estimated gas, and anticipated approval requirements. The authenticated OKX chain-196 adapter remains available as mainnet reference infrastructure; its payloads are not used in this testnet rescue."*
+* **Judge Takeaway**: SAVE separates deterministic portfolio planning and simulated route estimates from its available OKX mainnet adapter infrastructure.
 
 ---
 
-### Segment 7: X Layer Live Verification
+### Segment 7: X Layer Wallet Verification
 * **Timestamp**: `1:55 – 2:20`
 * **Screen**: **Simulation Status** (`/simulate` -> `/protected`)
-* **Action / Click**: Click **[Authorize Rescue Plan]**. Wallet window opens. Sign the native OKB transfer request. Watch timeline poll RPC and navigate to success page.
-* **What User Sees**: Loading state transitioning to `/protected`. The page displays: **RESCUE OUTCOME: SIMULATED** and **X LAYER VERIFICATION: TESTNET_LIVE**, followed by a live X Layer receipt showing the transaction hash, gas used, and block number.
+* **Action / Click**: While remaining in Demo Portfolio mode, connect a real wallet with **[Connect Wallet for Optional X Layer Verification]** if needed. Then optionally click **[Verify Wallet on X Layer Testnet]**, authorize the disclosed 0.0001 OKB self-transfer, and click **[View Simulated Result]**.
+* **What User Sees**: **RESCUE OUTCOME: SIMULATED** remains unchanged. A separate **X LAYER WALLET VERIFICATION: CONFIRMED** receipt shows transaction hash, gas, and block number.
 * **Narration**: 
-  > *"Now, I click Authorize. While the complex multi-chain rescue is simulated, SAVE triggers a live verification transaction on the X Layer Testnet. This is a 0.0001 OKB self-transfer that tests the EIP-1193 sign-and-broadcast pipeline. Once confirmed, SAVE polls X Layer block headers and displays our live receipt, including the real transaction hash and gas consumed."*
+  > *"The rescue stays simulated. Separately, this optional 0.0001 OKB self-transfer verifies wallet authorization, X Layer Testnet selection, broadcast, and settlement. It does not execute or advance the rescue strategy."*
 * **Judge Takeaway**: SAVE maintains high integrity, separating simulated liquidation outcomes from live, user-authorized testnet verification transactions.
 
 ---
 
 ### Segment 8: Closing
 * **Timestamp**: `2:20 – 2:45`
-* **Screen**: **Rescue Complete** (`/protected`)
+* **Screen**: **Simulated Rescue Outcome** (`/protected`)
 * **Action / Click**: Hover over **[Back to command center]** and click it to complete the loop.
 * **What User Sees**: Return to the main Command Center dashboard.
 * **Narration**: 
@@ -101,20 +101,20 @@ This document serves as the official, step-by-step presentation script for hacka
 
 ## 30-Second Technical Explanation
 
-> *"SAVE is an intent-driven emergency exit engine built on OKX OnchainOS and X Layer. When a user inputs a natural language goal, the parser extracts target variables and preservation rules. The solver queries OKX DEX routing APIs via secure server functions signed with HMAC-SHA256 headers, returning optimized trade payloads. Before requesting wallet signatures, SAVE runs the plan through safety gates checking gas limits, quote freshness, and contract spenders. Once authorized, the simulated rescue is accompanied by a live, user-signed verification transaction on X Layer Testnet (Chain ID 1952), polled via RPC block headers to confirm settlement."*
+> *"SAVE deterministically extracts portfolio targets and protection rules, compares scored rescue strategies using simulated route estimates, and validates feasibility and policy locally. Authenticated OKX chain-196 routing adapters remain available as mainnet reference infrastructure. Separately, users may authorize a 0.0001 OKB self-transfer for X Layer Wallet Verification; its receipt proves wallet authorization and X Layer Testnet settlement, not rescue execution."*
 
 ---
 
 ## Likely Judge Questions
 
 ### 1. What is actually AI here?
-The AI component is the **Natural-Language Intent Parser**. It uses a rule-based deterministic classifier to extract structured recovery targets, target assets, protected tokens, and preservation policies from raw user queries without introducing black-box unpredictability into transaction routing.
+The current runtime does not use an AI model. It uses a deterministic natural-language constraint parser. AI-assisted interpretation is a future product direction behind the same validated schema.
 
 ### 2. Why not just use a DEX aggregator?
 DEX aggregators are designed to swap single token pairs (e.g., ETH to USDC). They cannot evaluate portfolio-level risk, prioritize liquidations based on token volatility, or respect user constraints (e.g., 'preserve my ETH while liquidating PEPE'). SAVE is the portfolio brain; DEX aggregators are the execution legs.
 
 ### 3. Why OKX?
-OKX OnchainOS Web3 DEX APIs provide the industry-leading route aggregation, liquidity depth analysis, and raw transaction assembly (approvals and swaps). SAVE utilizes OKX's developer endpoints to ensure that our solver’s candidates are backed by executable pricing and real liquidity.
+SAVE includes authenticated OKX Web3 balance and X Layer Mainnet routing adapters. Because OKX routing support is chain 196 while SAVE remains on testnet 1952, demo candidates use labelled simulated parameters and no mainnet calldata is submitted on testnet.
 
 ### 4. Why X Layer?
 X Layer provides the low-fee, high-performance EVM consensus network needed to execute emergency portfolio rescues. Its native gas token, OKB, integrates directly with our RPC gas budgeting verification gates, checking native balances before prompting the wallet.
@@ -129,7 +129,7 @@ Since hackathon judges usually connect empty testnet wallets containing only nat
 No. SAVE is completely non-custodial. It never requests seed phrases, generates private keys, or performs background auto-broadcasts. Every action composed by SAVE requires explicit user authorization and signing via browser extensions (MetaMask or OKX Wallet).
 
 ### 8. Can SAVE execute without user approval?
-No. Every step of a rescue plan (swaps and ERC-20 contract approvals) is staged sequentially. The user must manually approve each transaction prompt in their browser wallet.
+Rescue swaps are disabled on testnet and remain simulated. Only the separate optional wallet-verification diagnostic can request a signature, and it always requires explicit browser-wallet approval.
 
 ### 9. What happens if the target cannot be met?
 If the portfolio value (excluding protected assets) is insufficient to satisfy the target amount under current liquidity conditions, the solver marks the plans as infeasible and prompts the user to either modify their target or run the strategy using the Demo Portfolio.

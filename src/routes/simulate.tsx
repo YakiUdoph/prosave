@@ -18,13 +18,12 @@ export const Route = createFileRoute("/simulate")({
       { title: "Simulation Status — SAVE" },
       {
         name: "description",
-        content:
-          "Expected output, gas, slippage, execution risk and route — every step simulated and safety-checked before you sign.",
+        content: "Validate rescue constraints, estimated execution requirements, and optional X Layer wallet verification.",
       },
       { property: "og:title", content: "Simulation Status — SAVE" },
       {
         property: "og:description",
-        content: "See the exact outcome before you sign anything on-chain.",
+        content: "Review simulated rescue parameters and optional X Layer wallet verification.",
       },
     ],
   }),
@@ -49,7 +48,10 @@ function Simulate() {
     quoteTimestamp,
     executionSession,
     startExecution,
-    executeNextStep,
+    walletVerification,
+    verifyWalletOnXLayer,
+    resetWalletVerification,
+    walletVerificationBalanceStatus,
   } = useSave();
 
   const navigate = useNavigate();
@@ -70,9 +72,7 @@ function Simulate() {
     if (portfolioMode === "WATCH_ONLY" && connected && scannedAddress && walletAddress && walletAddress.toLowerCase() === scannedAddress.toLowerCase()) {
       setPortfolioMode("LIVE_WALLET");
       // Reset the execution steps to update modes
-      const okbAsset = portfolio.find((a) => a.symbol === "OKB");
-      const okbBalance = okbAsset ? parseFloat(okbAsset.balance) : 0;
-      startExecution(okbBalance > 0.001 ? "TESTNET_LIVE" : "DEMO_SIMULATION");
+      startExecution();
     }
   }, [portfolioMode, connected, scannedAddress, walletAddress, setPortfolioMode, portfolio, startExecution]);
 
@@ -86,26 +86,9 @@ function Simulate() {
   // Handle auto-start execution session when simulation succeeds
   useEffect(() => {
     if (executionState === "SIMULATION_READY" && executionSession.steps.length === 0) {
-      const okbAsset = portfolio.find((a) => a.symbol === "OKB");
-      const okbBalance = okbAsset ? parseFloat(okbAsset.balance) : 0;
-      const minGasRequirement = 0.001;
-
-      const canActivateTestnetLive =
-        connected &&
-        chainId === 1952 &&
-        okbBalance > minGasRequirement &&
-        portfolioMode === "LIVE_WALLET";
-
-      startExecution(canActivateTestnetLive ? "TESTNET_LIVE" : "DEMO_SIMULATION");
+      startExecution();
     }
   }, [executionState, executionSession.steps.length, startExecution, connected, chainId, portfolio, portfolioMode]);
-
-  // Auto-navigate to protected page when execution successfully completes
-  useEffect(() => {
-    if (executionSession.state === "COMPLETE") {
-      navigate({ to: "/protected" });
-    }
-  }, [executionSession.state, navigate]);
 
   if (!activePlan) {
     return (
@@ -129,87 +112,116 @@ function Simulate() {
   const isQuoteStale = quoteAgeSec >= 60;
 
   // Derive execution trace steps
-  const traceSteps = executionSession.mode === "DEMO_SIMULATION"
-    ? [
-        "Portfolio evaluated",
-        "Route optimized",
-        "Target asset check completed",
-        "Protected asset rules checked",
-        "Gas requirement calculated",
-      ]
-    : [
-        "Wallet connection verified",
-        `Connected chain ID ${chainId || "1952"} validated`,
-        "Rescue plan feasibility checked",
-        "Protected asset constraints evaluated",
-        "ERC-20 allowances determined",
-        "Execution gas reserve calculated",
-      ];
-
-  // Add active execution step if running in TESTNET_LIVE mode
-  if (executionSession.mode === "TESTNET_LIVE" && executionSession.steps.length > 0) {
-    const activeStep = executionSession.steps[executionSession.currentStepIndex];
-    if (activeStep) {
-      traceSteps.push(
-        `Execute step ${executionSession.currentStepIndex + 1}: ${activeStep.type.toUpperCase()} ${activeStep.symbol}`
-      );
-    }
-  }
+  const traceSteps = [
+    "Portfolio evaluated",
+    "Simulated route parameters calculated",
+    "Target asset feasibility checked",
+    "Protected asset rules checked",
+    "Estimated gas requirement calculated",
+  ];
 
   // Derive execution risk label
   const riskLabel = activePlan.saveScore >= 85 ? "LOW" : activePlan.saveScore >= 70 ? "MEDIUM" : "HIGH";
 
   // Derive execution status text & button actions
-  let statusText = "Ready to authorize";
-  let buttonLabel = "Authorize Rescue Plan";
+  let statusText = "Optional X Layer wallet verification available";
+  let buttonLabel = "Verify Wallet on X Layer Testnet";
   let showLoader = false;
   let errorMsg = "";
 
-  if (executionSession.state === "AWAITING_WALLET_SIGNATURE") {
+  if (walletVerification.state === "AWAITING_WALLET_SIGNATURE") {
     statusText = "Waiting for wallet authorization";
     buttonLabel = "Signing...";
     showLoader = true;
-  } else if (executionSession.state === "BROADCASTING") {
+  } else if (walletVerification.state === "READY") {
     statusText = "Waiting for wallet authorization";
     buttonLabel = "Broadcasting...";
     showLoader = true;
-  } else if (executionSession.state === "PENDING_CONFIRMATION") {
+  } else if (walletVerification.state === "PENDING_CONFIRMATION") {
     statusText = "Transaction broadcast — awaiting confirmation";
     buttonLabel = "Confirming...";
     showLoader = true;
-  } else if (executionSession.state === "USER_REJECTED") {
+  } else if (walletVerification.state === "USER_REJECTED") {
     statusText = "Signature request rejected by user. You can retry.";
     buttonLabel = "Retry Authorization";
     errorMsg = "Signature rejected by user.";
-  } else if (executionSession.state === "CONFIRMATION_TIMEOUT") {
-    statusText = "Confirmation is taking longer than expected. Transaction hash: " + (executionSession.activeTxHash || "");
-    buttonLabel = "Confirmation delayed";
+  } else if (walletVerification.state === "CONFIRMATION_TIMEOUT") {
+    statusText = "Confirmation is taking longer than expected. Transaction hash: " + (walletVerification.activeTxHash || "");
+    buttonLabel = "Check Verification Again";
     showLoader = false;
     errorMsg = "Confirmation delayed. Please check the block explorer with the transaction hash.";
-  } else if (executionSession.state === "FAILED_SAFE") {
-    statusText = "Execution failed closed. Funds are safe.";
-    buttonLabel = "Execution Failed";
-    errorMsg = executionSession.error || "On-chain transaction reverted.";
+  } else if (walletVerification.state === "FAILED_SAFE") {
+    statusText = "Wallet verification failed closed.";
+    buttonLabel = walletVerification.activeTxHash ? "Clear Failed Verification" : "Retry Wallet Verification";
+    errorMsg = walletVerification.error || "Verification transaction failed.";
   }
 
-  let pageTitle = "Simulation complete";
+  if (walletVerification.state === "CONFIRMED") {
+    statusText = "X Layer wallet verification successful";
+    buttonLabel = "Verification Confirmed";
+  }
+
+  if (!connected || !walletAddress) {
+    buttonLabel = "Connect Wallet for Optional X Layer Verification";
+    statusText = "The simulated rescue is complete without wallet verification.";
+  } else if (chainId !== 1952) {
+    buttonLabel = "Switch Wallet to X Layer Testnet";
+    statusText = "Wallet verification requires X Layer Testnet. The simulated rescue remains valid.";
+  } else if (walletVerificationBalanceStatus === "CHECKING" || walletVerificationBalanceStatus === "UNKNOWN") {
+    buttonLabel = "Checking Test OKB Balance...";
+    statusText = "Checking the connected wallet's native test OKB balance.";
+  } else if (walletVerificationBalanceStatus === "INSUFFICIENT" || walletVerificationBalanceStatus === "ERROR") {
+    buttonLabel = "Test OKB Required for Optional Verification";
+    statusText = "Wallet verification is unavailable without sufficient test OKB. The simulated rescue remains valid.";
+  } else if (walletVerification.state === "FAILED_SAFE" && walletVerification.activeTxHash) {
+    buttonLabel = "Clear Failed Verification";
+    statusText = "The mined verification failed. Clear it explicitly before starting a new verification.";
+  }
+
+  const verificationBalanceUnavailable =
+    connected &&
+    !!walletAddress &&
+    chainId === 1952 &&
+    (walletVerificationBalanceStatus === "CHECKING" ||
+      walletVerificationBalanceStatus === "UNKNOWN" ||
+      walletVerificationBalanceStatus === "INSUFFICIENT" ||
+      walletVerificationBalanceStatus === "ERROR");
+
+  const verificationButtonDisabled =
+    showLoader ||
+    walletVerification.state === "CONFIRMED" ||
+    verificationBalanceUnavailable;
+
+  const handleVerificationAction = async () => {
+    if (!connected || !walletAddress || chainId !== 1952) {
+      await connectWallet(undefined, true);
+      return;
+    }
+    if (walletVerification.state === "FAILED_SAFE" && walletVerification.activeTxHash) {
+      resetWalletVerification();
+      return;
+    }
+    await verifyWalletOnXLayer();
+  };
+
+  let pageTitle = "Rescue plan validated";
   let statusBadgeLabel = "All safety checks passed";
   let statusBadgeTone: "safe" | "critical" | "warn" | "primary" = "safe";
 
   if (executionState === "SIMULATING") {
-    pageTitle = "Simulation running";
-    statusBadgeLabel = "Simulating X Layer...";
+    pageTitle = "Plan validation running";
+    statusBadgeLabel = "VALIDATING PLAN...";
     statusBadgeTone = "primary";
   } else if (isQuoteStale) {
-    pageTitle = "Simulation requires a fresh quote";
+    pageTitle = "Plan validation requires fresh estimates";
     statusBadgeLabel = "RE-QUOTE REQUIRED";
     statusBadgeTone = "warn";
   } else if (executionState === "SIMULATION_FAILED") {
-    pageTitle = "Simulation blocked";
+    pageTitle = "Plan validation blocked";
     statusBadgeLabel = "SAFETY CHECKS FAILED";
     statusBadgeTone = "critical";
   } else if (executionState === "SIMULATION_READY") {
-    pageTitle = "Simulation passed";
+    pageTitle = "Rescue plan validated";
     statusBadgeLabel = "SAFETY CHECKS PASSED";
     statusBadgeTone = "safe";
   }
@@ -218,7 +230,7 @@ function Simulate() {
     <PageShell
       eyebrow="Step 06 · Simulation"
       title={pageTitle}
-      intro="Executed against a forked state of X Layer. What you see is what settles."
+      intro="SAVE evaluated the selected strategy against portfolio constraints, estimated execution costs, quote freshness, gas requirements, and approval requirements before any wallet action."
       aside={
         <div className="flex gap-2">
           {portfolioMode === "LIVE_WALLET" ? (
@@ -273,7 +285,7 @@ function Simulate() {
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
                 <Eyebrow>Route Provider</Eyebrow>
-                <p className="num mt-2 text-sm font-semibold">OKX DEX Aggregator (chainIndex: 196)</p>
+                <p className="num mt-2 text-sm font-semibold">DEMO ROUTE ESTIMATE · OKX-compatible adapter</p>
               </div>
               <div>
                 <Eyebrow>Quote Age</Eyebrow>
@@ -340,7 +352,7 @@ function Simulate() {
             <Panel className="border-critical/30 bg-critical/10 p-6 flex gap-4 items-start rounded-lg">
               <AlertTriangle className="size-5 text-critical shrink-0 mt-0.5" />
               <div>
-                <h4 className="font-semibold text-critical">Execution Error</h4>
+                <h4 className="font-semibold text-critical">Wallet Verification Error</h4>
                 <p className="mt-1 text-sm leading-relaxed text-foreground">{errorMsg}</p>
               </div>
             </Panel>
@@ -362,20 +374,18 @@ function Simulate() {
                 </div>
                 <div className="flex justify-between items-center text-sm border-b border-border pb-2.5">
                   <span className="text-muted-foreground">Native OKB balance</span>
-                  {(() => {
-                    const okbAsset = portfolio.find((a) => a.symbol === "OKB");
-                    const okbBalance = okbAsset ? parseFloat(okbAsset.balance) : 0;
-                    return (
-                      <span className={`num font-semibold ${okbBalance > 0.001 ? "text-safe" : "text-critical"}`}>
-                        {okbBalance.toFixed(4)} OKB {okbBalance <= 0.001 && "(Requires > 0.001 OKB)"}
-                      </span>
-                    );
-                  })()}
+                  <span className={`num font-semibold ${walletVerificationBalanceStatus === "SUFFICIENT" ? "text-safe" : "text-critical"}`}>
+                    {walletVerificationBalanceStatus === "SUFFICIENT"
+                      ? "Sufficient for optional verification"
+                      : walletVerificationBalanceStatus === "CHECKING"
+                        ? "Checking connected wallet..."
+                        : "Test OKB required"}
+                  </span>
                 </div>
                 <div className="flex justify-between items-center text-sm">
                   <span className="text-muted-foreground">Execution mode</span>
-                  <span className={`label-mono px-2 py-0.5 rounded font-semibold ${executionSession.mode === "TESTNET_LIVE" ? "bg-safe/10 text-safe border border-safe/20" : "bg-primary/10 text-primary border border-primary/20"}`}>
-                    {executionSession.mode}
+                  <span className="label-mono px-2 py-0.5 rounded font-semibold bg-primary/10 text-primary border border-primary/20">
+                    SIMULATED RESCUE
                   </span>
                 </div>
               </div>
@@ -438,22 +448,22 @@ function Simulate() {
                 <Panel className="border-warning/30 bg-warning/10 p-6 flex gap-4 items-start rounded-lg">
                   <AlertTriangle className="size-5 text-warning shrink-0 mt-0.5" />
                   <div>
-                    <h4 className="font-semibold text-warning">TESTNET_LIVE Mode Inactive</h4>
+                    <h4 className="font-semibold text-warning">LIVE RESCUE SWAPS UNAVAILABLE ON TESTNET</h4>
                     <p className="mt-1 text-sm leading-relaxed text-foreground">
                       {portfolioMode === "DEMO_PORTFOLIO"
-                        ? "Demo simulation mode is locked. Switch to Live Wallet mode in the navbar to execute live transactions."
-                        : "To execute on-chain transactions, please satisfy the following:"}
+                        ? "Demo rescue planning is simulation-only."
+                        : "OKX routing support for X Layer uses mainnet chain 196, while this application remains safely configured for testnet 1952."}
                     </p>
                     {portfolioMode !== "DEMO_PORTFOLIO" && (
                       <ul className="mt-2 space-y-1 text-xs list-disc list-inside text-muted-foreground">
                         {chainId !== 1952 && (
-                          <li>Switch network in MetaMask/OKX Wallet to <strong>X Layer Testnet (Chain ID 1952)</strong>.</li>
+                          <li>Switch to <strong>X Layer Testnet (Chain ID 1952)</strong> to use optional wallet verification.</li>
                         )}
                         {(() => {
                           const okbAsset = portfolio.find((a) => a.symbol === "OKB");
                           const okbBalance = okbAsset ? parseFloat(okbAsset.balance) : 0;
                           if (okbBalance <= 0.001) {
-                            return <li>Deposit native Testnet OKB to cover gas (balance: {okbBalance.toFixed(4)} OKB, minimum: 0.001 OKB).</li>;
+                            return <li>Deposit native Testnet OKB only if you choose the optional wallet verification (balance: {okbBalance.toFixed(4)} OKB).</li>;
                           }
                           return null;
                         })()}
@@ -472,28 +482,11 @@ function Simulate() {
                   )}
                   <div>
                     <h4 className="font-semibold text-safe">
-                      {executionSession.mode === "DEMO_SIMULATION" ? "DEMO RESCUE SIMULATION COMPLETE" : statusText}
+                      RESCUE PLAN VALIDATED
                     </h4>
                     <p className="mt-1 text-sm leading-relaxed text-foreground">
-                      {executionSession.mode === "TESTNET_LIVE"
-                        ? "Wallet execution mode active. Transactions will be sent to X Layer Testnet."
-                        : "Safety checks passed. This rescue plan was simulated only. No wallet signature or transaction broadcast is required."}
+                      Local safety and feasibility checks passed. This rescue outcome remains simulated and is not broadcast.
                     </p>
-                    {executionSession.mode === "TESTNET_LIVE" && (
-                      <>
-                        <p className="mt-1.5 text-xxs label-mono text-muted-foreground/80 font-normal">
-                          * Staged execution strategy — user authorization required at each stage.
-                        </p>
-                        {executionSession.steps.length > 0 && (
-                          <div className="mt-3 flex gap-4 text-xs text-muted-foreground">
-                            <span>
-                              Step {executionSession.currentStepIndex + 1} of {executionSession.steps.length}
-                            </span>
-                            <span>Mode: {executionSession.mode}</span>
-                          </div>
-                        )}
-                      </>
-                    )}
                   </div>
                 </Panel>
               )}
@@ -507,7 +500,7 @@ function Simulate() {
                   Refresh quote <ArrowRight className="size-4" />
                 </MagneticButton>
               ) : executionState === "SIMULATION_READY" ? (
-                executionSession.mode === "DEMO_SIMULATION" ? (
+                <div className="space-y-3">
                   <MagneticButton
                     onClick={() => navigate({ to: "/protected" })}
                     className="w-full"
@@ -515,16 +508,33 @@ function Simulate() {
                   >
                     View Simulated Result <ArrowRight className="size-4" />
                   </MagneticButton>
-                ) : (
                   <MagneticButton
-                    onClick={executeNextStep}
+                    onClick={() => void handleVerificationAction()}
                     className="w-full disabled:opacity-50 disabled:cursor-not-allowed"
                     size="lg"
-                    disabled={showLoader || executionSession.state === "FAILED_SAFE"}
+                    variant="ghost"
+                    disabled={verificationButtonDisabled}
                   >
                     {buttonLabel} <ArrowRight className="size-4" />
                   </MagneticButton>
-                )
+                  <p className="text-xs leading-relaxed text-muted-foreground">
+                    Optional: verify wallet authorization and X Layer Testnet settlement using your connected wallet. This does not execute the simulated rescue or imply that the connected wallet owns the Demo Portfolio.
+                  </p>
+                  {connected && walletAddress && (
+                    <dl className="grid gap-1 rounded-lg border border-border bg-secondary/20 p-3 text-xs">
+                      <div className="flex justify-between gap-4"><dt className="text-muted-foreground">Verification transaction</dt><dd>0.0001 OKB self-transfer</dd></div>
+                      <div className="flex justify-between gap-4"><dt className="text-muted-foreground">From</dt><dd className="font-mono">{walletAddress.slice(0, 6)}…{walletAddress.slice(-4)}</dd></div>
+                      <div className="flex justify-between gap-4"><dt className="text-muted-foreground">To</dt><dd className="font-mono">Same connected wallet</dd></div>
+                      <div className="flex justify-between gap-4"><dt className="text-muted-foreground">Network</dt><dd>X Layer Testnet</dd></div>
+                      <div className="flex justify-between gap-4"><dt className="text-muted-foreground">Purpose</dt><dd className="text-right">Wallet authorization + settlement verification only</dd></div>
+                      <div className="flex justify-between gap-4"><dt className="text-muted-foreground">Rescue execution</dt><dd>None</dd></div>
+                    </dl>
+                  )}
+                  <p className="text-xs font-mono text-muted-foreground" aria-live="polite">
+                    {statusText}
+                  </p>
+                  {errorMsg && <p className="text-xs text-destructive">{errorMsg}</p>}
+                </div>
               ) : (
                 <MagneticButton
                   className="w-full opacity-50 cursor-not-allowed"
@@ -540,15 +550,14 @@ function Simulate() {
 
         <div className="space-y-6">
           <Panel className="p-8">
-            <Eyebrow>{executionSession.mode === "DEMO_SIMULATION" ? "Simulation steps" : "Execution timeline"}</Eyebrow>
+            <Eyebrow>Rescue plan validation steps</Eyebrow>
             <div className="mt-6">
               <SimulationTimeline steps={traceSteps} autoRun={executionState === "SIMULATING" || executionState === "SIMULATION_READY"} />
             </div>
             <p className="mt-4 border-t border-border pt-4 text-xs leading-relaxed text-muted-foreground flex gap-1.5 items-start">
               <HelpCircle className="size-3.5 shrink-0 mt-0.5 text-muted-foreground/60" />
               <span>
-                Simulation is re-run immediately before signature. If conditions drift beyond your risk
-                preference, SAVE aborts instead of executing.
+                These are local safety and feasibility checks, not EVM transaction simulation. Rescue parameters remain simulated.
               </span>
             </p>
           </Panel>
@@ -558,7 +567,7 @@ function Simulate() {
             <div className="mt-4 space-y-2.5 text-xs label-mono">
               <div className="flex justify-between border-b border-border/40 pb-2">
                 <span className="text-muted-foreground">Portfolio / Routing Intelligence</span>
-                <span className="font-semibold text-foreground text-right">OKX OnchainOS</span>
+                <span className="font-semibold text-foreground text-right">OKX mainnet routing reference infrastructure</span>
               </div>
               <div className="flex justify-between border-b border-border/40 pb-2">
                 <span className="text-muted-foreground">Execution Network</span>
@@ -566,11 +575,11 @@ function Simulate() {
               </div>
               <div className="flex justify-between border-b border-border/40 pb-2">
                 <span className="text-muted-foreground">Authorization</span>
-                <span className="font-semibold text-foreground text-right">Connected Wallet · User Signed</span>
+                <span className="font-semibold text-foreground text-right">Optional wallet verification only</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Execution Mode</span>
-                <span className="font-semibold text-foreground text-right text-warning">SIMULATED RESCUE + TESTNET_LIVE PROOF</span>
+                <span className="font-semibold text-foreground text-right text-warning">SIMULATED RESCUE · OPTIONAL TESTNET VERIFICATION</span>
               </div>
             </div>
           </Panel>

@@ -15,7 +15,7 @@ This directory contains the manifest and detailed execution guide for capturing 
 | `05-portfolio-aware-intent.png` | `/intent` | `DEMO_PORTFOLIO` | Parsing Logic | **AI Natural-Language Intent**: Captures plain language constraint parsing, active source stats summary, and dynamic suggestions. |
 | `06-rescue-plan-comparison.png` | `/plan` | `DEMO_PORTFOLIO` | Solver Output | **Outcome Optimization vs Swaps**: Displays three candidate plans (A, B, C) with distinct preservation scores, time horizons, and routes. |
 | `07-simulation-safety-gates.png` | `/simulate` | `WATCH_ONLY` / `DEMO` | Simulation | **Simulation & Guardrails**: Shows localized prechecks, spender statuses, and the watch-only execution block warning CTA. |
-| `08-xlayer-live-verification-receipt.png` | `/protected` | `TESTNET_LIVE` | Testnet Live | **Execution Proof**: Displays the real X Layer block receipt (gas used, block, transaction hash) linked to the simulated rescue. |
+| `08-xlayer-live-verification-receipt.png` | `/protected` | Demo + connected wallet | Optional Testnet Verification | **X Layer Wallet Verification**: Displays the real self-transfer receipt separately from the simulated rescue. |
 
 ---
 
@@ -29,7 +29,7 @@ To ensure consistent aspect ratios, high resolution, and clean layouts, use the 
 * **Browser Zoom**: Set zoom level strictly to `100%`.
 * **State**: No devtools inspector visible, no browser bookmarks bar visible, no system toast notifications active.
 * **Wallet**: Keep your EVM wallet (MetaMask or OKX Wallet) connected and switched to **X Layer Testnet (Chain ID 1952 / 0x7A0)**.
-* **Gas Reserve**: Ensure your testnet wallet has `> 0.001 OKB` for the execution test.
+* **Verification Balance**: Ensure your testnet wallet has `> 0.001 OKB` for optional X Layer Wallet Verification.
 
 ---
 
@@ -41,7 +41,7 @@ To ensure consistent aspect ratios, high resolution, and clean layouts, use the 
 * **What MUST be visible**: 
   * Logo wordmark `SAVE` in top left.
   * Hero title: `"Markets move in seconds. Your exit shouldn't."`
-  * Subtitle: *"AI-powered emergency exit engine for Web3 portfolios."*
+  * Subtitle: *"Intent-driven portfolio policy engine for Web3 portfolios."*
   * CTA Button: `"Connect Wallet"` or `"Enter Command Center"`.
   * Visual graphic representing the liquidity solver or risk dial.
 * **What MUST NOT be visible**: 
@@ -116,15 +116,15 @@ To ensure consistent aspect ratios, high resolution, and clean layouts, use the 
 * **Exact Desired UI State**: Timeline prechecks resolved.
 * **What MUST be visible**:
   * Simulation timeline checks completed.
-  * ERC-20 allowances with spender statuses showing `VERIFIED_OKX` or `VERIFIED_RPC`.
+  * Simulated approval requirements clearly separated from authenticated OKX mainnet adapter capability.
   * Watch-only execution block card reading: `"WALLET AUTHORIZATION REQUIRED"`.
 
 ---
 
-### Screenshot 8: X Layer Live Verification Receipt (`08-xlayer-live-verification-receipt.png`)
+### Screenshot 8: X Layer Wallet Verification Receipt (`08-xlayer-live-verification-receipt.png`)
 * **URL**: `https://prosave.vercel.app/protected`
-* **Portfolio Mode**: `TESTNET_LIVE` (After signing OKB self-transfer validation proof on X Layer Testnet)
+* **Portfolio Mode**: `DEMO_PORTFOLIO` with a connected X Layer Testnet wallet after optional verification
 * **Exact Desired UI State**: Settlement page showing receipt details.
 * **What MUST be visible**:
-  * Top stats labeled: `RESCUE OUTCOME: SIMULATED` and `X LAYER VERIFICATION: TESTNET_LIVE`.
+  * Top stats labeled: `RESCUE OUTCOME: SIMULATED` and `X LAYER WALLET VERIFICATION: CONFIRMED`.
   * Dynamic block parameters (gas used, block number, transaction hash) polled from public X Layer RPC nodes.

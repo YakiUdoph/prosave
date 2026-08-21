@@ -19,7 +19,7 @@ export const Route = createFileRoute("/scan")({
       { property: "og:title", content: "Portfolio Scan — SAVE" },
       {
         property: "og:description",
-        content: "Live AI analysis of assets, liquidity and exit routes across X Layer.",
+        content: "Portfolio analysis of assets, liquidity, and simulated exit parameters.",
       },
     ],
   }),

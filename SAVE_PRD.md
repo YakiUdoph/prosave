@@ -1,7 +1,7 @@
 # SAVE: Product Requirements Document (PRD)
 
 ## 1. Executive Summary
-SAVE is an AI-powered emergency exit and intent-based portfolio protection engine built on X Layer and powered by the OKX OnchainOS suite. In highly volatile or distressed market conditions, users can express desired portfolio outcomes in plain language (e.g., *"Get me $700 USDC. Don't sell my ETH unless necessary."*) and execute optimal, multi-asset routing paths instantly with a single transaction request. SAVE automates the evaluation, scoring, simulation, and execution of portfolio-level exits, moving Web3 risk management away from primitive token-by-token swaps and toward intelligent intent-driven outcomes.
+SAVE is an intent-driven portfolio protection engine built for X Layer with OKX OnchainOS integration infrastructure. In the current hackathon build, deterministic natural-language constraint extraction drives competing, scored rescue plans with simulated execution parameters. Optional X Layer Testnet wallet verification is isolated from rescue execution.
 
 ---
 
@@ -63,9 +63,9 @@ SAVE computes the global portfolio state, protects high-conviction assets, ident
 2. **Scan**: SAVE scans the native OKB and on-chain ERC-20 balances, evaluating risk and liquidity.
 3. **Command**: User views their portfolio dashboard, risk levels, and enters their natural-language intent.
 4. **Plan**: SAVE parses the intent, extracts constraints, generates 3 candidate rescue strategies (Plan A, B, C), and highlights the optimal recommendation.
-5. **Simulate**: The selected plan runs through an on-chain simulation, showing slippage, gas, price impact, and routing steps.
-6. **Execute**: The user holds the authorization button to sign the transactions via their wallet.
-7. **Result**: The transaction executes, confirming the secured USDC and presenting the refreshed, protected portfolio.
+5. **Validate**: The selected plan runs through local safety and feasibility checks using simulated route parameters.
+6. **Verify (Optional)**: The user may authorize a separate X Layer Testnet wallet/settlement diagnostic.
+7. **Result**: SAVE presents the simulated rescue outcome separately from any wallet-verification receipt.
 
 ---
 
@@ -78,8 +78,8 @@ SAVE computes the global portfolio state, protects high-conviction assets, ident
   - **Plan B**: Minimize damage (preserve protected assets, sell high-risk assets first).
   - **Plan C**: Conservative preservation (sell zero protected assets, even if target is not fully met).
 - **Route Validation**: Scoring paths using gas, slippage, price impact, and protocol safety scores.
-- **Transaction Simulation**: Verification of routes and execution safety guards prior to wallet broadcast.
-- **Signature Broadcast**: Standard contract interaction requesting user wallet signatures (no private keys in client code).
+- **Plan Validation**: Local policy, feasibility, estimate-age, gas, and approval-requirement checks; not EVM transaction simulation.
+- **Optional Verification Broadcast**: User-authorized 0.0001 OKB self-transfer proving wallet/network/settlement plumbing only.
 
 ---
 
@@ -118,8 +118,8 @@ Generates liquidation weight configurations ($w_i \in [0, 1]$) representing the 
 $$\text{Expected Output} = \sum (w_i \times \text{Balance}_i \times \text{Price}_i \times (1 - \text{Slippage}_i))$$
 Candidate routes with slippage $> 3\%$ or price impact $> 5\%$ are flagged and rejected.
 
-### D. Simulation & Execution
-Queries the OKX OnchainOS router server-side to retrieve quotes. The frontend displays the visual timeline of the simulation and invokes the local wallet provider to sign and broadcast the swap transactions.
+### D. Planning & Verification
+Demo rescue plans use labelled simulated route parameters. Authenticated OKX routing functions target X Layer Mainnet (196) and are not used as testnet calldata. The browser wallet may separately sign an optional X Layer Testnet verification transaction.
 
 ### E. Protection Score
 A dynamic rating metric (0-100) indicating portfolio health:

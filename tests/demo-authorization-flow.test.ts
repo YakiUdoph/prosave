@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { readFileSync } from "node:fs";
 import { type ExecutionMode, type ExecutionSession } from "../src/lib/execution";
 import { type SimulationResult } from "../src/lib/simulation";
 
@@ -69,38 +70,22 @@ describe("Final Demo Authorization & Result Routing State Flow Tests", () => {
     expect(confirmedTransactions[0]).not.toHaveProperty("gasUsed");
   });
 
-  // Test 6: TESTNET_LIVE still renders Authorize Rescue Plan
-  test("TESTNET_LIVE renders Authorize Rescue Plan", () => {
-    const getCTA = (mode: ExecutionMode, simReady: boolean) => {
-      if (simReady && mode === "TESTNET_LIVE") {
-        return {
-          title: "Ready to authorize",
-          button: "Authorize Rescue Plan",
-        };
-      }
-      return {
-        title: "DEMO RESCUE SIMULATION COMPLETE",
-        button: "View Simulated Result",
-      };
-    };
-
-    const cta = getCTA("TESTNET_LIVE", true);
-    expect(cta.title).toBe("Ready to authorize");
-    expect(cta.button).toBe("Authorize Rescue Plan");
+  test("testnet rescue execution remains disabled", () => {
+    const source = readFileSync(
+      new URL("../src/lib/save-context.tsx", import.meta.url),
+      "utf8",
+    );
+    expect(source).not.toContain("Authorize Rescue Plan");
+    expect(source).not.toContain("executeNextStep");
   });
 
-  // Test 7: TESTNET_LIVE still calls the existing provider authorization path
-  test("TESTNET_LIVE executes EIP-1193 signature and broadcast path", () => {
-    const executionTrace: string[] = [];
-    const executeStep = (mode: ExecutionMode) => {
-      if (mode === "TESTNET_LIVE") {
-        executionTrace.push("request_wallet_signature");
-        executionTrace.push("broadcast_transaction");
-      }
-    };
-    executeStep("TESTNET_LIVE");
-    expect(executionTrace).toContain("request_wallet_signature");
-    expect(executionTrace).toContain("broadcast_transaction");
+  test("optional verification is named independently from rescue execution", () => {
+    const source = readFileSync(
+      new URL("../src/routes/simulate.tsx", import.meta.url),
+      "utf8",
+    );
+    expect(source).toContain("Verify Wallet on X Layer Testnet");
+    expect(source).toContain("does not execute the simulated rescue or imply that the connected wallet owns the Demo Portfolio");
   });
 
   // Test 8: WATCH_ONLY never renders Authorize Rescue Plan

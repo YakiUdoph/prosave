@@ -14,10 +14,10 @@ This is the core end-to-end user journey that must work perfectly for the final 
 6. **Rescue Calculations**: The Rescue Solver evaluates strategies (Plan A, B, C), scoring each against damage metrics.
 7. **Route Validation**: Integrates with OKX OnchainOS to check routes, filtering out high-slippage/ unsafe configurations.
 8. **Recommendation**: Recommends the optimal plan (Plan B, keeping ETH untouched, liquidating TKX and partial OKB).
-9. **Simulation**: Shows expected USDC output, transaction fees (gas), slippage, price impact, and the visual swap route steps.
-10. **Authorization**: User holds the confirmation trigger, prompting a wallet signature request.
-11. **On-Chain Execution**: Swaps are executed on-chain (using live OKB swaps where technically supported, fallback to simulated tx receipts if contracts are unverified, clearly flagged in logs).
-12. **Refresh & Confirm**: Portfolio refreshes showing the secured USDC and updated on-chain balances.
+9. **Plan Validation**: Shows simulated USDC output, estimated gas, slippage, price impact, and planned route steps.
+10. **Optional Wallet Verification**: User may authorize a separate 0.0001 OKB self-transfer on X Layer Testnet.
+11. **Receipt Separation**: The verification receipt proves wallet/network settlement only and never changes simulated rescue state.
+12. **Result**: Simulated rescue outcome and optional verification status are displayed independently.
 
 ---
 

@@ -245,7 +245,7 @@ function Connect() {
               &ldquo;Your keys never leave your wallet.&rdquo;
             </p>
             <p className="label-mono mt-3 normal-case tracking-normal">
-              SAVE only requests a signature for the plan you explicitly approve.
+              Wallet signatures are only requested for actions you explicitly authorize, such as the optional X Layer Testnet wallet verification.
             </p>
           </div>
         </Panel>

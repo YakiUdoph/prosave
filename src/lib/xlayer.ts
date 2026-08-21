@@ -459,7 +459,7 @@ export async function scanPortfolio(address: string | null): Promise<{
     console.warn("OKX Balance API fetch failed:", okxErr);
   }
 
-  // 2. Query Live Native OKB balance on X Layer Testnet 1952 via viem RPC Client (TESTNET_LIVE execution proof requirement)
+  // 2. Query native OKB balance on X Layer Testnet 1952 for X Layer Wallet Verification.
   try {
     const okbWei = await publicClient.getBalance({ address: address as `0x${string}` });
     const okbBalance = parseFloat(formatEther(okbWei));

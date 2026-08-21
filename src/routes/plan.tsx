@@ -300,7 +300,7 @@ function RescuePlan() {
               </div>
             )}
             <div className="mt-4 p-3 rounded bg-secondary/30 text-xxs label-mono text-muted-foreground border border-border/40">
-              * Staged execution strategy — user authorization required at each stage. No autonomous background execution will occur.
+              * Staged rescue strategy — execution parameters are simulated in the current MVP.
             </div>
           </Panel>
 

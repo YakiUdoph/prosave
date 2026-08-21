@@ -334,6 +334,24 @@ This is an append-only log documenting architectural decisions, security resolut
 - **Files Affected**: `src/routes/protected.tsx`
 - **Status**: **RESOLVED**
 
+### DRIFT-038: X Layer Wallet Diagnostic Was Coupled to Rescue Execution
+- **Date**: 2026-08-21
+- **Discovery**: The TESTNET_LIVE rescue state machine advanced approval/swap steps using an unrelated 0.0001 OKB self-transfer, while OKX executable routing is available for X Layer Mainnet (196), not the configured X Layer Testnet (1952).
+- **Impact**: A wallet/network diagnostic receipt could be mistaken for rescue execution or target fulfillment.
+- **Root Cause**: Rescue execution and testnet wallet-verification proof shared one execution session and completion state.
+- **Resolution**: Isolated the diagnostic into an optional `WalletVerificationSession`. Rescue planning remains simulated, the diagnostic cannot modify rescue steps or secured amounts, result labels separate both outcomes, and OKX/local-estimate claims were corrected across judge-facing surfaces.
+- **Files Affected**: `src/lib/execution.ts`, `src/lib/save-context.tsx`, `src/routes/simulate.tsx`, `src/routes/protected.tsx`, judge-facing documentation, tests
+- **Status**: **RESOLVED**
+
+### DRIFT-039: Demo Verification Availability and Timeout Retry Safety
+- **Date**: 2026-08-21
+- **Discovery**: X Layer Wallet Verification was hidden after a Demo Portfolio rescue, and retrying after a receipt timeout could request a second self-transfer instead of polling the existing hash.
+- **Impact**: The combined judge path was unavailable, and a delayed receipt could lead to an unintended duplicate verification broadcast.
+- **Root Cause**: Verification availability was coupled to `LIVE_WALLET` portfolio mode, while authorization and receipt polling shared one retry entry point.
+- **Resolution**: Wallet connection can now be preserved independently of Demo Portfolio ownership, verification eligibility uses the connected wallet's real testnet OKB balance, and timeout retries select receipt polling whenever an active hash exists. Mined failures require an explicit clear before a new attempt.
+- **Files Affected**: `src/lib/execution.ts`, `src/lib/save-context.tsx`, `src/routes/simulate.tsx`, `src/routes/protected.tsx`, tests, judge-facing documentation
+- **Status**: **RESOLVED**
+
 ---
 
 ## 📝 Drift Entry Template

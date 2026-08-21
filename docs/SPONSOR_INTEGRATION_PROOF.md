@@ -6,9 +6,9 @@ This document provides technical evidence demonstrating the native integration o
 
 ## Why OKX + X Layer
 
-SAVE is built to solve a critical Web3 recovery problem: optimizing portfolio-level exits under strict asset preservation constraints. Traditional DEX routers optimize individual token pairs without regard for overall portfolio risk, time horizons, or token preservation rules. SAVE serves as the intelligence layer, while OKX and X Layer provide the execution and consensus backbone.
+SAVE solves a portfolio-level decision problem under asset-preservation constraints. DEX routers optimize individual pairs; SAVE determines which holdings to sell or protect and compares the resulting portfolio damage.
 
-By integrating with **OKX OnchainOS Web3 APIs**, SAVE offloads route discovery, quotes, and raw transaction payload assembly to OKX's high-performance aggregator network. This ensures that when the SAVE engine decides *which* assets must be traded to reach a target, the trade payloads are formed using real liquidity depth. 
+SAVE retains authenticated **OKX OnchainOS Web3 API** infrastructure for balances and X Layer Mainnet (chain 196) routing, approval, and transaction assembly. The current testnet rescue planner uses labelled simulated route parameters; mainnet payloads are never submitted on testnet 1952.
 
 Deploying on **X Layer** provides the low-fee, high-throughput EVM consensus environment required to verify recovery transactions. Using native **OKB** for gas, X Layer ensures transaction verification is secure, fast, and transparent.
 
@@ -19,11 +19,11 @@ Deploying on **X Layer** provides the low-fee, high-throughput EVM consensus env
 | Sponsor / Infrastructure | SAVE Usage | Implementation Reference | Status |
 | --- | --- | --- | --- |
 | **OKX OnchainOS Web3 API** | Multi-chain token balance scans | [`okx.server.ts:L480`](file:///C:/Users/PC/Desktop/SAVE-XLayer/src/lib/okx.server.ts#L480-L487) | **LIVE** |
-| **OKX OnchainOS Web3 API** | Route quote calculation & exactIn convergence | [`okx.server.ts:L239`](file:///C:/Users/PC/Desktop/SAVE-XLayer/src/lib/okx.server.ts#L239-L286) | **LIVE** |
-| **OKX OnchainOS Web3 API** | ERC-20 approval transaction payloads | [`okx.server.ts:L366`](file:///C:/Users/PC/Desktop/SAVE-XLayer/src/lib/okx.server.ts#L366-L397) | **LIVE** |
-| **OKX OnchainOS Web3 API** | Swap transaction assembly payload | [`okx.server.ts:L402`](file:///C:/Users/PC/Desktop/SAVE-XLayer/src/lib/okx.server.ts#L402-L438) | **LIVE** |
+| **OKX OnchainOS Web3 API** | Mainnet quote calculation & exactIn convergence adapter | [`okx.server.ts:L239`](file:///C:/Users/PC/Desktop/SAVE-XLayer/src/lib/okx.server.ts#L239-L286) | **AVAILABLE / NOT IN TESTNET RESCUE RUNTIME** |
+| **OKX OnchainOS Web3 API** | Mainnet approval transaction adapter | [`okx.server.ts:L366`](file:///C:/Users/PC/Desktop/SAVE-XLayer/src/lib/okx.server.ts#L366-L397) | **AVAILABLE / NOT BROADCAST** |
+| **OKX OnchainOS Web3 API** | Mainnet swap transaction adapter | [`okx.server.ts:L402`](file:///C:/Users/PC/Desktop/SAVE-XLayer/src/lib/okx.server.ts#L402-L438) | **AVAILABLE / NOT BROADCAST** |
 | **X Layer Testnet** | RPC client node querying (balances/confirmations) | [`xlayer.ts:L46`](file:///C:/Users/PC/Desktop/SAVE-XLayer/src/lib/xlayer.ts#L46-L52) | **LIVE** |
-| **X Layer Testnet** | EIP-1193 transaction broadcast & verification | [`execution.ts:L113`](file:///C:/Users/PC/Desktop/SAVE-XLayer/src/lib/execution.ts#L113-L187) | **TESTNET_LIVE** |
+| **X Layer Testnet** | Optional X Layer Wallet Verification broadcast and receipt | [`execution.ts:L113`](file:///C:/Users/PC/Desktop/SAVE-XLayer/src/lib/execution.ts#L113-L187) | **OPTIONAL LIVE TESTNET TRANSACTION** |
 | **OKX Wallet** | Preferred provider discovery & connection | [`save-context.tsx:L185`](file:///C:/Users/PC/Desktop/SAVE-XLayer/src/lib/save-context.tsx#L185-L220) | **LIVE** |
 
 ---
@@ -57,7 +57,7 @@ To guarantee audit integrity, SAVE separates execution statuses clearly:
 1. **`LIVE_WALLET` (Data Mode)**: Displays real balances, contracts, and prices from the connected address.
 2. **`WATCH_ONLY` (Data Mode)**: Analyzes a pasted public EVM address in read-only mode, avoiding any key exposure or wallet connection request.
 3. **`DEMO_PORTFOLIO` (Data Mode)**: A synthetic portfolio representing multiple risky holdings (e.g. PEPE, TKX) used to demonstrate complex solver decisions.
-4. **`TESTNET_LIVE` (Execution Mode)**: Prompts a real transaction on X Layer Testnet (native OKB self-transfer) verifying wallet signing and block receipt confirmation.
+4. **X Layer Wallet Verification**: Optional native OKB self-transfer proving wallet authorization and block settlement. It is independent from rescue execution state.
 5. **`DEMO_SIMULATION` (Execution Mode)**: Runs the solver against the selected plan to verify outputs locally. **Demo execution locks block MetaMask/OKX prompts, preventing mock transactions from being sent to real chains.**
  
 ---
@@ -80,14 +80,14 @@ Follow these steps to test SAVE's native integrations:
 2. Confirm the network switch prompt to switch network to **X Layer Testnet (Chain ID 1952)**.
 3. Verify your live address scans. In **Intent**, type: `"Get me $700 USDC. Keep my ETH."`
 4. Click **Run this intent on Demo Portfolio** (since testnet wallets generally won't hold $700 USDC, we use synthetic assets to calculate recovery routes).
-5. Progress to **Simulate**, verify safety guardrails, and click **Authorize Rescue Plan**.
+5. Progress to plan validation and optionally click **Verify Wallet on X Layer Testnet**.
 6. Sign the native OKB transfer request in your wallet, and watch the receipt status update dynamically as SAVE polls X Layer block receipts.
 
 ---
 
 ## 30-Second Technical Pitch
 
-> *"SAVE is not just another AI wrapper; it is an intent-driven emergency exit engine for Web3 portfolios. While traditional DEX aggregators optimize a single swap, SAVE uses OKX OnchainOS quote APIs to solve multi-asset, portfolio-level outcomes under user-defined constraints. Built natively for X Layer, SAVE checks gas reserves, verifies contract spenders, and simulates transactions on forked nodes before prompting the user's wallet. It proves live execution capability on the X Layer Testnet via secure EIP-1193 signing while preserving data honesty through isolated demo and live states."*
+> *"DEX routers answer how to swap one pair. SAVE answers which portfolio assets should be sold or protected to reach a goal with the least policy-adjusted damage. The current build uses deterministic constraint extraction and simulated route parameters, retains authenticated OKX mainnet routing infrastructure, and separately proves optional wallet authorization and settlement on X Layer Testnet."*
 
 ---
 
@@ -98,7 +98,7 @@ Follow these steps to test SAVE's native integrations:
 OKX provides the industry-leading Web3 aggregator routing API. Instead of building custom routers and liquidity trackers, SAVE integrates OKX OnchainOS to retrieve real-time quotes, liquidity depth, and raw swap transaction payloads. This ensures that SAVE's portfolio decisions are backed by executable market routes.
 
 ### 2. Why X Layer?
-X Layer offers the low latency and cost-effective block settlement required to execute emergency portfolio rescues. Its native OKB gas token integrates seamlessly with our wallet-checking logic, allowing us to read balances via RPC and verify that the user can cover transaction fees before requesting signatures.
+X Layer Testnet provides the wallet authorization and settlement-verification environment for the current MVP. Its native OKB gas token supports public balance checks and the optional verification transaction.
 
 ### 3. What is actually live today?
-Today, SAVE natively connects to OKX Wallet and MetaMask, scans live token balances via OKX, and queries X Layer RPC endpoints. When a user executes a plan, they sign and broadcast a live verification transaction on the X Layer Testnet, confirming the block receipt, gas consumed, and execution proof in real time.
+Today, SAVE connects to OKX Wallet and MetaMask, scans balances via OKX/RPC where available, and plans simulated portfolio rescues. Separately, users may sign an optional X Layer Testnet wallet-verification transaction; its receipt proves authorization and settlement only, not rescue execution.

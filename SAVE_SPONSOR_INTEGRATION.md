@@ -22,7 +22,7 @@ This document maps the native usage of sponsor technologies (X Layer and OKX Onc
 - **Why it matters**: During a market sell-off, high-fee networks like Ethereum Mainnet can price out average retail users. X Layer ensures that emergency exits remain cheap and fast.
 
 ### 2. OKX OnchainOS (DEX Router & Liquidity Aggregator)
-- **Role**: Provides the global liquidity mapping. The SAVE Rescue Solver queries OKX OnchainOS to obtain the best swap rates, gas requirements, and slippage coefficients for every asset in the portfolio.
+- **Role**: Provides authenticated X Layer Mainnet routing adapter infrastructure. The current rescue solver uses explicitly labelled simulated route estimates and does not submit chain-196 payloads on testnet.
 - **Why it matters**: Traditional DEX APIs only provide simple, single-token routing. OKX OnchainOS aggregates liquidity across the entire L2 ecosystem, ensuring the Rescue Solver has the most accurate data to formulate its damage-minimization exit plans.
 
 ---
@@ -50,7 +50,7 @@ Because the OKX DEX Router API on X Layer primarily supports `exactIn` quotes, S
   2. Query OKX `exactIn` quote to obtain the expected output.
   3. Correct the input using a bounded binary search (upper limit capped at 1.5x initial estimate, lower limit at 0.8x).
   4. Converges on the required target output within a tolerance threshold of $\$0.05$ over a maximum of 5 iterations.
-- **Fail-Safe Fallback**: If live quotes timeout or fail, the solver gracefully logs the API error and switches to the deterministic local mock router, ensuring the application remains responsive.
+- **Runtime Boundary**: The current solver uses explicitly labelled demo route estimates. Authenticated OKX routing functions remain available for X Layer Mainnet reference/integration work and are never silently substituted into testnet execution.
 
 ### Gas Model & Native Gas Reserves
 In EVM networks like X Layer, executing transactions requires native OKB gas. Exhausting 100% of the wallet's native OKB to satisfy a swap target would leave the wallet bricked and incapable of executing the swaps.

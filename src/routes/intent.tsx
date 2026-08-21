@@ -188,7 +188,7 @@ function Intent() {
           </dl>
           <p className="mt-6 text-xs leading-relaxed text-muted-foreground">
             {parsed
-              ? "Constraints locked. Building candidate routes across OKX DEX Aggregator…"
+              ? "Constraints locked. Building candidate rescue plans from simulated route parameters…"
               : "Submit an intent to see how SAVE structures it before planning."}
           </p>
 

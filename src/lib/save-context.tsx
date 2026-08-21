@@ -3,14 +3,16 @@ import type { ReactNode } from "react";
 import { scanPortfolio, type ScannedAsset, type DataSource, publicClient } from "./xlayer";
 import { parseSaveIntent, type SaveIntent } from "./intent-parser";
 import { solveRescue, type RescueResult } from "./rescue-solver";
-import { simulatePlan, type ExecutionState, type SimulationResult, type PreparedTransaction } from "./simulation";
+import { simulatePlan, type ExecutionState, type SimulationResult } from "./simulation";
 import {
-  type ExecutionMode,
   type ExecutionStep,
   type ExecutionSession,
-  validateExecutionPreconditions,
+  type WalletVerificationSession,
+  buildXLayerWalletVerificationTransaction,
+  confirmWalletVerification,
+  getWalletVerificationAction,
+  validateWalletVerificationPreconditions,
   requestWalletSignatureAndBroadcast,
-  recalculateRemainingTarget,
 } from "./execution";
 
 export type PortfolioMode = "LIVE_WALLET" | "WATCH_ONLY" | "DEMO_PORTFOLIO";
@@ -41,7 +43,7 @@ type SaveState = {
   scanWatchOnlyAddress: (address: string) => void;
   chainId: number | null;
   walletDetected: boolean;
-  connectWallet: (customProvider?: any) => Promise<void>;
+  connectWallet: (customProvider?: any, preservePortfolioMode?: boolean) => Promise<void>;
   disconnectWallet: () => void;
   error: string | null;
   setError: (err: string | null) => void;
@@ -65,8 +67,11 @@ type SaveState = {
   // Step 8 states
   executionSession: ExecutionSession;
   setExecutionSession: React.Dispatch<React.SetStateAction<ExecutionSession>>;
-  startExecution: (mode: ExecutionMode) => Promise<void>;
-  executeNextStep: () => Promise<void>;
+  startExecution: () => Promise<void>;
+  walletVerification: WalletVerificationSession;
+  verifyWalletOnXLayer: () => Promise<void>;
+  resetWalletVerification: () => void;
+  walletVerificationBalanceStatus: "UNKNOWN" | "CHECKING" | "SUFFICIENT" | "INSUFFICIENT" | "ERROR";
 
   // Wallet Connectivity Additions
   detectedWallets: EIP6963ProviderDetail[];
@@ -139,6 +144,10 @@ export function SaveProvider({ children }: { children: ReactNode }) {
     securedAmount: 180, // starting USDC
     confirmedTransactions: [],
   }));
+  const [walletVerification, setWalletVerification] = useState<WalletVerificationSession>({
+    state: "NOT_PERFORMED",
+  });
+  const [walletVerificationBalanceStatus, setWalletVerificationBalanceStatus] = useState<"UNKNOWN" | "CHECKING" | "SUFFICIENT" | "INSUFFICIENT" | "ERROR">("UNKNOWN");
 
   const rescueResult = useMemo(() => {
     return solveRescue(portfolio, parsedIntent, portfolioMode);
@@ -182,6 +191,7 @@ export function SaveProvider({ children }: { children: ReactNode }) {
     setConnected(false);
     setExecutionState("IDLE");
     setSimulationResult(null);
+    setWalletVerification({ state: "NOT_PERFORMED" });
     setPortfolioModeState("DEMO_PORTFOLIO");
   }, []);
 
@@ -257,7 +267,7 @@ export function SaveProvider({ children }: { children: ReactNode }) {
     }
   }, [walletAddress, scannedAddress, portfolioMode, scanWalletPortfolio]);
 
-  const connectWallet = useCallback(async (customProvider?: any) => {
+  const connectWallet = useCallback(async (customProvider?: any, preservePortfolioMode = false) => {
     setError(null);
     let provider = customProvider;
     if (!provider) {
@@ -348,13 +358,38 @@ export function SaveProvider({ children }: { children: ReactNode }) {
       setChainId(1952);
       setConnected(true);
       setActiveProvider(provider);
-      setPortfolioModeState("LIVE_WALLET");
+      if (!preservePortfolioMode) {
+        setPortfolioModeState("LIVE_WALLET");
+      }
     } catch (err: any) {
       const msg = err.message || "Failed to connect wallet";
       setError(msg);
       throw err;
     }
   }, [disconnectWallet]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!connected || !walletAddress || chainId !== 1952) {
+      setWalletVerificationBalanceStatus("UNKNOWN");
+      return;
+    }
+
+    setWalletVerificationBalanceStatus("CHECKING");
+    publicClient.getBalance({ address: walletAddress as `0x${string}` })
+      .then((balance) => {
+        if (!cancelled) {
+          setWalletVerificationBalanceStatus(balance > 1_000_000_000_000_000n ? "SUFFICIENT" : "INSUFFICIENT");
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setWalletVerificationBalanceStatus("ERROR");
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [connected, walletAddress, chainId]);
 
   const connectWalletConnect = useCallback(async () => {
     setError(null);
@@ -463,14 +498,12 @@ export function SaveProvider({ children }: { children: ReactNode }) {
     setSimulationResult(null);
   }, []);
 
-  // Step 8: Execution Bridge Methods
-  const startExecution = useCallback(async (mode: ExecutionMode) => {
+  // Rescue planning is simulation-only on X Layer Testnet because the OKX DEX
+  // adapter supports X Layer Mainnet (chain index 196), not testnet 1952.
+  const startExecution = useCallback(async () => {
     const activePlan = rescueResult.plans.find((p) => p.id === selectedPlan);
     if (!activePlan) return;
 
-    const targetMode = portfolioMode === "DEMO_PORTFOLIO" ? "DEMO_SIMULATION" : mode;
-
-    // Initialize multi-transaction sequential steps
     const steps: ExecutionStep[] = [];
     for (const act of activePlan.actions) {
       if (act.symbol !== "OKB") {
@@ -490,362 +523,114 @@ export function SaveProvider({ children }: { children: ReactNode }) {
     }
 
     setExecutionSession({
-      mode: targetMode,
-      state: "READY_TO_SIGN",
+      mode: "DEMO_SIMULATION",
+      state: "COMPLETE",
       steps,
-      currentStepIndex: 0,
+      currentStepIndex: Math.max(0, steps.length - 1),
       targetAmount: parsedIntent.targetAmount || 700,
-      securedAmount: activePlan.securedAmount - (activePlan.actions.reduce((sum, a) => sum + (a.quote?.outputAmount || 0), 0)),
+      securedAmount: activePlan.securedAmount,
       confirmedTransactions: [],
     });
-  }, [rescueResult, selectedPlan, parsedIntent, portfolioMode]);
+  }, [rescueResult, selectedPlan, parsedIntent]);
 
-  // Dynamically update execution session mode based on wallet connection, chain, and OKB balance
-  useEffect(() => {
-    if (executionState === "SIMULATION_READY") {
-      const okbAsset = portfolio.find((a) => a.symbol === "OKB");
-      const okbBalance = okbAsset ? parseFloat(okbAsset.balance) : 0;
-      const minGasRequirement = 0.001;
+  const pollWalletVerificationReceipt = useCallback(async (txHash: string) => {
+    setWalletVerification((previous) => ({ ...previous, state: "PENDING_CONFIRMATION", activeTxHash: txHash, error: undefined }));
+    try {
+      const startTime = Date.now();
+      const timeoutMs = 90 * 1000;
+      let receipt: any = null;
 
-      const canActivateTestnetLive =
-        connected &&
-        chainId === 1952 &&
-        okbBalance > minGasRequirement &&
-        portfolioMode === "LIVE_WALLET";
-
-      const targetMode = canActivateTestnetLive ? "TESTNET_LIVE" : "DEMO_SIMULATION";
-
-      if (executionSession.mode !== targetMode && executionSession.state === "READY_TO_SIGN") {
-        setExecutionSession((prev) => ({
-          ...prev,
-          mode: targetMode,
-        }));
-      }
-    }
-  }, [connected, chainId, portfolio, executionState, executionSession.mode, executionSession.state, setExecutionSession, portfolioMode]);
-
-  const executeNextStep = useCallback(async () => {
-    // 1. Prevent duplicate simultaneous execute actions
-    if (
-      executionSession.state === "AWAITING_WALLET_SIGNATURE" ||
-      executionSession.state === "BROADCASTING" ||
-      executionSession.state === "PENDING_CONFIRMATION"
-    ) {
-      console.warn("An active step is already executing. Duplicate attempt blocked.");
-      return;
-    }
-
-    const currentStep = executionSession.steps[executionSession.currentStepIndex];
-    if (!currentStep) return;
-
-    // Do not set AWAITING_WALLET_SIGNATURE state globally.
-    // It will be set dynamically inside each execution block.
-
-    // DEMO_SIMULATION mode execution trace
-    if (executionSession.mode === "DEMO_SIMULATION") {
-      // Transition to AWAITING_WALLET_SIGNATURE
-      setExecutionSession((prev) => {
-        const nextSteps = [...prev.steps];
-        nextSteps[prev.currentStepIndex] = {
-          ...currentStep,
-          status: "signing",
-        };
-        return {
-          ...prev,
-          state: "AWAITING_WALLET_SIGNATURE",
-          steps: nextSteps,
-        };
-      });
-
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      
-      setExecutionSession((prev) => {
-        const nextSteps = [...prev.steps];
-        nextSteps[prev.currentStepIndex] = {
-          ...currentStep,
-          status: "pending",
-          txHash: undefined, // Do not fabricate transaction hashes in demo mode
-        };
-        return {
-          ...prev,
-          state: "PENDING_CONFIRMATION",
-          steps: nextSteps,
-        };
-      });
-
-      // Simulated confirmation delay
-      await new Promise((resolve) => setTimeout(resolve, 1200));
-
-      const newSecuredLegVal = currentStep.type === "swap" ? (currentStep.amount * (currentStep.symbol === "TKX" ? 0.0274 : 47.06)) : 0;
-
-      setExecutionSession((prev) => {
-        const nextSteps = [...prev.steps];
-        nextSteps[prev.currentStepIndex] = {
-          ...currentStep,
-          status: "confirmed",
-        };
-        const nextConfirmed = [...prev.confirmedTransactions];
-        if (currentStep.type === "swap") {
-          nextConfirmed.push({
-            status: "success",
-            chainId: 1952,
-            timestamp: Date.now(),
-            mode: "DEMO_SIMULATION",
-          });
+      while (Date.now() - startTime < timeoutMs) {
+        try {
+          receipt = await publicClient.getTransactionReceipt({ hash: txHash as `0x${string}` });
+          if (receipt) break;
+        } catch (pollErr: any) {
+          console.warn("RECEIPT_RPC_ERROR", pollErr.message || pollErr);
         }
+        await new Promise((resolve) => setTimeout(resolve, 3000));
+      }
 
-        const { remainingTarget, targetMet } = recalculateRemainingTarget(
-          prev.targetAmount,
-          prev.securedAmount,
-          newSecuredLegVal
-        );
+      if (!receipt) {
+        setWalletVerification({ state: "CONFIRMATION_TIMEOUT", activeTxHash: txHash, error: "Confirmation is taking longer than expected." });
+        return;
+      }
 
-        const nextIndex = prev.currentStepIndex + 1;
-        const allDone = nextIndex >= prev.steps.length;
+      const isSuccess = receipt.status === "success" || receipt.status === "0x1" || receipt.status === 1 || receipt.status === true;
+      if (!isSuccess) {
+        setWalletVerification({ state: "FAILED_SAFE", activeTxHash: txHash, error: "Verification transaction reverted on-chain" });
+        return;
+      }
 
-        return {
-          ...prev,
-          state: allDone ? "COMPLETE" : "READY_TO_SIGN",
-          currentStepIndex: allDone ? prev.currentStepIndex : nextIndex,
-          securedAmount: prev.securedAmount + newSecuredLegVal,
-          steps: nextSteps,
-          confirmedTransactions: nextConfirmed,
-        };
-      });
-      return;
+      setWalletVerification(confirmWalletVerification(
+        txHash,
+        Number(receipt.blockNumber) || 0,
+        receipt.gasUsed.toString() || "0",
+      ));
+    } catch (err: any) {
+      setWalletVerification({ state: "FAILED_SAFE", activeTxHash: txHash, error: err.message || "Failed to retrieve verification receipt." });
     }
+  }, []);
 
-    // TESTNET_LIVE mode execution trace (EIP-1193 integration)
-    if (executionSession.mode === "TESTNET_LIVE") {
-      const activePlan = rescueResult.plans.find((p) => p.id === selectedPlan);
-      if (!activePlan) return;
+  const verifyWalletOnXLayer = useCallback(async () => {
+      const action = getWalletVerificationAction(walletVerification);
+      if (action === "BLOCK" || action === "RESET_REQUIRED") return;
+      if (action === "POLL_EXISTING" && walletVerification.activeTxHash) {
+        await pollWalletVerificationReceipt(walletVerification.activeTxHash);
+        return;
+      }
+      if (!walletAddress) {
+        setWalletVerification({ state: "FAILED_SAFE", error: "Wallet disconnected" });
+        return;
+      }
 
-      const mockPreparedTx: PreparedTransaction = {
-        evmChainId: 1952,
-        okxChainIndex: 1952,
-        environment: "testnet",
-        to: walletAddress || "",
-        from: walletAddress || "",
-        value: Math.round(0.0001 * 1e18).toString(), // self-transfer 0.0001 OKB test
-        data: "0x",
-        source: "live",
-        quoteTimestamp: Date.now(),
-        verificationStatus: "VERIFIED_OKX",
-      };
+      const verificationTx = buildXLayerWalletVerificationTransaction(walletAddress);
+      const hasGasReserve = walletVerificationBalanceStatus === "SUFFICIENT";
 
-      const quoteAgeSec = 10;
-      const okbAsset = portfolio.find((a) => a.symbol === "OKB");
-      const okbBalance = okbAsset ? parseFloat(okbAsset.balance) : 0;
-      const hasGasReserve = okbBalance > 0.001;
-
-      const precheck = validateExecutionPreconditions(
-        mockPreparedTx,
+      const precheck = validateWalletVerificationPreconditions(
+        verificationTx,
         walletAddress,
         chainId,
-        quoteAgeSec,
         hasGasReserve,
-        "TESTNET_LIVE"
       );
 
       if (!precheck.valid) {
-        setExecutionSession((prev) => ({
-          ...prev,
-          state: "FAILED_SAFE",
-          error: precheck.reason,
-        }));
+        setWalletVerification({ state: "FAILED_SAFE", error: precheck.reason });
         return;
       }
 
       if (typeof window === "undefined" || (!activeProvider && !(window as any).ethereum)) {
-        setExecutionSession((prev) => ({
-          ...prev,
-          state: "FAILED_SAFE",
-          error: "EVM wallet not detected",
-        }));
+        setWalletVerification({ state: "FAILED_SAFE", error: "EVM wallet not detected" });
         return;
       }
 
       const provider = activeProvider || (window as any).ethereum;
-
-      const existingHash = currentStep.txHash || executionSession.activeTxHash;
-      let txHash = existingHash;
-
-      if (!txHash) {
-        // Transition to AWAITING_WALLET_SIGNATURE
-        setExecutionSession((prev) => {
-          const nextSteps = [...prev.steps];
-          nextSteps[prev.currentStepIndex] = {
-            ...currentStep,
-            status: "signing",
-          };
-          return {
-            ...prev,
-            state: "AWAITING_WALLET_SIGNATURE",
-            steps: nextSteps,
-          };
-        });
-
-        const res = await requestWalletSignatureAndBroadcast(mockPreparedTx, provider);
+      setWalletVerification({ state: "AWAITING_WALLET_SIGNATURE" });
+      const res = await requestWalletSignatureAndBroadcast(verificationTx, provider);
 
         if ("error" in res) {
-          setExecutionSession((prev) => {
-            const nextSteps = [...prev.steps];
-            nextSteps[prev.currentStepIndex] = {
-              ...currentStep,
-              status: "failed",
-              error: res.details,
-            };
-            return {
-              ...prev,
-              state: res.error === "USER_REJECTED" ? "USER_REJECTED" : "FAILED_SAFE",
-              steps: nextSteps,
-              error: res.details,
-            };
+          setWalletVerification({
+            state: res.error === "USER_REJECTED" ? "USER_REJECTED" : "FAILED_SAFE",
+            error: res.details,
           });
           return;
         }
 
-        txHash = res.txHash;
-      }
+      const txHash = res.txHash;
 
       // Gate: Must be a valid 32-byte hex hash
       const isValidHash = typeof txHash === "string" && /^0x[a-fA-F0-9]{64}$/.test(txHash);
       if (!isValidHash) {
-        setExecutionSession((prev) => {
-          const nextSteps = [...prev.steps];
-          nextSteps[prev.currentStepIndex] = {
-            ...currentStep,
-            status: "failed",
-            error: "Invalid transaction hash format received",
-          };
-          return {
-            ...prev,
-            state: "FAILED_SAFE",
-            steps: nextSteps,
-            error: "Invalid transaction hash format received",
-          };
-        });
+        setWalletVerification({ state: "FAILED_SAFE", error: "Invalid transaction hash format received" });
         return;
       }
 
-      setExecutionSession((prev) => {
-        const nextSteps = [...prev.steps];
-        nextSteps[prev.currentStepIndex] = {
-          ...currentStep,
-          status: "pending",
-          txHash,
-        };
-        return {
-          ...prev,
-          state: "PENDING_CONFIRMATION",
-          activeTxHash: txHash,
-          steps: nextSteps,
-        };
-      });
+      setWalletVerification({ state: "PENDING_CONFIRMATION", activeTxHash: txHash });
+      await pollWalletVerificationReceipt(txHash);
+  }, [walletVerification, walletAddress, chainId, activeProvider, walletVerificationBalanceStatus, pollWalletVerificationReceipt]);
 
-      // Poll transaction receipt with fallback client and hard timeout of 90 seconds
-      try {
-        console.log("RECEIPT_POLL_STARTED", txHash);
-        const startTime = Date.now();
-        const timeoutMs = 90 * 1000;
-        let receipt: any = null;
-
-        while (Date.now() - startTime < timeoutMs) {
-          console.log("RECEIPT_POLL_ATTEMPT", txHash);
-          try {
-            const rawReceipt = await publicClient.getTransactionReceipt({ hash: txHash as `0x${string}` });
-            console.log("RECEIPT_RPC_RESPONSE", rawReceipt);
-            if (rawReceipt) {
-              receipt = rawReceipt;
-              break;
-            }
-          } catch (pollErr: any) {
-            console.warn("RECEIPT_RPC_ERROR", pollErr.message || pollErr);
-          }
-          await new Promise((resolve) => setTimeout(resolve, 3000));
-        }
-
-        if (!receipt) {
-          console.log("RECEIPT_TIMEOUT", txHash);
-          setExecutionSession((prev) => {
-            const nextSteps = [...prev.steps];
-            nextSteps[prev.currentStepIndex] = {
-              ...currentStep,
-              status: "failed",
-              error: `Confirmation is taking longer than expected. Transaction hash: ${txHash}`,
-            };
-            return {
-              ...prev,
-              state: "CONFIRMATION_TIMEOUT",
-              activeTxHash: txHash,
-              steps: nextSteps,
-              error: `Confirmation is taking longer than expected.`,
-            };
-          });
-          return;
-        }
-
-        const isSuccess = receipt.status === "success" || receipt.status === "0x1" || receipt.status === 1 || receipt.status === true;
-
-        if (!isSuccess) {
-          console.log("RECEIPT_REVERTED", txHash);
-          setExecutionSession((prev) => {
-            const nextSteps = [...prev.steps];
-            nextSteps[prev.currentStepIndex] = {
-              ...currentStep,
-              status: "failed",
-              error: "Transaction reverted on-chain",
-            };
-            return {
-              ...prev,
-              state: "FAILED_SAFE",
-              steps: nextSteps,
-            };
-          });
-          return;
-        }
-
-        console.log("RECEIPT_CONFIRMED", txHash);
-        // Confirmed! Refresh portfolio
-        await scanWalletPortfolio();
-
-        setExecutionSession((prev) => {
-          const nextSteps = [...prev.steps];
-          nextSteps[prev.currentStepIndex] = {
-            ...currentStep,
-            status: "confirmed",
-          };
-          const nextConfirmed = [...prev.confirmedTransactions];
-          nextConfirmed.push({
-            transactionHash: txHash,
-            blockNumber: Number(receipt.blockNumber) || 0,
-            gasUsed: receipt.gasUsed.toString() || "0",
-            status: "success",
-            chainId: 1952,
-            timestamp: Date.now(),
-            mode: "TESTNET_LIVE",
-          });
-
-          const nextIndex = prev.currentStepIndex + 1;
-          const allDone = nextIndex >= prev.steps.length;
-
-          return {
-            ...prev,
-            state: allDone ? "COMPLETE" : "READY_TO_SIGN",
-            currentStepIndex: allDone ? prev.currentStepIndex : nextIndex,
-            steps: nextSteps,
-            confirmedTransactions: nextConfirmed,
-          };
-        });
-      } catch (err: any) {
-        setExecutionSession((prev) => ({
-          ...prev,
-          state: "FAILED_SAFE",
-          error: err.message || "Failed to retrieve on-chain receipt confirmation.",
-        }));
-      }
-    }
-  }, [executionSession, walletAddress, chainId, rescueResult, selectedPlan, scanWalletPortfolio]);
+  const resetWalletVerification = useCallback(() => {
+    setWalletVerification({ state: "NOT_PERFORMED" });
+  }, []);
 
   const value = useMemo(
     () => ({
@@ -889,7 +674,10 @@ export function SaveProvider({ children }: { children: ReactNode }) {
       executionSession,
       setExecutionSession,
       startExecution,
-      executeNextStep,
+      walletVerification,
+      verifyWalletOnXLayer,
+      resetWalletVerification,
+      walletVerificationBalanceStatus,
 
       // Wallet Connectivity Additions
       detectedWallets,
@@ -933,7 +721,10 @@ export function SaveProvider({ children }: { children: ReactNode }) {
       // Step 8 States
       executionSession,
       startExecution,
-      executeNextStep,
+      walletVerification,
+      verifyWalletOnXLayer,
+      resetWalletVerification,
+      walletVerificationBalanceStatus,
 
       // Wallet Connectivity Additions
       detectedWallets,

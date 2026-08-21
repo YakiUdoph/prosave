@@ -55,6 +55,102 @@ export type ExecutionSession = {
   error?: string;
 };
 
+export type WalletVerificationState =
+  | "NOT_PERFORMED"
+  | "READY"
+  | "AWAITING_WALLET_SIGNATURE"
+  | "PENDING_CONFIRMATION"
+  | "CONFIRMED"
+  | "USER_REJECTED"
+  | "CONFIRMATION_TIMEOUT"
+  | "FAILED_SAFE";
+
+export type WalletVerificationSession = {
+  state: WalletVerificationState;
+  transaction?: ConfirmedTransaction;
+  activeTxHash?: string;
+  error?: string;
+};
+
+export type WalletVerificationAction = "AUTHORIZE" | "POLL_EXISTING" | "BLOCK" | "RESET_REQUIRED";
+
+export function getWalletVerificationAction(session: WalletVerificationSession): WalletVerificationAction {
+  if (session.state === "CONFIRMED" || session.state === "AWAITING_WALLET_SIGNATURE" || session.state === "PENDING_CONFIRMATION") {
+    return "BLOCK";
+  }
+  if (session.activeTxHash) {
+    return session.state === "CONFIRMATION_TIMEOUT" ? "POLL_EXISTING" : "RESET_REQUIRED";
+  }
+  return "AUTHORIZE";
+}
+
+export const XLAYER_WALLET_VERIFICATION_WEI = "100000000000000";
+
+export function buildXLayerWalletVerificationTransaction(
+  walletAddress: string,
+  timestamp: number = Date.now(),
+): PreparedTransaction {
+  return {
+    evmChainId: 1952,
+    okxChainIndex: 1952,
+    environment: "testnet",
+    to: walletAddress,
+    from: walletAddress,
+    value: XLAYER_WALLET_VERIFICATION_WEI,
+    data: "0x",
+    source: "live",
+    quoteTimestamp: timestamp,
+    verificationStatus: "LIVE_CHAIN",
+  };
+}
+
+export function validateWalletVerificationPreconditions(
+  tx: PreparedTransaction,
+  connectedAddress: string | null,
+  connectedChainId: number | null,
+  hasGasReserve: boolean,
+): { valid: boolean; reason?: string } {
+  if (!connectedAddress) return { valid: false, reason: "Wallet disconnected" };
+  if (connectedChainId !== 1952 || tx.evmChainId !== 1952) {
+    return { valid: false, reason: "X Layer Testnet (1952) is required" };
+  }
+  if (tx.from.toLowerCase() !== connectedAddress.toLowerCase() || tx.to.toLowerCase() !== connectedAddress.toLowerCase()) {
+    return { valid: false, reason: "Wallet verification address mismatch" };
+  }
+  if (tx.value !== XLAYER_WALLET_VERIFICATION_WEI || tx.data !== "0x") {
+    return { valid: false, reason: "Invalid wallet verification transaction" };
+  }
+  if (tx.verificationStatus !== "LIVE_CHAIN" || tx.source !== "live") {
+    return { valid: false, reason: "Wallet verification provenance is invalid" };
+  }
+  if (!hasGasReserve) return { valid: false, reason: "Insufficient native OKB for wallet verification" };
+  return { valid: true };
+}
+
+export function confirmWalletVerification(
+  txHash: string,
+  blockNumber: number,
+  gasUsed: string,
+  timestamp: number = Date.now(),
+): WalletVerificationSession {
+  if (!/^0x[a-fA-F0-9]{64}$/.test(txHash) || blockNumber <= 0 || !gasUsed || gasUsed === "0") {
+    return { state: "FAILED_SAFE", activeTxHash: txHash, error: "Invalid X Layer verification receipt" };
+  }
+  return {
+    state: "CONFIRMED",
+    activeTxHash: txHash,
+    transaction: {
+      transactionHash: txHash,
+      blockNumber,
+      gasUsed,
+      status: "success",
+      chainId: 1952,
+      timestamp,
+      mode: "TESTNET_LIVE",
+    },
+  };
+}
+
 // Error codes for EIP-1193
 const USER_REJECTED_CODE = 4001;
 

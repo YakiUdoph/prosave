@@ -246,7 +246,7 @@
     
     <text x="1250" y="245" class="text-body" fill="#9ca3af">• Metadata discovery: <tspan fill="#f3f4f6" font-weight="600">Decimals &amp; decimals formats</tspan></text>
     <text x="1250" y="270" class="text-body" fill="#9ca3af">• DEX liquidity routes: <tspan fill="#f3f4f6" font-weight="600">Calculates pools paths</tspan></text>
-    <text x="1250" y="295" class="text-body" fill="#9ca3af">• Live Quotes API: <tspan fill="#f3f4f6" font-weight="600">Fetches exact swap rates</tspan></text>
+    <text x="1250" y="295" class="text-body" fill="#9ca3af">• Mainnet adapter: <tspan fill="#f3f4f6" font-weight="600">chain 196 route reference</tspan></text>
     <text x="1250" y="320" class="text-body" fill="#9ca3af">• Approval payloads: <tspan fill="#f3f4f6" font-weight="600">Creates approve data</tspan></text>
     <text x="1250" y="345" class="text-body" fill="#9ca3af">• Swap transaction payloads: <tspan fill="#f3f4f6" font-weight="600">Builds execute data</tspan></text>
 
@@ -271,8 +271,8 @@
     <text x="1250" y="710" class="text-body" fill="#9ca3af">• Verification Receipt: <tspan fill="#34d399">Tx Hash, confirm block</tspan></text>
 
     <rect x="1250" y="735" width="280" height="100" rx="6" fill="#064e3b" stroke="#059669" stroke-width="1" />
-    <text x="1265" y="758" class="text-body text-bold" fill="#34d399">LIVE TESTNET EXECUTION PROOF</text>
-    <text x="1265" y="778" class="text-subtitle" fill="#a7f3d0">Uses micro-transfers of OKB to prove wallet signing,</text>
+    <text x="1265" y="758" class="text-body text-bold" fill="#34d399">X LAYER WALLET VERIFICATION</text>
+    <text x="1265" y="778" class="text-subtitle" fill="#a7f3d0">Optional OKB self-transfer proves wallet authorization,</text>
     <text x="1265" y="798" class="text-subtitle" fill="#a7f3d0">broadcasting, and block settlement natively.</text>
     <text x="1265" y="818" class="text-mono text-bold" fill="#34d399" font-size="10px">* Completely distinct from simulated swaps.</text>
   </g>

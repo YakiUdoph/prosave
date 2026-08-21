@@ -175,7 +175,7 @@ export const RECEIPT = [
 ];
 
 export const HISTORY = [
-  { date: "17 Aug", action: "Rescue executed · $704 USDC secured", score: 94 },
+  { date: "17 Aug", action: "Rescue simulated · $704 USDC estimated", score: 94 },
   { date: "02 Aug", action: "Risk reduced 38% · meme exposure exited", score: 91 },
   { date: "24 Jul", action: "Protection review · no action needed", score: 88 },
 ];

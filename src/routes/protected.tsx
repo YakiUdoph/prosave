@@ -8,16 +8,15 @@ import { useSave } from "@/lib/save-context";
 export const Route = createFileRoute("/protected")({
   head: () => ({
     meta: [
-      { title: "Rescue Complete — SAVE" },
+      { title: "SAVE — Rescue Result" },
       {
         name: "description",
-        content:
-          "USDC secured, ETH preserved — with a full transaction receipt and protection history.",
+        content: "Review the simulated rescue outcome and any optional X Layer wallet verification receipt.",
       },
-      { property: "og:title", content: "Rescue Complete — SAVE" },
+      { property: "og:title", content: "SAVE — Rescue Result" },
       {
         property: "og:description",
-        content: "Mission complete: goal reached, long-term holdings untouched.",
+        content: "Review a simulated rescue outcome separately from optional X Layer wallet verification.",
       },
     ],
   }),
@@ -25,17 +24,13 @@ export const Route = createFileRoute("/protected")({
 });
 
 function Success() {
-  const { selectedPlan, rescueResult, executionSession, portfolioMode, walletAddress, simulationResult } = useSave();
+  const { selectedPlan, rescueResult, portfolioMode, walletAddress, simulationResult, walletVerification } = useSave();
 
   const activePlan = rescueResult.plans.find((p) => p.id === selectedPlan);
 
-  const isLive = portfolioMode === "LIVE_WALLET";
-
-  // Retrieve confirmed transaction details if live execution completed
-  const confirmedTx = executionSession?.confirmedTransactions?.[0];
-  const hasRealLiveReceipt = !!(
-    executionSession &&
-    executionSession.mode === "TESTNET_LIVE" &&
+  const confirmedTx = walletVerification.transaction;
+  const hasWalletVerificationReceipt = !!(
+    walletVerification.state === "CONFIRMED" &&
     confirmedTx &&
     confirmedTx.transactionHash &&
     /^0x[a-fA-F0-9]{64}$/.test(confirmedTx.transactionHash) &&
@@ -46,15 +41,19 @@ function Success() {
     confirmedTx.gasUsed !== "" &&
     confirmedTx.gasUsed !== "0"
   );
+  const hasPendingVerification = walletVerification.state === "PENDING_CONFIRMATION" && !!walletVerification.activeTxHash;
+  const hasDelayedVerification = walletVerification.state === "CONFIRMATION_TIMEOUT" && !!walletVerification.activeTxHash;
+  const walletVerificationLabel = hasWalletVerificationReceipt
+    ? "CONFIRMED"
+    : hasPendingVerification
+      ? "PENDING"
+      : hasDelayedVerification
+        ? "CONFIRMATION DELAYED"
+        : "NOT PERFORMED";
 
-  const demoSimulationCompleted = !!(
-    simulationResult &&
-    executionSession &&
-    executionSession.mode === "DEMO_SIMULATION" &&
-    simulationResult.success === true
-  );
+  const demoSimulationCompleted = simulationResult?.success === true;
 
-  const hasAnyResult = hasRealLiveReceipt || demoSimulationCompleted;
+  const hasAnyResult = demoSimulationCompleted;
 
   if (!activePlan || !hasAnyResult) {
     return (
@@ -66,7 +65,7 @@ function Success() {
         <div className="flex flex-col items-center justify-center p-12 text-center min-h-[300px]">
           <ShieldAlert className="size-12 text-muted-foreground/45 mb-4" />
           <p className="text-muted-foreground max-w-sm leading-relaxed mb-8">
-            No rescue simulation has been successfully completed for this session yet. Run a simulation to view expected outcome or live transaction proof.
+            No rescue simulation has been successfully completed for this session yet. Run a simulation to view its expected outcome.
           </p>
           <Link to="/simulate">
             <MagneticButton size="lg">Return to Simulation</MagneticButton>
@@ -87,27 +86,13 @@ function Success() {
   const lossAvoided = hasTKX ? 84.00 : 0.00;
 
   // Execution/Simulation timeline steps
-  const traceSteps = hasRealLiveReceipt
-    ? [
-        "Portfolio analyzed",
-        "Route optimized",
-        "Transaction simulated",
-        "Wallet authorization complete",
-        "Transaction confirmed",
-      ]
-    : [
-        "Portfolio analyzed",
-        "Route optimized",
-        "Transaction simulated",
-      ];
+  const traceSteps = ["Portfolio analyzed", "Simulated route parameters calculated", "Rescue plan validated"];
 
-  const pageTitle = hasRealLiveReceipt ? "LIVE X LAYER TESTNET VERIFICATION" : "SIMULATED RESCUE OUTCOME";
-  const pageIntro = hasRealLiveReceipt
-    ? "Your rescue transaction has successfully settled on X Layer Testnet."
-    : "Your rescue parameters were evaluated. No transaction was broadcast to the network.";
+  const pageTitle = "SIMULATED RESCUE OUTCOME";
+  const pageIntro = "Your rescue parameters were evaluated. The rescue strategy was not broadcast to any network.";
   
-  const statusPillLabel = hasRealLiveReceipt ? "LIVE EXECUTION PROOF" : "SIMULATED RESCUE OUTCOME";
-  const statusPillTone = hasRealLiveReceipt ? "safe" : "primary";
+  const statusPillLabel = "SIMULATED RESCUE OUTCOME";
+  const statusPillTone = "primary";
 
   return (
     <PageShell
@@ -151,14 +136,14 @@ function Success() {
           </Panel>
           
           <Panel className="p-5 relative overflow-hidden">
-            <div className={`absolute top-4 right-4 text-[10px] label-mono rounded px-1.5 py-0.5 border ${hasRealLiveReceipt ? "border-safe/20 bg-safe/10 text-safe" : "border-muted/20 bg-muted/10 text-muted-foreground"}`}>
-              {hasRealLiveReceipt ? "TESTNET_LIVE" : "NONE"}
+            <div className={`absolute top-4 right-4 text-[10px] label-mono rounded px-1.5 py-0.5 border ${hasWalletVerificationReceipt ? "border-safe/20 bg-safe/10 text-safe" : "border-muted/20 bg-muted/10 text-muted-foreground"}`}>
+              {walletVerificationLabel}
             </div>
-            <CheckCircle className={`size-4 ${hasRealLiveReceipt ? "text-safe" : "text-muted-foreground"}`} />
-            <p className={`mt-4 text-xl font-semibold tracking-tight ${hasRealLiveReceipt ? "text-safe" : "text-muted-foreground"}`}>
-              {hasRealLiveReceipt ? "TESTNET_LIVE" : "NONE"}
+            <CheckCircle className={`size-4 ${hasWalletVerificationReceipt ? "text-safe" : "text-muted-foreground"}`} />
+            <p className={`mt-4 text-xl font-semibold tracking-tight ${hasWalletVerificationReceipt ? "text-safe" : "text-muted-foreground"}`}>
+              {walletVerificationLabel}
             </p>
-            <Eyebrow className="mt-2">X LAYER VERIFICATION</Eyebrow>
+            <Eyebrow className="mt-2">X LAYER WALLET VERIFICATION</Eyebrow>
           </Panel>
  
           <Panel className="p-5 relative overflow-hidden">
@@ -182,16 +167,16 @@ function Success() {
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         {/* Panel 1: Live On-Chain Verification Receipt */}
         <Panel className="p-0">
-          {hasRealLiveReceipt ? (
+          {hasWalletVerificationReceipt ? (
             <>
               <div className="flex items-center gap-2 border-b border-border px-6 py-4 bg-safe/5">
                 <Key className="size-3.5 text-safe" />
-                <Eyebrow>Live On-Chain Verification Receipt</Eyebrow>
+                <Eyebrow>X Layer Wallet Verification Receipt</Eyebrow>
               </div>
               <dl className="divide-y divide-border">
                 <div className="flex items-center justify-between gap-6 px-6 py-3.5">
                   <dt className="label-mono">Verification Action</dt>
-                  <dd className="num text-sm text-foreground">0.0001 OKB Self-Transfer (Gas Test)</dd>
+                  <dd className="num text-sm text-foreground">0.0001 OKB self-transfer</dd>
                 </div>
                 <div className="flex items-center justify-between gap-6 px-6 py-3.5">
                   <dt className="label-mono">Network</dt>
@@ -226,17 +211,39 @@ function Success() {
                   <dd className="num text-xs break-all text-foreground mt-1 select-all">{confirmedTx.transactionHash}</dd>
                 </div>
               </dl>
+              <p className="border-t border-border px-6 py-4 text-xs leading-relaxed text-muted-foreground">
+                This transaction verifies wallet authorization and X Layer Testnet settlement. It does not represent execution of the simulated rescue strategy.
+              </p>
+            </>
+          ) : hasPendingVerification || hasDelayedVerification ? (
+            <>
+              <div className="flex items-center gap-2 border-b border-border px-6 py-4 bg-primary/5">
+                <Key className="size-3.5 text-primary" />
+                <Eyebrow>X Layer Wallet Verification {hasDelayedVerification ? "Confirmation Delayed" : "Pending"}</Eyebrow>
+              </div>
+              <div className="space-y-4 p-6 min-h-[300px]">
+                <p className="text-sm text-muted-foreground">
+                  The simulated rescue outcome remains complete. Wallet verification is awaiting an X Layer Testnet receipt.
+                </p>
+                <div>
+                  <p className="label-mono">Transaction Hash</p>
+                  <p className="mt-2 break-all font-mono text-xs select-all">{walletVerification.activeTxHash}</p>
+                </div>
+                <p className="text-xs leading-relaxed text-muted-foreground">
+                  This transaction verifies wallet authorization and X Layer Testnet settlement. It does not execute the simulated rescue strategy.
+                </p>
+              </div>
             </>
           ) : (
             <>
               <div className="flex items-center gap-2 border-b border-border px-6 py-4 bg-secondary/5">
                 <ShieldAlert className="size-3.5 text-muted-foreground" />
-                <Eyebrow>No Live X Layer Verification Performed</Eyebrow>
+                <Eyebrow>X Layer Wallet Verification Not Performed</Eyebrow>
               </div>
               <div className="flex flex-col items-center justify-center p-8 text-center min-h-[300px]">
                 <ShieldAlert className="size-8 text-muted-foreground/45 mb-3" />
                 <p className="text-sm font-medium text-muted-foreground max-w-xs leading-relaxed">
-                  This session contains a simulated rescue outcome only. No verification transaction was broadcast on X Layer Testnet.
+                  This session contains a simulated rescue outcome only. Optional wallet verification was not performed.
                 </p>
               </div>
             </>
@@ -278,8 +285,8 @@ function Success() {
               <dd className="num text-sm text-foreground">${activePlan.gasCostUsd.toFixed(2)}</dd>
             </div>
             <div className="flex items-center justify-between gap-6 px-6 py-3.5">
-              <dt className="label-mono">DEX Aggregator</dt>
-              <dd className="num text-sm text-foreground">OKX DEX Router (mainnet 196 reference)</dd>
+              <dt className="label-mono">Route Parameters</dt>
+              <dd className="num text-sm text-foreground">DEMO ROUTE ESTIMATE · OKX mainnet adapter reference</dd>
             </div>
           </dl>
         </Panel>
@@ -287,7 +294,7 @@ function Success() {
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <Panel className="p-6">
-          <Eyebrow>{hasRealLiveReceipt ? "Execution trace" : "Simulation steps"}</Eyebrow>
+          <Eyebrow>Rescue plan validation steps</Eyebrow>
           <div className="mt-6">
             <SimulationTimeline steps={traceSteps} autoRun={false} />
           </div>
@@ -296,28 +303,21 @@ function Success() {
         <Panel className="p-6">
           <Eyebrow>Protection history</Eyebrow>
           <ul className="mt-5 divide-y divide-border">
-            {isLive && confirmedTx && (
+            {hasWalletVerificationReceipt && confirmedTx && (
               <li className="flex items-center justify-between gap-4 py-3.5">
                 <div>
-                  <p className="text-sm">Rescue executed · live swap confirmed</p>
+                  <p className="text-sm">X Layer wallet verification · confirmed</p>
                   <p className="label-mono mt-1">Today</p>
                 </div>
-                <span className="num text-sm font-semibold text-primary">{activePlan.saveScore}</span>
+                <span className="num text-sm font-semibold text-safe">1952</span>
               </li>
             )}
             <li className="flex items-center justify-between gap-4 py-3.5">
               <div>
                 <p className="text-sm">Rescue simulated · {activePlan.securedAmount.toFixed(0)} USDC simulation</p>
-                <p className="label-mono mt-1">17 Aug</p>
+                <p className="label-mono mt-1">Current session</p>
               </div>
               <span className="num text-sm font-semibold text-primary">{activePlan.saveScore}</span>
-            </li>
-            <li className="flex items-center justify-between gap-4 py-3.5">
-              <div>
-                <p className="text-sm">Risk reduced 38% · meme exposure exited</p>
-                <p className="label-mono mt-1">02 Aug</p>
-              </div>
-              <span className="num text-sm font-semibold text-primary">91</span>
             </li>
           </ul>
         </Panel>
@@ -327,7 +327,7 @@ function Success() {
         <div className="flex flex-wrap items-center justify-between gap-6">
           <div>
             <h2 className="text-xl font-semibold tracking-tight md:text-2xl">
-              Your portfolio is now safer.
+              Your simulated rescue outcome is ready.
             </h2>
             <p className="mt-2 text-sm text-muted-foreground">
               SAVE keeps monitoring exposure and will surface a new plan the moment risk changes.
