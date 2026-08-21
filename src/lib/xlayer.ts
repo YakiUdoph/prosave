@@ -58,6 +58,7 @@ export type DataSource = "LIVE_RPC" | "LIVE_OKX" | "DEMO" | "live" | "demo" | "e
 export type PriceSource = "LIVE_OKX" | "ESTIMATED" | "UNAVAILABLE";
 
 export type ScannedAsset = {
+  assetId?: string;
   symbol: string;
   name: string;
   chain: string;
@@ -88,7 +89,18 @@ export type ScannedAsset = {
   riskFlags?: string[];
   liquidityStatus?: string;
   walletAddress?: string;
+  mainnetReferenceChainIndex?: number;
+  mainnetReferenceAddress?: string;
+  mainnetReferenceDecimals?: number;
 };
+
+export function getAssetIdentity(asset: Pick<ScannedAsset, "chainIndex" | "evmChainId" | "chain" | "symbol" | "contractAddress" | "tokenAddress" | "mainnetReferenceChainIndex" | "mainnetReferenceAddress">): string {
+  const chain = asset.mainnetReferenceChainIndex ?? asset.chainIndex ?? asset.evmChainId;
+  const address = asset.mainnetReferenceAddress ?? asset.contractAddress ?? asset.tokenAddress;
+  if (chain && address) return `${chain}:${address.toLowerCase()}`;
+  const network = (asset.chain || String(chain || "unknown")).toLowerCase().replace(/\s+/g, "-");
+  return `demo:${network}:${asset.symbol.toUpperCase()}`;
+}
 
 /**
  * Fetches real balances on X Layer Testnet for native OKB.
@@ -179,6 +191,9 @@ export async function scanPortfolio(address: string | null): Promise<{
       priceSource: "estimated",
       evmChainId: 196,
       chainIndex: 196,
+      mainnetReferenceChainIndex: 196,
+      mainnetReferenceAddress: "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      mainnetReferenceDecimals: 18,
     },
     {
       symbol: "USDC",
@@ -197,6 +212,9 @@ export async function scanPortfolio(address: string | null): Promise<{
       priceSource: "estimated",
       evmChainId: 196,
       chainIndex: 196,
+      mainnetReferenceChainIndex: 196,
+      mainnetReferenceAddress: "0x74b7f16337b8972027f6196a17a631ac6de26d22",
+      mainnetReferenceDecimals: 6,
     },
     {
       symbol: "TKX",
@@ -231,6 +249,9 @@ export async function scanPortfolio(address: string | null): Promise<{
       priceSource: "estimated",
       evmChainId: 196,
       chainIndex: 196,
+      mainnetReferenceChainIndex: 196,
+      mainnetReferenceAddress: "0xe538905cf8410324e03a5a23c1c177a474d59b2b",
+      mainnetReferenceDecimals: 18,
     },
     {
       symbol: "SHIB",

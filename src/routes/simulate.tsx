@@ -285,7 +285,9 @@ function Simulate() {
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
                 <Eyebrow>Route Provider</Eyebrow>
-                <p className="num mt-2 text-sm font-semibold">DEMO ROUTE ESTIMATE · OKX-compatible adapter</p>
+                <p className="num mt-2 text-sm font-semibold">
+                  Exact {activePlan.marketDataCoverage.exactActions} · Derived {activePlan.marketDataCoverage.derivedActions} · Demo {activePlan.marketDataCoverage.demoActions}
+                </p>
               </div>
               <div>
                 <Eyebrow>Quote Age</Eyebrow>
@@ -294,6 +296,34 @@ function Simulate() {
                 </p>
               </div>
             </div>
+          </Panel>
+
+          <Panel className="p-6">
+            <div className="flex items-center justify-between gap-4">
+              <Eyebrow>Market data coverage</Eyebrow>
+              <span className="label-mono text-xs">TARGET {activePlan.targetMet ? "MET" : "NOT MET"} · {activePlan.feasibilityConfidence}</span>
+            </div>
+            <ul className="mt-4 space-y-2 text-xs">
+              {activePlan.actions.map((action) => (
+                <li key={action.assetId} className="flex justify-between gap-4 border-b border-border/40 pb-2 last:border-0">
+                  <span>
+                    {action.symbol} → {action.quote?.toSymbol}
+                    {action.quote?.source === "OKX_DERIVED_ESTIMATE" && (
+                      <small className="mt-1 block text-muted-foreground">
+                        Reference {Number(action.quote.routeMetadata?.referenceInputAmount ?? 0).toPrecision(4)} · Action {action.sellAmount.toPrecision(4)} · Confidence ESTIMATED
+                      </small>
+                    )}
+                  </span>
+                  <span className={action.quote?.source === "OKX_EXACT" ? "text-safe" : "text-warning"}>
+                    {action.quote?.source === "OKX_EXACT"
+                      ? "OKX EXACT QUOTE"
+                      : action.quote?.source === "OKX_DERIVED_ESTIMATE"
+                        ? "OKX-DERIVED ESTIMATE"
+                        : `DEMO ROUTE ESTIMATE · ${action.quote?.fallbackReason || "OKX_UNAVAILABLE"}`}
+                  </span>
+                </li>
+              ))}
+            </ul>
           </Panel>
 
           <Panel className="p-6">

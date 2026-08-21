@@ -87,7 +87,7 @@ Follow these steps to test SAVE's native integrations:
 
 ## 30-Second Technical Pitch
 
-> *"DEX routers answer how to swap one pair. SAVE answers which portfolio assets should be sold or protected to reach a goal with the least policy-adjusted damage. The current build uses deterministic constraint extraction and simulated route parameters, retains authenticated OKX mainnet routing infrastructure, and separately proves optional wallet authorization and settlement on X Layer Testnet."*
+> *"DEX routers answer how to swap one pair. SAVE answers which portfolio assets should be sold or protected to reach a goal with the least policy-adjusted damage. Supported X Layer Mainnet actions use read-only OKX quotes when available; derived and demo estimates remain explicit, rescue execution stays simulated, and X Layer Testnet separately proves optional wallet authorization and settlement."*
 
 ---
 
@@ -95,7 +95,7 @@ Follow these steps to test SAVE's native integrations:
 
 ### 1. Why OKX OnchainOS?
 
-OKX provides the industry-leading Web3 aggregator routing API. Instead of building custom routers and liquidity trackers, SAVE integrates OKX OnchainOS to retrieve real-time quotes, liquidity depth, and raw swap transaction payloads. This ensures that SAVE's portfolio decisions are backed by executable market routes.
+SAVE uses the OKX OnchainOS read-only quote API for supported X Layer Mainnet identities. Exact action responses, OKX-derived estimates, and demo fallbacks are displayed separately; no quote is presented as an executed or executable rescue route.
 
 ### 2. Why X Layer?
 X Layer Testnet provides the wallet authorization and settlement-verification environment for the current MVP. Its native OKB gas token supports public balance checks and the optional verification transaction.

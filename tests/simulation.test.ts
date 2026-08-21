@@ -90,6 +90,8 @@ function runTests() {
   // Pre-requisite: Solve for Plan B (sells TKX + OKB + minimal ETH)
   const resRescue = solveRescue(canonicalPortfolio, intentB);
   const planB = resRescue.plans.find((p) => p.id === "B")!;
+  const tkxAssetId = planB.actions.find((action) => action.symbol === "TKX")!.assetId;
+  const ethAssetId = planB.actions.find((action) => action.symbol === "ETH")!.assetId;
 
   const connectedAddress = "0x9812A2b918D3b584dC81E3b584dc81E3B584dc81";
   const connectedChainId = 1952; // X Layer Testnet
@@ -120,6 +122,7 @@ function runTests() {
   console.log("\nTest B: Authenticated OKX approval response yields VERIFIED_OKX");
   const mockVerifiedApprovals: VerifiedApproval[] = [
     {
+      assetId: tkxAssetId,
       tokenAddress: "TKX",
       chainIndex: 1952,
       approveAmount: 7500,
@@ -130,6 +133,7 @@ function runTests() {
       verificationStatus: "VERIFIED_OKX"
     },
     {
+      assetId: ethAssetId,
       tokenAddress: "ETH",
       chainIndex: 1952,
       approveAmount: 0.1,
@@ -179,6 +183,7 @@ function runTests() {
   console.log("\nTest C: Missing approval response defaults to UNKNOWN");
   const partialVerifiedApprovals: VerifiedApproval[] = [
     {
+      assetId: ethAssetId,
       tokenAddress: "ETH",
       chainIndex: 1952,
       approveAmount: 0.1,

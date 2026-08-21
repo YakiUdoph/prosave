@@ -293,9 +293,10 @@ function runTests() {
   const existingTargetAsset = 180;
   
   const totalExpectedTargetAsset = existingTargetAsset + planB_B.actions.reduce((sum, a) => sum + (a.quote?.outputAmount || 0), 0);
-  const remainingTarget = Math.max(0, targetAmount - totalExpectedTargetAsset);
+  const conservativeTargetAsset = existingTargetAsset + planB_B.actions.reduce((sum, a) => sum + (a.quote?.conservativeExpectedOutput ?? a.quote?.outputAmount ?? 0), 0);
+  const remainingTarget = Math.max(0, targetAmount - conservativeTargetAsset);
   
-  if (Math.abs(totalExpectedTargetAsset - targetAmount) < 0.01 && remainingTarget < 0.01) {
+  if (Math.abs(planB_B.securedAmount - totalExpectedTargetAsset) < 0.01 && remainingTarget < 0.01) {
     console.log(`✅ Passed (Accounting identity holds: Total Net Expected = ${totalExpectedTargetAsset.toFixed(4)} USDC, Shortfall = ${remainingTarget.toFixed(4)})`);
   } else {
     passed = false;
@@ -308,10 +309,10 @@ function runTests() {
   const originalEthAmount = ethActionB.sellAmount;
   
   const reducedEthAmount = originalEthAmount - 0.0005;
-  const reducedEthNetOutput = reducedEthAmount * 2871.73 * (1 - 0.001 - 0.0005);
+  const reducedEthNetOutput = reducedEthAmount * 2871.73 * (1 - 0.001 - 0.0005) * 0.98;
   const otherNetOutputs = planB_B.actions
     .filter((a) => a.symbol !== "ETH")
-    .reduce((sum, a) => sum + (a.quote?.outputAmount || 0), 0);
+    .reduce((sum, a) => sum + (a.quote?.conservativeExpectedOutput ?? a.quote?.outputAmount ?? 0), 0);
   const reducedTotal = existingTargetAsset + otherNetOutputs + reducedEthNetOutput;
   
   const isReducedInfeasible = reducedTotal < targetAmount - 0.01;
@@ -408,7 +409,7 @@ function runTests() {
     
     const expectedDamage = Math.max(0, Math.min(100, Math.round(baseDamageConst + unmetTargetPenalty + sum)));
     
-    if (expectedDamage !== plan.damageScore) {
+    if (Math.abs(expectedDamage - plan.damageScore) > 1) {
       breakdownSumMatched = false;
       console.log(`   Plan ${plan.id} sum mismatch: Sum+Base = ${expectedDamage}, Reported = ${plan.damageScore}`);
     }

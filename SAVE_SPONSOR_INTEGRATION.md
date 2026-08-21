@@ -50,7 +50,7 @@ Because the OKX DEX Router API on X Layer primarily supports `exactIn` quotes, S
   2. Query OKX `exactIn` quote to obtain the expected output.
   3. Correct the input using a bounded binary search (upper limit capped at 1.5x initial estimate, lower limit at 0.8x).
   4. Converges on the required target output within a tolerance threshold of $\$0.05$ over a maximum of 5 iterations.
-- **Runtime Boundary**: The current solver uses explicitly labelled demo route estimates. Authenticated OKX routing functions remain available for X Layer Mainnet reference/integration work and are never silently substituted into testnet execution.
+- **Runtime Boundary**: The active read-only adapter requests exact X Layer Mainnet quotes for supported identities. Scaled references are labelled OKX-derived estimates, unavailable actions use demo estimates, and none of these planning values are submitted for execution.
 
 ### Gas Model & Native Gas Reserves
 In EVM networks like X Layer, executing transactions requires native OKB gas. Exhausting 100% of the wallet's native OKB to satisfy a swap target would leave the wallet bricked and incapable of executing the swaps.

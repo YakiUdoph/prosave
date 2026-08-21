@@ -1,11 +1,16 @@
-import { type ScannedAsset, type DataSource } from "./xlayer";
+import { getAssetIdentity, type ScannedAsset, type DataSource } from "./xlayer";
 import { type SaveIntent } from "./intent-parser";
 
 export type RouteQuote = {
+  source: "OKX_EXACT" | "OKX_DERIVED_ESTIMATE" | "DEMO_ESTIMATE";
+  chain: { chainIndex: number; name: string };
+  fromToken: { symbol: string; address?: string; decimals?: number };
+  toToken: { symbol: string; address?: string; decimals?: number };
   fromSymbol: string;
   toSymbol: string;
   inputAmount: number;
   outputAmount: number; // Net expected output (after slippage and price impact)
+  conservativeExpectedOutput: number;
   gasCostUsd: number;
   slippagePercent: number;
   priceImpactPercent: number;
@@ -14,6 +19,11 @@ export type RouteQuote = {
   dataSource: DataSource;
   spenderAddress?: string;
   chainIndex?: number;
+  timestamp: number;
+  confidence: "HIGH" | "ESTIMATED" | "UNAVAILABLE";
+  availability: "AVAILABLE" | "FALLBACK" | "UNAVAILABLE";
+  fallbackReason?: string;
+  routeMetadata?: Record<string, string | number | boolean>;
 };
 
 export type LiquidateAction = {
@@ -21,7 +31,20 @@ export type LiquidateAction = {
   sellAmount: number;
   usdValue: number;
   quote: RouteQuote | null;
+  assetChainIndex?: number;
+  assetAddress?: string;
+  assetId: string;
+  assetIsNative: boolean;
 };
+
+export type QuoteReference = {
+  assetKey: string;
+  quote?: RouteQuote;
+  fallbackReason?: string;
+  requestedAmount: number;
+};
+
+export type SolverQuoteOptions = { references?: QuoteReference[] };
 
 export type DamageScoreBreakdown = {
   protectedAssetViolation: number; // penalty
@@ -61,6 +84,16 @@ export type CandidatePlan = {
   concentrationChange: string;
   executionReadiness: "READY_TO_SIGN" | "REQUIRES_BRIDGE" | "ANALYSIS_ONLY";
   tradeOff: string;
+  feasibilityConfidence: "EXACT" | "ESTIMATED" | "DEMO" | "NOT_MET";
+  marketDataCoverage: {
+    exactActions: number;
+    derivedActions: number;
+    demoActions: number;
+    totalActions: number;
+    exactPercent: number;
+    derivedPercent: number;
+    demoPercent: number;
+  };
 };
 
 export type RejectedPlan = {
@@ -159,7 +192,7 @@ export function calculatePlanScore(
 
   // 6. Risk reduction benefit (exiting high-risk assets reduces damage)
   const soldHighRisk = actions.filter((act) => {
-    const orig = portfolio.find((p) => p.symbol === act.symbol);
+    const orig = portfolio.find((p) => getAssetIdentity(p) === act.assetId);
     return orig?.risk === "high";
   });
   const totalHighRiskVal = portfolio.filter((p) => p.risk === "high").reduce((sum, a) => sum + a.value, 0);
@@ -246,7 +279,8 @@ export function arePlansDiverse(p1: CandidatePlan, p2: CandidatePlan): boolean {
 export function solveRescue(
   portfolio: ScannedAsset[],
   intent: SaveIntent,
-  portfolioMode?: string
+  portfolioMode?: string,
+  quoteOptions: SolverQuoteOptions = {}
 ): RescueResult {
   const result: RescueResult = {
     feasible: false,
@@ -269,13 +303,17 @@ export function solveRescue(
     : 47.17;
 
   const targetSymbol = intent.targetAsset || "USDC";
-  const targetAsset = portfolio.find((a) => a.symbol === targetSymbol);
+  const targetAsset = portfolio.find((a) => a.symbol === targetSymbol && (a.mainnetReferenceChainIndex === 196 || a.chainIndex === 196))
+    ?? portfolio.find((a) => a.symbol === targetSymbol);
+  const targetAssetId = targetAsset ? getAssetIdentity(targetAsset) : null;
   const existingUSDC = targetAsset ? parseFloat(targetAsset.balance) : 0;
   const requiredTarget = Math.max(0, intent.targetAmount - existingUSDC);
 
   const totalPortfolioVal = portfolio.reduce((sum, a) => sum + a.value, 0);
   const initialHighRiskVal = portfolio.filter((a) => a.risk === "high").reduce((sum, a) => sum + a.value, 0);
   const initialProtectedVal = portfolio.filter((a) => intent.protectedAssets.includes(a.symbol)).reduce((sum, a) => sum + a.value, 0);
+
+  const references = quoteOptions.references ?? [];
 
   const getMockQuote = (asset: ScannedAsset, inputAmount: number): RouteQuote => {
     const balanceNum = parseFloat(asset.balance);
@@ -297,11 +335,43 @@ export function solveRescue(
     const netOutputRatio = 1 - (slippagePercent / 100) - (priceImpactPercent / 100);
     const outputAmount = inputAmount * price * netOutputRatio;
 
+    const key = getAssetIdentity(asset);
+    const assetReferences = references.filter((reference) => reference.assetKey === key);
+    const exactReference = assetReferences.find((candidate) => Math.abs(candidate.requestedAmount - inputAmount) < 1e-9);
+    if (exactReference?.quote && exactReference.quote.availability === "AVAILABLE") return exactReference.quote;
+    const reference = exactReference && !exactReference.quote
+      ? assetReferences.find((candidate) => candidate.quote?.availability === "AVAILABLE")
+      : undefined;
+    if (reference?.quote && reference.quote.inputAmount > 0) {
+      const scale = inputAmount / reference.quote.inputAmount;
+      const outputAmount = reference.quote.outputAmount * scale;
+      return {
+        ...reference.quote,
+        source: "OKX_DERIVED_ESTIMATE",
+        inputAmount,
+        outputAmount,
+        conservativeExpectedOutput: outputAmount * 0.99,
+        confidence: "ESTIMATED",
+        routeMetadata: {
+          ...reference.quote.routeMetadata,
+          referenceInputAmount: reference.quote.inputAmount,
+          proportionallyScaledForSolver: Math.abs(scale - 1) >= 1e-9,
+        },
+      };
+    }
+    const fallbackReason = reference?.fallbackReason || (!asset.mainnetReferenceAddress
+      ? "UNSUPPORTED_ASSET_IDENTITY"
+      : "OKX_QUOTE_UNAVAILABLE");
     return {
+      source: "DEMO_ESTIMATE",
+      chain: { chainIndex: asset.chainIndex ?? 0, name: asset.chain },
+      fromToken: { symbol: asset.symbol, address: asset.contractAddress ?? asset.tokenAddress, decimals: asset.decimals },
+      toToken: { symbol: targetSymbol, address: targetAsset?.contractAddress ?? targetAsset?.tokenAddress, decimals: targetAsset?.decimals },
       fromSymbol: asset.symbol,
       toSymbol: targetSymbol,
       inputAmount,
       outputAmount,
+      conservativeExpectedOutput: outputAmount * 0.98,
       gasCostUsd: isEth ? 1.10 : isOkb ? 1.20 : 1.80,
       slippagePercent,
       priceImpactPercent,
@@ -310,10 +380,15 @@ export function solveRescue(
       dataSource: "demo",
       spenderAddress: "0x1111111254fb6c44bac0bed2854e76f90643097d",
       chainIndex: 1952,
+      timestamp: Date.now(),
+      confidence: "ESTIMATED",
+      availability: "FALLBACK",
+      fallbackReason,
+      routeMetadata: { mode: "SIMULATION_ONLY" },
     };
   };
 
-  const candidates = portfolio.filter((a) => a.symbol !== targetSymbol);
+  const candidates = portfolio.filter((a) => getAssetIdentity(a) !== targetAssetId);
   const highRiskAssets = candidates.filter((a) => a.risk === "high");
   const mediumRiskAssets = candidates.filter((a) => a.risk === "medium" && !intent.protectedAssets.includes(a.symbol));
   const protectedAssets = candidates.filter((a) => intent.protectedAssets.includes(a.symbol));
@@ -337,7 +412,7 @@ export function solveRescue(
       if (asset.symbol !== nativeGasSymbol) {
         estimatedApprovalCount++;
       }
-      tempRemaining -= quote.outputAmount;
+      tempRemaining -= quote.conservativeExpectedOutput;
     }
 
     if (tempRemaining > 0.005 && allowProtected) {
@@ -350,7 +425,7 @@ export function solveRescue(
         if (asset.symbol !== nativeGasSymbol) {
           estimatedApprovalCount++;
         }
-        tempRemaining -= quote.outputAmount;
+        tempRemaining -= quote.conservativeExpectedOutput;
       }
     }
 
@@ -392,7 +467,7 @@ export function solveRescue(
       if (balance <= 0) continue;
 
       const quote = getMockQuote(asset, balance);
-      const maxOutput = quote.outputAmount;
+      const maxOutput = quote.conservativeExpectedOutput;
 
       if (maxOutput <= remaining) {
         actions.push({
@@ -400,6 +475,10 @@ export function solveRescue(
           sellAmount: balance,
           usdValue: assetUsdValue,
           quote,
+          assetChainIndex: asset.chainIndex,
+          assetAddress: asset.contractAddress ?? asset.tokenAddress,
+          assetId: getAssetIdentity(asset),
+          assetIsNative: asset.isNative,
         });
         remaining -= maxOutput;
         actualGasUsd += quote.gasCostUsd;
@@ -416,8 +495,12 @@ export function solveRescue(
           sellAmount,
           usdValue: assetUsdValue * fraction,
           quote: partialQuote,
+          assetChainIndex: asset.chainIndex,
+          assetAddress: asset.contractAddress ?? asset.tokenAddress,
+          assetId: getAssetIdentity(asset),
+          assetIsNative: asset.isNative,
         });
-        remaining = 0;
+        remaining = Math.max(0, remaining - partialQuote.conservativeExpectedOutput);
         actualGasUsd += partialQuote.gasCostUsd;
         if (asset.symbol !== nativeGasSymbol) {
           actualApprovalCount++;
@@ -435,7 +518,7 @@ export function solveRescue(
         if (assetUsdValue <= 0 || balance <= 0) continue;
 
         const quote = getMockQuote(asset, balance);
-        const maxOutput = quote.outputAmount;
+        const maxOutput = quote.conservativeExpectedOutput;
 
         if (maxOutput <= remaining) {
           actions.push({
@@ -443,6 +526,10 @@ export function solveRescue(
             sellAmount: balance,
             usdValue: assetUsdValue,
             quote,
+            assetChainIndex: asset.chainIndex,
+            assetAddress: asset.contractAddress ?? asset.tokenAddress,
+            assetId: getAssetIdentity(asset),
+            assetIsNative: asset.isNative,
           });
           remaining -= maxOutput;
           actualGasUsd += quote.gasCostUsd;
@@ -459,8 +546,12 @@ export function solveRescue(
             sellAmount,
             usdValue: assetUsdValue * fraction,
             quote: partialQuote,
+            assetChainIndex: asset.chainIndex,
+            assetAddress: asset.contractAddress ?? asset.tokenAddress,
+            assetId: getAssetIdentity(asset),
+            assetIsNative: asset.isNative,
           });
-          remaining = 0;
+          remaining = Math.max(0, remaining - partialQuote.conservativeExpectedOutput);
           actualGasUsd += partialQuote.gasCostUsd;
           if (asset.symbol !== nativeGasSymbol) {
             actualApprovalCount++;
@@ -501,10 +592,10 @@ export function solveRescue(
     timeHorizon: "IMMEDIATE" | "FAST" | "CONTROLLED" | "PATIENT",
     tradeOff: string
   ): CandidatePlan => {
-    const soldSymbols = actions.filter((act) => act.sellAmount > 0).map((act) => act.symbol);
+    const soldAssetIds = new Set(actions.filter((act) => act.sellAmount > 0).map((act) => act.assetId));
     const assetsPreserved = portfolio
-      .filter((a) => !soldSymbols.includes(a.symbol) && a.symbol !== targetSymbol)
-      .map((a) => a.symbol);
+      .filter((a) => !soldAssetIds.has(getAssetIdentity(a)) && getAssetIdentity(a) !== targetAssetId)
+      .map((a) => `${a.symbol} (${a.chain})`);
       
     const soldProtected = actions.filter((act) => intent.protectedAssets.includes(act.symbol) && act.sellAmount > 0);
     
@@ -526,7 +617,7 @@ export function solveRescue(
 
     const soldHighRiskVal = actions
       .filter((act) => {
-        const orig = portfolio.find((p) => p.symbol === act.symbol);
+        const orig = portfolio.find((p) => getAssetIdentity(p) === act.assetId);
         return orig?.risk === "high" && act.sellAmount > 0;
       })
       .reduce((sum, act) => sum + act.usdValue, 0);
@@ -539,10 +630,28 @@ export function solveRescue(
     const concentrationChange = `Protected holdings shift from ${initialProtectedPct}% to ${finalProtectedPct}% of portfolio`;
 
     const requiresBridge = actions.some((act) => {
-      const asset = portfolio.find((p) => p.symbol === act.symbol);
+      const asset = portfolio.find((p) => getAssetIdentity(p) === act.assetId);
       return asset && asset.chainIndex !== 196 && asset.chain !== "X Layer";
     });
     const executionReadiness = requiresBridge ? "REQUIRES_BRIDGE" : "READY_TO_SIGN";
+    const exactActions = actions.filter((action) => action.quote?.source === "OKX_EXACT").length;
+    const derivedActions = actions.filter((action) => action.quote?.source === "OKX_DERIVED_ESTIMATE").length;
+    const totalActions = actions.length;
+    const demoActions = totalActions - exactActions - derivedActions;
+    const feasibilityConfidence: CandidatePlan["feasibilityConfidence"] = !targetMet
+      ? "NOT_MET"
+      : demoActions > 0
+        ? "DEMO"
+        : derivedActions > 0
+          ? "ESTIMATED"
+          : "EXACT";
+    const quoteWeight = actions.reduce((sum, action) => sum + action.usdValue, 0);
+    const planSlippage = quoteWeight > 0
+      ? actions.reduce((sum, action) => sum + (action.quote?.slippagePercent ?? 0) * action.usdValue, 0) / quoteWeight
+      : slippagePercent;
+    const planPriceImpact = quoteWeight > 0
+      ? actions.reduce((sum, action) => sum + (action.quote?.priceImpactPercent ?? 0) * action.usdValue, 0) / quoteWeight
+      : priceImpactPercent;
 
     return {
       id,
@@ -553,8 +662,8 @@ export function solveRescue(
       actions,
       protectedPreservedPercent,
       gasCostUsd,
-      slippagePercent,
-      priceImpactPercent,
+      slippagePercent: planSlippage,
+      priceImpactPercent: planPriceImpact,
       saveScore,
       damageScore,
       damageBreakdown: breakdown,
@@ -570,6 +679,16 @@ export function solveRescue(
       concentrationChange,
       executionReadiness,
       tradeOff,
+      feasibilityConfidence,
+      marketDataCoverage: {
+        exactActions,
+        derivedActions,
+        demoActions,
+        totalActions,
+        exactPercent: totalActions > 0 ? Math.round((exactActions / totalActions) * 100) : 0,
+        derivedPercent: totalActions > 0 ? Math.round((derivedActions / totalActions) * 100) : 0,
+        demoPercent: totalActions > 0 ? Math.round((demoActions / totalActions) * 100) : 0,
+      },
     };
   };
 
@@ -608,7 +727,7 @@ export function solveRescue(
     });
   } else {
     const planBTargetMet = runB.remainingShortfall <= 0.005;
-    const planBSecured = requiredTarget - runB.remainingShortfall;
+    const planBSecured = runB.actions.reduce((sum, action) => sum + (action.quote?.outputAmount ?? 0), 0);
     const scoresB = calculatePlanScore(planBTargetMet, planBSecured, requiredTarget, runB.actions, portfolio, intent, hasFeasiblePlanWithoutProtectedSale);
 
     const hasStrictB = intent.protectedAssetPolicy === "STRICT" && 
@@ -655,7 +774,7 @@ export function solveRescue(
     });
   } else {
     const planATargetMet = runA.remainingShortfall <= 0.005;
-    const planASecured = requiredTarget - runA.remainingShortfall;
+    const planASecured = runA.actions.reduce((sum, action) => sum + (action.quote?.outputAmount ?? 0), 0);
     const scoresA = calculatePlanScore(planATargetMet, planASecured, requiredTarget, runA.actions, portfolio, intent, hasFeasiblePlanWithoutProtectedSale);
 
     const hasStrictA = intent.protectedAssetPolicy === "STRICT" && 
@@ -702,7 +821,7 @@ export function solveRescue(
     });
   } else {
     const planCTargetMet = runC.remainingShortfall <= 0.005;
-    const planCSecured = requiredTarget - runC.remainingShortfall;
+    const planCSecured = runC.actions.reduce((sum, action) => sum + (action.quote?.outputAmount ?? 0), 0);
     const scoresC = calculatePlanScore(planCTargetMet, planCSecured, requiredTarget, runC.actions, portfolio, intent, hasFeasiblePlanWithoutProtectedSale);
 
     candidatePlans.push(

@@ -114,9 +114,9 @@ Deterministically extracts financial outcomes and constraints
 ## SECTION F — OKX INTEGRATION
 
 * **1-Sentence Version**:
-  SAVE integrates OKX Web3 APIs for balances and retains authenticated X Layer Mainnet routing/transaction adapters. Demo plans do not call these mainnet payloads or label local estimates as live OKX quotes.
+  SAVE integrates OKX Web3 balance APIs and active read-only X Layer Mainnet quotes. Exact quotes, OKX-derived estimates, and demo estimates are distinct, and rescue execution remains simulated.
 * **100-Word Sponsor Version**:
-  SAVE uses the OKX balance API where available and includes secure HMAC-signed server functions for X Layer Mainnet quotes, approvals, and swap payloads. Because the application stays on X Layer Testnet, those mainnet payloads are infrastructure/reference capability rather than the active rescue runtime. EIP-6963 provider discovery prioritizes OKX Wallet during connection.
+  SAVE uses the OKX balance API where available and secure HMAC-signed server functions for X Layer Mainnet read-only quotes. The solver requests exact action amounts when possible, labels scaled values as OKX-derived estimates, and falls back explicitly to demo estimates. Rescue swaps remain simulated; X Layer Testnet is used only for optional wallet verification.
 * **Technical Bullet List**:
   * **Balance Retrieval**: Queries OKX balance API to discover native and token positions.
   * **Route/Quote Adapter**: Retains authenticated X Layer Mainnet quote functions as reference infrastructure.
@@ -246,7 +246,7 @@ SAVE has a sustainable, non-hype business model built around three revenue and p
 * **Project Name**: SAVE
 * **Tagline**: Tell SAVE the outcome. It finds the best-fit portfolio path.
 * **Project Description**:
-  SAVE is an intent-driven portfolio rescue agent built for moments when crypto users urgently need to reduce risk or raise liquidity. Users state an outcome in plain language (e.g., *"Get me $700 USDC. Keep all my ETH"*), and SAVE translates this into structured constraints, generates three scored strategy candidates using OKX route quotes, and demonstrates the transaction pipeline on the X Layer Testnet.
+  SAVE is an intent-driven portfolio rescue agent built for moments when crypto users urgently need to reduce risk or raise liquidity. Users state an outcome in plain language, and SAVE translates it into structured constraints and scored simulated strategies using exact OKX quotes where available, clearly labelled OKX-derived estimates, and explicit demo fallbacks.
 * **Problem**:
   During market crashes or severe volatility, users know their target outcome (e.g., raising stablecoins or reducing risk) but struggle to manually calculate the swap sequence, slippage parameters, and approved spender contracts, leading to costly liquidation errors.
 * **Solution**:
@@ -254,7 +254,7 @@ SAVE has a sustainable, non-hype business model built around three revenue and p
 * **AI Usage**:
   Uses a structured intent-parser to extract target assets, goals, and protected tokens from plain text. The decision agent evaluates active holdings to generate suggestions and check target feasibility.
 * **OKX Integration**:
-  Queries OKX Web3 APIs to scan multi-chain balances, retrieve route quotes, and construct approval spender payloads, protected by server-side HMAC-SHA256 signing.
+  Queries OKX Web3 APIs for balances and read-only X Layer Mainnet quotes through server-side HMAC-SHA256 signing. The planning path does not request approvals or swap payloads.
 * **X Layer Integration**:
   Enforces network switches to X Layer Testnet (Chain ID 1952), verifies native OKB gas reserves via RPC client, and broadcasts signature verification receipts.
 * **Innovation**:
@@ -290,7 +290,7 @@ SAVE is an intent-driven portfolio rescue agent for Web3 portfolios. It acts as 
 Uses a deterministic parser to map raw text to target symbols, amounts, and protected assets, avoiding LLM hallucinations. The agent dynamically adjusts suggestions and feasibility indicators based on scanned token balances.
 
 ### OKX OnchainOS
-Uses OKX Web3 balance APIs where available and retains HMAC-signed X Layer Mainnet routing and approval adapters as reference infrastructure. Demo route estimates do not use those mainnet payloads.
+Uses OKX Web3 balance APIs where available and HMAC-signed X Layer Mainnet read-only quotes for supported identities. Exact, derived, and demo provenance remain separate.
 
 ### X Layer Consensus
 Runs network checks enforcing Chain ID `1952` (X Layer Testnet), gates signatures based on native OKB gas reserves, and polls block receipts via RPC.
@@ -305,7 +305,7 @@ SAVE moves DeFi interfaces from trade-by-trade entry forms to portfolio-level in
 
 ## SECTION Q — 150-WORD FINAL PITCH
 
-SAVE is an intent-driven portfolio rescue agent built for moments when crypto users urgently need to reduce risk or raise liquidity. Users can connect a wallet or paste a public address in watch-only mode. They state an outcome such as: "Raise $700 USDC, sell risky assets first, and preserve my ETH." SAVE converts that goal into structured constraints, analyzes the portfolio, generates multiple rescue strategies, scores their trade-offs, and evaluates feasibility. OKX Web3 infrastructure supplies portfolio/routing/transaction intelligence used by the planning pipeline. Before any wallet-authorized action, SAVE performs simulation and safety checks. The current MVP keeps rescue swaps simulated while demonstrating its real authorization and verification pipeline through a user-signed native OKB transaction on X Layer Testnet.
+SAVE is an intent-driven portfolio rescue agent built for moments when crypto users urgently need to reduce risk or raise liquidity. Users can connect a wallet or paste a public address in watch-only mode. They state an outcome such as: "Raise $700 USDC, sell risky assets first, and preserve my ETH." SAVE converts that goal into structured constraints, analyzes the portfolio, generates multiple rescue strategies, scores their trade-offs, and evaluates feasibility. Supported X Layer Mainnet actions use read-only OKX quotes; derived and demo estimates are disclosed separately. Rescue swaps remain simulated, while an optional user-signed native OKB transaction verifies wallet authorization and settlement on X Layer Testnet.
 
 DEX aggregators optimize swaps. SAVE optimizes portfolio outcomes.
 

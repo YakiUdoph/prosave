@@ -286,7 +286,9 @@ function Success() {
             </div>
             <div className="flex items-center justify-between gap-6 px-6 py-3.5">
               <dt className="label-mono">Route Parameters</dt>
-              <dd className="num text-sm text-foreground">DEMO ROUTE ESTIMATE · OKX mainnet adapter reference</dd>
+              <dd className="num text-sm text-foreground">
+                Exact {activePlan.marketDataCoverage.exactActions} · Derived {activePlan.marketDataCoverage.derivedActions} · Demo {activePlan.marketDataCoverage.demoActions}
+              </dd>
             </div>
           </dl>
         </Panel>

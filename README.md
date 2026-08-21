@@ -99,7 +99,7 @@ SAVE separates portfolio reasoning, routing infrastructure, and network verifica
 * **Portfolio Intelligence**: Scans native and ERC-20 balances, flags contract risk levels, and normalizes holdings.
 * **Intent Parser**: Normalizes natural language queries into goal amounts, target symbols, and protected assets.
 * **Rescue Solver**: An algorithmic solver that optimizes liquidation paths, calculates SAVE quality scores, and generates diverse candidate plans.
-* **OKX OnchainOS Integration**: Authenticated balance and X Layer Mainnet routing/transaction adapter infrastructure. Demo rescue plans use explicitly simulated route parameters.
+* **OKX OnchainOS Integration**: Authenticated balance data plus read-only X Layer Mainnet quote intelligence. Exact action amounts are quoted when possible; transformed references are labelled OKX-derived estimates, while unsupported or unavailable actions use explicit demo estimates.
 * **Plan Validation Engine**: Performs local portfolio-policy, feasibility, quote-age, estimated gas, and approval-requirement checks. It is not EVM transaction simulation.
 * **X Layer Wallet Verification**: An optional 0.0001 OKB self-transfer proving wallet authorization, chain selection, broadcast, and receipt settlement. It never executes or advances a rescue plan.
 
@@ -110,7 +110,7 @@ SAVE separates portfolio reasoning, routing infrastructure, and network verifica
 SAVE places a portfolio-policy layer above router infrastructure: routers answer how to swap a pair; SAVE evaluates which holdings should be sold or protected to minimize portfolio damage.
 
 ### OKX OnchainOS / Web3 API
-Server-side HMAC-SHA256 functions support OKX Web3 balances and X Layer Mainnet (chain 196) quote, approval, and swap payload APIs. The current X Layer Testnet rescue flow does not call those mainnet payloads and never presents local estimates as live OKX quotes.
+Server-side HMAC-SHA256 functions support OKX Web3 balances and X Layer Mainnet (chain 196) token discovery and read-only quote requests. The rescue-planning path never requests approval/swap payloads or broadcasts transactions. Plan and simulation screens distinguish exact OKX quotes, OKX-derived estimates, and demo estimates.
 
 ### X Layer Testnet
 X Layer Testnet (Chain ID 1952) supplies native OKB balance reads and an optional wallet/settlement diagnostic. Rescue swaps remain simulated because the OKX DEX adapter supports X Layer Mainnet, not testnet 1952.

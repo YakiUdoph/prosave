@@ -6,6 +6,7 @@ import { Eyebrow, MagneticButton, Panel, StatusPill } from "@/components/save/pr
 import { RescuePlanCard } from "@/components/save/rescue-plan-card";
 import { ScoreDial } from "@/components/save/score-dial";
 import { useSave } from "@/lib/save-context";
+import { getAssetIdentity } from "@/lib/xlayer";
 
 export const Route = createFileRoute("/plan")({
   head: () => ({
@@ -29,7 +30,7 @@ export const Route = createFileRoute("/plan")({
 import { useState } from "react";
 
 function RescuePlan() {
-  const { selectedPlan, setSelectedPlan, rescueResult, portfolio, parsedIntent, portfolioMode, setPortfolioMode } = useSave();
+  const { selectedPlan, setSelectedPlan, rescueResult, portfolio, parsedIntent, portfolioMode, setPortfolioMode, marketDataStatus } = useSave();
   const [showComparison, setShowComparison] = useState(false);
 
   // Map rescueResult CandidatePlans to the Plan interface expected by RescuePlanCard
@@ -42,7 +43,7 @@ function RescuePlan() {
       const candidatesList = portfolio.filter((a) => a.symbol !== targetSymbol);
 
       for (const asset of candidatesList) {
-        const act = p.actions.find((a) => a.symbol === asset.symbol);
+        const act = p.actions.find((a) => a.assetId === getAssetIdentity(asset));
         if (act && act.sellAmount > 0) {
           const balance = parseFloat(asset.balance);
           const fraction = balance > 0 ? act.sellAmount / balance : 0;
@@ -198,6 +199,40 @@ function RescuePlan() {
                 {activeRaw?.whyRecommended || active.summary}
               </p>
             </div>
+            {activeRaw && (
+              <div className="mt-4 rounded-lg border border-border bg-secondary/20 p-4 text-xs">
+                <div className="flex items-center justify-between gap-4">
+                  <Eyebrow>Market data coverage</Eyebrow>
+                  <span className="label-mono">
+                    {marketDataStatus === "LOADING" ? "Loading OKX reference quotes…" : `TARGET ${activeRaw.targetMet ? "MET" : "NOT MET"} · ${activeRaw.feasibilityConfidence}`}
+                  </span>
+                </div>
+                <p className="mt-2 text-muted-foreground">
+                  Exact OKX: {activeRaw.marketDataCoverage.exactActions}/{activeRaw.marketDataCoverage.totalActions} · Derived OKX: {activeRaw.marketDataCoverage.derivedActions}/{activeRaw.marketDataCoverage.totalActions} · Demo: {activeRaw.marketDataCoverage.demoActions}/{activeRaw.marketDataCoverage.totalActions}
+                </p>
+                <ul className="mt-3 space-y-1.5 border-t border-border/50 pt-3">
+                  {activeRaw.actions.map((action) => (
+                    <li key={action.assetId} className="flex justify-between gap-4">
+                      <span>
+                        {action.symbol} → {action.quote?.toSymbol || parsedIntent.targetAsset}
+                        {action.quote?.source === "OKX_DERIVED_ESTIMATE" && (
+                          <small className="mt-1 block text-muted-foreground">
+                            Reference {Number(action.quote.routeMetadata?.referenceInputAmount ?? 0).toPrecision(4)} · Action {action.sellAmount.toPrecision(4)} · Confidence ESTIMATED
+                          </small>
+                        )}
+                      </span>
+                      <span className={action.quote?.source === "OKX_EXACT" ? "text-safe" : "text-warning"}>
+                        {action.quote?.source === "OKX_EXACT"
+                          ? "OKX EXACT QUOTE"
+                          : action.quote?.source === "OKX_DERIVED_ESTIMATE"
+                            ? "OKX-DERIVED ESTIMATE"
+                            : `DEMO ROUTE ESTIMATE · ${action.quote?.fallbackReason || "OKX_UNAVAILABLE"}`}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </Panel>
 
           <Panel className="p-6">

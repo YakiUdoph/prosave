@@ -352,6 +352,15 @@ This is an append-only log documenting architectural decisions, security resolut
 - **Files Affected**: `src/lib/execution.ts`, `src/lib/save-context.tsx`, `src/routes/simulate.tsx`, `src/routes/protected.tsx`, tests, judge-facing documentation
 - **Status**: **RESOLVED**
 
+### DRIFT-040: OKX Exact Quotes and Derived Estimates Were Conflated
+- **Date**: 2026-08-21
+- **Discovery**: The first Phase B pass labelled proportionally scaled OKX reference data as a direct OKX quote and counted it with exact quote coverage. The v6 token normalizer also expected legacy aliases, while live discovery continued to time out from this host.
+- **Root Cause**: Quote provenance represented provider origin but did not separately represent whether the provider response matched the solver action amount.
+- **Impact**: Estimated output could imply exact market coverage and exact target feasibility even though slippage, price impact, and route composition may be nonlinear.
+- **Resolution**: Added `OKX_EXACT`, `OKX_DERIVED_ESTIMATE`, and `DEMO_ESTIMATE`; attempts an exact final-action quote; applies conservative feasibility haircuts of 1% to derived OKX output and 2% to demo output without altering displayed raw estimates; separates coverage and target confidence; normalizes public failure reasons; and uses chain-aware asset identities. Rescue execution remains simulated and the market path cannot call approval, swap, or broadcast endpoints.
+- **Files Affected**: `src/lib/okx.server.ts`, `src/lib/market-intelligence.server.ts`, `src/lib/rescue-solver.ts`, `src/lib/save-context.tsx`, `src/lib/xlayer.ts`, plan/simulation UI, tests, documentation
+- **Status**: **RESOLVED**
+
 ---
 
 ## 📝 Drift Entry Template

@@ -1,8 +1,10 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
-import { scanPortfolio, type ScannedAsset, type DataSource, publicClient } from "./xlayer";
+import { getAssetIdentity, scanPortfolio, type ScannedAsset, type DataSource, publicClient } from "./xlayer";
 import { parseSaveIntent, type SaveIntent } from "./intent-parser";
 import { solveRescue, type RescueResult } from "./rescue-solver";
+import type { QuoteReference } from "./rescue-solver";
+import { normalizeFallbackReason, serverGetReadOnlyQuoteReferences, type QuoteRequest } from "./market-intelligence.server";
 import { simulatePlan, type ExecutionState, type SimulationResult } from "./simulation";
 import {
   type ExecutionStep,
@@ -36,6 +38,7 @@ type SaveState = {
   setIntent: (v: string) => void;
   parsedIntent: SaveIntent;
   rescueResult: RescueResult;
+  marketDataStatus: "LOADING" | "READY" | "FALLBACK";
   selectedPlan: "A" | "B" | "C";
   setSelectedPlan: (v: "A" | "B" | "C") => void;
   walletAddress: string | null;
@@ -149,9 +152,73 @@ export function SaveProvider({ children }: { children: ReactNode }) {
   });
   const [walletVerificationBalanceStatus, setWalletVerificationBalanceStatus] = useState<"UNKNOWN" | "CHECKING" | "SUFFICIENT" | "INSUFFICIENT" | "ERROR">("UNKNOWN");
 
-  const rescueResult = useMemo(() => {
-    return solveRescue(portfolio, parsedIntent, portfolioMode);
+  const [quoteReferences, setQuoteReferences] = useState<QuoteReference[]>([]);
+  const [marketDataStatus, setMarketDataStatus] = useState<"LOADING" | "READY" | "FALLBACK">("FALLBACK");
+
+  useEffect(() => {
+    let cancelled = false;
+    const targetSymbol = parsedIntent.targetAsset || "USDC";
+    const target = portfolio.find((asset) =>
+      asset.symbol === targetSymbol && asset.mainnetReferenceChainIndex === 196 && asset.mainnetReferenceAddress
+    );
+    const requests: QuoteRequest[] = target ? portfolio
+      .filter((asset) => asset.symbol !== targetSymbol && asset.mainnetReferenceChainIndex === 196 && asset.mainnetReferenceAddress)
+      .map((asset) => ({
+        assetKey: `196:${asset.mainnetReferenceAddress!.toLowerCase()}`,
+        chainIndex: 196,
+        fromTokenAddress: asset.mainnetReferenceAddress!,
+        fromDecimals: asset.mainnetReferenceDecimals ?? 18,
+        toTokenAddress: target.mainnetReferenceAddress!,
+        amount: parseFloat(asset.balance),
+      })) : [];
+
+    if (requests.length === 0) {
+      setQuoteReferences([]);
+      setMarketDataStatus("FALLBACK");
+      return () => { cancelled = true; };
+    }
+    setMarketDataStatus("LOADING");
+    void serverGetReadOnlyQuoteReferences({ data: requests })
+      .then(async (references) => {
+        if (cancelled) return;
+        let combined = references;
+        for (let iteration = 0; iteration < 5; iteration++) {
+          const preliminary = solveRescue(portfolio, parsedIntent, portfolioMode, { references: combined });
+          const exactRequestMap = new Map<string, QuoteRequest>();
+          for (const action of preliminary.plans.flatMap((plan) => plan.actions)) {
+            const asset = portfolio.find((candidate) => getAssetIdentity(candidate) === action.assetId);
+            if (!asset?.mainnetReferenceAddress || asset.mainnetReferenceChainIndex !== 196 || !target?.mainnetReferenceAddress) continue;
+            const exactRequest: QuoteRequest = {
+              assetKey: getAssetIdentity(asset), chainIndex: 196,
+              fromTokenAddress: asset.mainnetReferenceAddress,
+              fromDecimals: asset.mainnetReferenceDecimals ?? 18,
+              toTokenAddress: target.mainnetReferenceAddress,
+              amount: action.sellAmount,
+            };
+            exactRequestMap.set(`${exactRequest.assetKey}:${exactRequest.amount.toPrecision(15)}`, exactRequest);
+          }
+          const missing = [...exactRequestMap.values()].filter((request) =>
+            !combined.some((reference) => reference.assetKey === request.assetKey && Math.abs(reference.requestedAmount - request.amount) < 1e-9)
+          );
+          if (missing.length === 0) break;
+          const attempted = await serverGetReadOnlyQuoteReferences({ data: missing });
+          combined = [...attempted, ...combined];
+          if (cancelled) return;
+        }
+        setQuoteReferences(combined);
+        setMarketDataStatus(combined.some((reference) => reference.quote) ? "READY" : "FALLBACK");
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setQuoteReferences(requests.map((request) => ({ assetKey: request.assetKey, requestedAmount: request.amount, fallbackReason: normalizeFallbackReason() })));
+        setMarketDataStatus("FALLBACK");
+      });
+    return () => { cancelled = true; };
   }, [portfolio, parsedIntent, portfolioMode]);
+
+  const rescueResult = useMemo(() => {
+    return solveRescue(portfolio, parsedIntent, portfolioMode, { references: quoteReferences });
+  }, [portfolio, parsedIntent, portfolioMode, quoteReferences]);
   
   const [isScanning, setIsScanning] = useState(false);
 
@@ -176,7 +243,7 @@ export function SaveProvider({ children }: { children: ReactNode }) {
     setQuoteTimestamp(Date.now());
     setExecutionState("IDLE");
     setSimulationResult(null);
-  }, [portfolio, parsedIntent, selectedPlan]);
+  }, [portfolio, parsedIntent, selectedPlan, quoteReferences]);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -642,6 +709,7 @@ export function SaveProvider({ children }: { children: ReactNode }) {
       setIntent,
       parsedIntent,
       rescueResult,
+      marketDataStatus,
       selectedPlan,
       setSelectedPlan,
       walletAddress,
@@ -693,6 +761,7 @@ export function SaveProvider({ children }: { children: ReactNode }) {
       setIntent,
       parsedIntent,
       rescueResult,
+      marketDataStatus,
       selectedPlan,
       setSelectedPlan,
       walletAddress,

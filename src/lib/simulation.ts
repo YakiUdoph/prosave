@@ -40,6 +40,7 @@ export type SimulationFailureReason =
   | "UNKNOWN_SPENDER";
 
 export type VerifiedApproval = {
+  assetId?: string;
   tokenAddress: string;
   chainIndex: number;
   approveAmount: number;
@@ -183,7 +184,8 @@ export function simulatePlan(
   const requiredApprovals: ApprovalRequirement[] = [];
 
   for (const act of plan.actions) {
-    if (act.symbol !== nativeGasSymbol) {
+    const isNativeGasAction = act.assetIsNative && act.symbol === nativeGasSymbol;
+    if (!isNativeGasAction) {
       const quoteSpender = act.quote?.spenderAddress;
       const quoteChainIndex = act.quote?.chainIndex || 1952;
       
@@ -197,8 +199,8 @@ export function simulatePlan(
       // Find matching VerifiedApproval
       const match = verifiedApprovals.find(
         (app) =>
-          app.tokenAddress.toLowerCase() === act.symbol.toLowerCase() ||
-          (act.symbol === "TKX" && app.tokenAddress.toLowerCase() === "tkx")
+          (app.assetId && app.assetId === act.assetId) ||
+          (!!act.assetAddress && app.tokenAddress.toLowerCase() === act.assetAddress.toLowerCase() && app.chainIndex === act.assetChainIndex)
       );
 
       if (simulationMode === "DEMO_SIMULATION") {

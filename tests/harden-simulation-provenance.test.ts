@@ -211,7 +211,7 @@ describe("Simulation & Verification Provenance Hardening Suite", () => {
         const swapTotal = plan.actions.reduce((sum, act) => {
           return sum + (act.quote ? act.quote.outputAmount : 0);
         }, 0);
-        const targetAsset = mockPortfolio.find(a => a.symbol === "USDC")!;
+        const targetAsset = mockPortfolio.find(a => a.symbol === "USDC" && a.chainIndex === 196)!;
         const existingUSDC = parseFloat(targetAsset.balance);
         const finalSecured = existingUSDC + swapTotal;
         expect(Math.abs(plan.securedAmount - finalSecured)).toBeLessThanOrEqual(0.01);

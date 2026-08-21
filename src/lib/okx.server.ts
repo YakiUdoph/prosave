@@ -219,9 +219,9 @@ export async function getOkxTokens(chainIndex: number = 196): Promise<OkxRequest
 
   const list = res.data || [];
   const normalized: OkxTokenInfo[] = list.map((t) => ({
-    symbol: t.symbol,
-    name: t.name,
-    address: t.tokenAddress,
+    symbol: t.tokenSymbol ?? t.symbol,
+    name: t.tokenName ?? t.name,
+    address: t.tokenContractAddress ?? t.tokenAddress,
     decimals: Number(t.decimals),
     chainIndex,
     source: "LIVE_OKX" as const,
@@ -258,6 +258,8 @@ export async function getLiveQuote(
   }
 
   const priceImpact = parseFloat(data.priceImpact) || 0;
+  const gasFeeUsd = Number.parseFloat(data.gasFeeUsd);
+  const slippage = Number.parseFloat(data.slippagePercent ?? data.slippage);
   if (priceImpact > 5.0) {
     return {
       success: false,
@@ -267,17 +269,47 @@ export async function getLiveQuote(
   }
 
   const normalized: RouteQuote = {
-    fromSymbol: data.fromToken?.symbol || "UNKNOWN",
-    toSymbol: data.toToken?.symbol || "UNKNOWN",
-    inputAmount: parseFloat(data.fromTokenAmount) / Math.pow(10, Number(data.fromToken?.decimals || 18)),
-    outputAmount: parseFloat(data.toTokenAmount) / Math.pow(10, Number(data.toToken?.decimals || 18)),
-    gasCostUsd: parseFloat(data.gasFeeUsd) || 1.50,
-    slippagePercent: 1.0, // Default Slippage
+    source: "OKX_EXACT",
+    chain: { chainIndex, name: "X Layer Mainnet" },
+    fromToken: {
+      symbol: data.fromToken?.tokenSymbol || data.fromToken?.symbol || "UNKNOWN",
+      address: fromTokenAddress,
+      decimals: Number(data.fromToken?.decimal ?? data.fromToken?.decimals),
+    },
+    toToken: {
+      symbol: data.toToken?.tokenSymbol || data.toToken?.symbol || "UNKNOWN",
+      address: toTokenAddress,
+      decimals: Number(data.toToken?.decimal ?? data.toToken?.decimals),
+    },
+    fromSymbol: data.fromToken?.tokenSymbol || data.fromToken?.symbol || "UNKNOWN",
+    toSymbol: data.toToken?.tokenSymbol || data.toToken?.symbol || "UNKNOWN",
+    inputAmount: parseFloat(data.fromTokenAmount) / Math.pow(10, Number(data.fromToken?.decimal ?? data.fromToken?.decimals ?? 18)),
+    outputAmount: parseFloat(data.toTokenAmount) / Math.pow(10, Number(data.toToken?.decimal ?? data.toToken?.decimals ?? 18)),
+    conservativeExpectedOutput: parseFloat(data.toTokenAmount) / Math.pow(10, Number(data.toToken?.decimal ?? data.toToken?.decimals ?? 18)),
+    gasCostUsd: Number.isFinite(gasFeeUsd) ? gasFeeUsd : 0,
+    slippagePercent: Number.isFinite(slippage) ? slippage : 0,
     priceImpactPercent: priceImpact,
-    reliabilityScore: 0.98,
+    reliabilityScore: 1,
     provider: "OKX DEX Aggregator",
     dataSource: "live",
+    chainIndex,
+    timestamp: Date.now(),
+    confidence: "HIGH",
+    availability: "AVAILABLE",
+    routeMetadata: {
+      endpoint: "/api/v6/dex/aggregator/quote",
+      readOnly: true,
+      gasEstimateAvailable: Number.isFinite(gasFeeUsd),
+      slippageAvailable: Number.isFinite(slippage),
+    },
   };
+
+  if (!Number.isFinite(normalized.inputAmount) || normalized.inputAmount <= 0 ||
+      !Number.isFinite(normalized.outputAmount) || normalized.outputAmount <= 0 ||
+      !Number.isInteger(normalized.fromToken.decimals) || normalized.fromToken.decimals! < 0 ||
+      !Number.isInteger(normalized.toToken.decimals) || normalized.toToken.decimals! < 0) {
+    return { success: false, error: "INVALID_QUOTE", details: "OKX quote contained zero amounts or invalid token decimals." };
+  }
 
   return {
     success: true,
